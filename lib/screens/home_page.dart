@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:skin_assessment/screens/appointment.dart';
 import 'package:skin_assessment/screens/dashboard.dart';
 import 'package:skin_assessment/screens/camera_tab.dart';
 import 'package:skin_assessment/widgets/custom_bottom_navbar.dart';
@@ -16,7 +17,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _pages = [
     DashboardScreen(),
-    Center(child: Text('Calendar')), // Replace with your calendar screen
+    BookAppointmentPage(),
     CameraTabScreen(),
     Center(child: Text('Analytics')), // Replace with your analytics screen
     Center(child: Text('Profile')),   // Replace with your profile screen

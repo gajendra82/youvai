@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:skin_assessment/screens/dashboard.dart';
 import 'package:skin_assessment/screens/home_page.dart';
+import 'package:skin_assessment/screens/skin_analysis_screen.dart';
 // import other screens here
 
 class AppRoutes {
@@ -12,6 +13,7 @@ class AppRoutes {
   static Map<String, WidgetBuilder> getRoutes() {
     return {
       home: (context) =>  HomeScreen(),
+      // home: (context) =>  SkSinAnalysisScreen(),
       dashboard: (context) =>  DashboardScreen(),
       // journey: (context) => const JourneyScreen(),
       // profile: (context) => const ProfileScreen(),

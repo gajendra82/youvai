@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import '../widgets/skin_analysis_view.dart';
 import '../models/skin_analysis_model.dart';
 import 'package:path/path.dart';
+import 'SkinConditionResultPage.dart'; // <-- Make sure this import path is correct
 
 class SkinAnalysisScreen extends StatefulWidget {
   const SkinAnalysisScreen({Key? key}) : super(key: key);
@@ -79,8 +80,29 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
                     // Only show chips for types with location and not unknown
                     if (_analysisJson != null)
                       _buildHorizontalIssues(_analysisJson!),
+                    // Show button to view percentage & summary if gradioResult exists
                     if (_gradioResult != null)
-                      _buildGradioResultWidget(_gradioResult!),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 8.0, horizontal: 16),
+                        child: SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            icon: const Icon(Icons.analytics),
+                            label: const Text("View Percentage & Summary"),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) => SkinConditionResultPage(
+                                    gradioResult: _gradioResult!,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -136,41 +158,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
             ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildGradioResultWidget(Map<String, dynamic> data) {
-    final List<Widget> items = [];
-    if (data['data'] is List) {
-      for (var element in data['data']) {
-        if (element is Map) {
-          element.forEach((key, value) {
-            items.add(Text("$key: $value"));
-          });
-        } else if (element is String) {
-          items.add(Text(element,
-              style: const TextStyle(fontWeight: FontWeight.bold)));
-        }
-      }
-    } else if (data is Map) {
-      data.forEach((key, value) {
-        items.add(Text("$key: $value"));
-      });
-    }
-
-    return Card(
-      margin: const EdgeInsets.symmetric(vertical: 8),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("Skin Problem Percentages",
-                style: TextStyle(fontWeight: FontWeight.bold)),
-            ...items,
-          ],
-        ),
       ),
     );
   }
@@ -240,7 +227,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           "https://www.ailabapi.com/api/portrait/analysis/skin-analysis-pro");
       final req = http.MultipartRequest('POST', uri);
       req.headers['ailabapi-api-key'] =
-          'qaZ9TlSGKuaXR1D06DbIOCW380RUrdek7iVxmHVYJs9FniA3U5cOBkPtNLrlJF2h';
+          'y9E3wWpnBYxBes5hsHwGJAm8XTiVYoWlidzjZQjr8uo1J04nbp6ukUZLhIS0av4U';
       req.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
       final streamedResp = await req.send();
       final resp = await http.Response.fromStream(streamedResp);

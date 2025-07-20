@@ -143,26 +143,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
             ),
           ),
         // ---------- ADD THIS BUTTON BELOW ----------
-        Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
-          child: SizedBox(
-            width: double.infinity,
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.analytics),
-              label: const Text("View Percentage & Summary"),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => SkinConditionResultPage(
-                      gradioResult: widget.analysisJson,
-                    ),
-                  ),
-                );
-              },
-            ),
-          ),
-        ),
+
         // -------------------------------------------
       ],
     );

@@ -4,6 +4,7 @@ import 'package:skin_assessment/screens/face_view.dart';
 import 'dart:io';
 
 import 'package:skin_assessment/screens/scan_face_screen.dart';
+import 'package:skin_assessment/screens/skin_analysis_screen.dart';
 
 class CameraTabScreen extends StatefulWidget {
   const CameraTabScreen({Key? key}) : super(key: key);
@@ -22,9 +23,9 @@ class _CameraTabScreenState extends State<CameraTabScreen> {
   File? _imageFile;
 
   Future<void> _showDialogAndPickImage() async {
-    Future.delayed(const Duration(milliseconds: 100), () {
-      showScanFaceDialog(context);
-    });
+    // Future.delayed(const Duration(milliseconds: 100), () {
+    //   showScanFaceDialog(context);
+    // });
   }
 
   @override
@@ -32,9 +33,9 @@ class _CameraTabScreenState extends State<CameraTabScreen> {
     return Scaffold(
       body: Center(
         child: _imageFile == null
-            ? ElevatedButton(
-                onPressed: _showDialogAndPickImage,
-                child: const Text('Scan'),
+            ? Container(
+              color: Colors.white,
+                child: ScanFaceScreen(),
               )
             : Stack(
                 children: [
@@ -74,11 +75,11 @@ class _CameraTabScreenState extends State<CameraTabScreen> {
                           ),
                         ),
                         onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => ScanFaceScreen(),
-                            ),
-                          );
+                          // Navigator.of(context).push(
+                          //   MaterialPageRoute(
+                          //     builder: (context) => ScanFaceScreen(),
+                          //   ),
+                          // );
                         },
                       ),
                     ),
@@ -258,23 +259,10 @@ class _CameraTabScreenState extends State<CameraTabScreen> {
                   onPressed: () async {
                     Navigator.of(context).push(
                       MaterialPageRoute(
-                        builder: (context) => FaceViewPage(
-                          // skinAnnotations: [
-                          //   SkinIssueAnnotation(
-                          //     label: 'Dead skin cells',
-                          //     position: Offset(60, 350),
-                          //     direction: ArrowDirection.right,
-                          //   ),
-                          //   SkinIssueAnnotation(
-                          //     label: 'Dry patches',
-                          //     position: Offset(260, 200),
-                          //     direction: ArrowDirection.left,
-                          //   ),
-                          //   // Add more points as needed
-                          // ],
-                        ),
-                      ),
-                    );
+                          // builder: (context) => FaceViewPage(
+                          // ),
+                          builder: (context) => SkinAnalysisScreen()
+                    ));
                   },
                   child: const Text(
                     "Scan now!",

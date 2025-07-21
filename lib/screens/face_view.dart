@@ -1,669 +1,519 @@
-import 'dart:convert';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:io';
-import 'package:http/http.dart' as http;
-import '../models/skin_analysis_model.dart';
-import 'package:path/path.dart';
 
-// Helper class for face analysis point overlay
-class _FacePoint {
-  final String name;
-  final double dx;
-  final double dy;
-  final String? valueText;
-  final String? detailText;
+const Map<String, dynamic> hardcodedJson = {
+  "face_rectangle": {"top": 2096, "left": 1034, "width": 1377, "height": 1377},
+  "result": {
+    "acne": {
+      "rectangle": [
+        {"left": 1234, "top": 2038, "width": 25, "height": 39}
+      ],
+      "count": 1
+    },
+    "brown_spot": {
+      "rectangle": [
+        {"left": 2028, "top": 2549, "width": 14, "height": 16},
+        {"left": 1469, "top": 1747, "width": 21, "height": 24},
+        {"left": 1699, "top": 2535, "width": 20, "height": 23},
+        {"left": 2243, "top": 2516, "width": 15, "height": 23},
+      ],
+      "count": 28
+    },
+    "left_eye_pouch_rect": {
+      "left": 1216, "top": 2179, "width": 416, "height": 362
+    },
+    "right_eye_pouch_rect": {
+      "left": 1878, "top": 2185, "width": 408, "height": 355
+    }
+  }
+};
 
-  const _FacePoint({
-    required this.name,
-    required this.dx,
-    required this.dy,
-    this.valueText,
-    this.detailText,
-  });
+class FaceLabelRect {
+  final String label;
+  final Rect rect;
+  FaceLabelRect(this.label, this.rect);
 }
 
 class FaceViewPage extends StatefulWidget {
+  const FaceViewPage({Key? key}) : super(key: key);
+
   @override
   State<FaceViewPage> createState() => _FaceViewPageState();
 }
 
 class _FaceViewPageState extends State<FaceViewPage> {
-  int _selectedTab = 0;
-  int? _highlightedIndex;
   File? _imageFile;
-  Map<String, dynamic>? _analysisJson;
-  bool _loading = false;
-  String? _error;
-  List<_FacePoint> _points = [];
+  Uint8List? _imageBytes;
+  late final List<FaceLabelRect> _allRects;
+  int? _highlightedIdx;
+  Size? _imageSize; // actual picked image size
+
+  static const double analysisImageW = 4000.0;
+  static const double analysisImageH = 4000.0;
 
   @override
   void initState() {
     super.initState();
-    _pickInitialImage();
+    _allRects = _parseRectsFromJson(hardcodedJson);
   }
 
-  Future<void> _pickInitialImage() async {
+  List<FaceLabelRect> _parseRectsFromJson(Map<String, dynamic> json) {
+    final result = json['result'] as Map<String, dynamic>;
+    final List<FaceLabelRect> rects = [];
+
+    final face = json['face_rectangle'];
+    if (face != null) {
+      rects.add(FaceLabelRect(
+        'Face',
+        Rect.fromLTWH(
+            (face['left'] ?? 0).toDouble(),
+            (face['top'] ?? 0).toDouble(),
+            (face['width'] ?? 0).toDouble(),
+            (face['height'] ?? 0).toDouble()),
+      ));
+    }
+
+    final acne = result['acne'];
+    if (acne != null && acne['rectangle'] != null) {
+      for (var i = 0; i < (acne['rectangle'] as List).length; i++) {
+        final r = acne['rectangle'][i];
+        rects.add(FaceLabelRect(
+          'Acne ${i + 1}',
+          Rect.fromLTWH(
+              (r['left'] ?? 0).toDouble(),
+              (r['top'] ?? 0).toDouble(),
+              (r['width'] ?? 0).toDouble(),
+              (r['height'] ?? 0).toDouble()),
+        ));
+      }
+    }
+
+    final brown = result['brown_spot'];
+    if (brown != null && brown['rectangle'] != null) {
+      for (var i = 0; i < (brown['rectangle'] as List).length; i++) {
+        final r = brown['rectangle'][i];
+        rects.add(FaceLabelRect(
+          'Brown Spot ${i + 1}',
+          Rect.fromLTWH(
+              (r['left'] ?? 0).toDouble(),
+              (r['top'] ?? 0).toDouble(),
+              (r['width'] ?? 0).toDouble(),
+              (r['height'] ?? 0).toDouble()),
+        ));
+      }
+    }
+
+    final leftEye = result['left_eye_pouch_rect'];
+    if (leftEye != null) {
+      rects.add(FaceLabelRect(
+        'Left Eye Pouch',
+        Rect.fromLTWH(
+            (leftEye['left'] ?? 0).toDouble(),
+            (leftEye['top'] ?? 0).toDouble(),
+            (leftEye['width'] ?? 0).toDouble(),
+            (leftEye['height'] ?? 0).toDouble()),
+      ));
+    }
+    final rightEye = result['right_eye_pouch_rect'];
+    if (rightEye != null) {
+      rects.add(FaceLabelRect(
+        'Right Eye Pouch',
+        Rect.fromLTWH(
+            (rightEye['left'] ?? 0).toDouble(),
+            (rightEye['top'] ?? 0).toDouble(),
+            (rightEye['width'] ?? 0).toDouble(),
+            (rightEye['height'] ?? 0).toDouble()),
+      ));
+    }
+    return rects;
+  }
+
+  Future<void> _pickImageFromCamera() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(
-      source: ImageSource.gallery,
+      source: ImageSource.camera,
       preferredCameraDevice: CameraDevice.front,
     );
     if (pickedFile != null) {
-      _imageFile = File(pickedFile.path);
+      final bytes = await pickedFile.readAsBytes();
+      final decoded = await decodeImageFromList(bytes);
       setState(() {
-        _loading = true;
+        _imageFile = File(pickedFile.path);
+        _imageBytes = bytes;
+        _imageSize = Size(decoded.width.toDouble(), decoded.height.toDouble());
+        _highlightedIdx = null;
       });
-      await _analyzeImage(_imageFile!);
     }
-  }
-
-  Future<void> _analyzeImage(File imageFile) async {
-    Map<String, dynamic>? ailabData;
-    try {
-      final uri = Uri.parse(
-          "https://www.ailabapi.com/api/portrait/analysis/skin-analysis-pro");
-      final req = http.MultipartRequest('POST', uri);
-      req.headers['ailabapi-api-key'] =
-          'qaZ9TlSGKuaXR1D06DbIOCW380RUrdek7iVxmHVYJs9FniA3U5cOBkPtNLrlJF2h';
-      req.files.add(await http.MultipartFile.fromPath('image', imageFile.path));
-      final streamedResp = await req.send();
-      final resp = await http.Response.fromStream(streamedResp);
-
-      if (resp.statusCode == 200) {
-        final decoded = json.decode(resp.body);
-        if (decoded is Map<String, dynamic>) {
-          ailabData = decoded;
-        }
-      }
-    } catch (e) {
-      ailabData = null;
-    }
-
-    final points = _facePointsFromAILAB(result: ailabData?['result']);
-
-    setState(() {
-      _analysisJson = ailabData;
-      _points = points;
-      _loading = false;
-      _error = (_analysisJson == null)
-          ? "No face analysis detected. Try again."
-          : null;
-    });
-  }
-
-  List<_FacePoint> _facePointsFromAILAB({Map<String, dynamic>? result}) {
-    if (result == null) return [];
-    // Map API fields to overlays (adjust dx/dy for your UI)
-    return [
-      _FacePoint(
-        name: "Skin Age",
-        dx: 0.50,
-        dy: 0.13,
-        valueText: result['skin_age']?['value']?.toString(),
-        detailText: "Estimated skin age.",
-      ),
-      _FacePoint(
-        name: "Eye Pouch",
-        dx: 0.28,
-        dy: 0.40,
-        valueText: _severityText(result['eye_pouch_severity']?['value']),
-        detailText: "Under-eye puffiness.",
-      ),
-      _FacePoint(
-        name: "Dark Circle",
-        dx: 0.28,
-        dy: 0.47,
-        valueText: _severityText(result['dark_circle_severity']?['value']),
-        detailText: "Dark circle severity.",
-      ),
-      _FacePoint(
-        name: "Forehead Wrinkle",
-        dx: 0.49,
-        dy: 0.21,
-        valueText: _severityText(result['forehead_wrinkle']?['value']),
-        detailText: "Forehead wrinkle presence.",
-      ),
-      _FacePoint(
-        name: "Crow's Feet",
-        dx: 0.16,
-        dy: 0.29,
-        valueText: _severityText(result['crows_feet']?['value']),
-        detailText: "Wrinkles near eye corners.",
-      ),
-      _FacePoint(
-        name: "Eye Fine Lines",
-        dx: 0.32,
-        dy: 0.38,
-        valueText: _severityText(result['eye_finelines_severity']?['value']),
-        detailText: "Fine lines near eyes.",
-      ),
-      _FacePoint(
-        name: "Glabella Wrinkle",
-        dx: 0.50,
-        dy: 0.32,
-        valueText: _severityText(result['glabella_wrinkle']?['value']),
-        detailText: "Wrinkle between eyebrows.",
-      ),
-      _FacePoint(
-        name: "Nasolabial Fold",
-        dx: 0.46,
-        dy: 0.62,
-        valueText: _severityText(result['nasolabial_fold_severity']?['value']),
-        detailText: "Smile lines severity.",
-      ),
-      // Add more if your API returns additional fields
-    ];
-  }
-
-  static String _severityText(dynamic val) {
-    if (val == null) return '-';
-    switch (val.toString()) {
-      case '0':
-        return 'None';
-      case '1':
-        return 'Mild';
-      case '2':
-        return 'Moderate';
-      case '3':
-        return 'Severe';
-      default:
-        return val.toString();
-    }
-  }
-
-  void _showPointSheet(int index, context) {
-    setState(() => _highlightedIndex = index);
-    final pt = _points[index];
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              pt.name,
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: Color(0xFF7C6CC6)),
-            ),
-            if (pt.valueText != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 10),
-                child: Text("Severity: ${pt.valueText}",
-                    style:
-                        const TextStyle(fontSize: 16, color: Colors.black87)),
-              ),
-            if (pt.detailText != null)
-              Text(pt.detailText!,
-                  style: const TextStyle(fontSize: 15, color: Colors.black54)),
-            const SizedBox(height: 18),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text("Close"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF7C6CC6),
-                foregroundColor: Colors.white,
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ).then((_) {
-      setState(() => _highlightedIndex = null);
-    });
-  }
-
-  _showOverviewSheet(context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.white,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text(
-                "Full Overview",
-                style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 20,
-                    color: Color(0xFF7C6CC6)),
-              ),
-              const SizedBox(height: 12),
-              ..._points.map((pt) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 6),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(pt.name,
-                            style: const TextStyle(fontWeight: FontWeight.w500)),
-                        Text(pt.valueText ?? '-',
-                            style: const TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF7C6CC6))),
-                      ],
-                    ),
-                  )),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  double _tabSheetHeight(BuildContext context) {
-    switch (_selectedTab) {
-      case 0:
-        return 220;
-      case 1:
-        return 340;
-      case 2:
-        return 210;
-      case 3:
-        return 210;
-      default:
-        return 220;
-    }
-  }
-
-  Widget _tabPanel(BuildContext context) {
-    switch (_selectedTab) {
-      case 0:
-        return _OverviewPanel(points: _points, analysisJson: _analysisJson);
-      case 1:
-        return _SymptomsPanel(points: _points, analysisJson: _analysisJson);
-      case 2:
-        return _TreatmentsPanel();
-      case 3:
-        return _SpecialistPanel();
-      default:
-        return const SizedBox.shrink();
-    }
-  }
-
-  Widget _buildTabButton(String text, int index) {
-    final bool selected = _selectedTab == index;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 5),
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          backgroundColor: selected ? const Color(0xFFEEEAFE) : Colors.white,
-          foregroundColor: selected ? const Color(0xFF7C6CC6) : Colors.black87,
-          side: BorderSide(
-            color: selected ? const Color(0xFF7C6CC6) : Colors.black12,
-            width: 2,
-          ),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
-        ),
-        onPressed: () => setState(() => _selectedTab = index),
-        child: Text(
-          text,
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-              color: selected ? const Color(0xFF7C6CC6) : Colors.black87),
-        ),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF7F7FC),
-      body: _loading
-          ? const Center(child: CircularProgressIndicator())
-          : _imageFile == null
-              ? Center(
-                  child: ElevatedButton(
-                    onPressed: _pickInitialImage,
-                    child: const Text('Scan Face'),
-                  ),
-                )
-              : Stack(
-                  children: [
-                    Positioned.fill(
-                      child: LayoutBuilder(
-                        builder: (context, constraints) {
-                          final width = constraints.maxWidth;
-                          final height = constraints.maxHeight;
-                          return Stack(
-                            children: [
-                              Positioned.fill(
-                                child: Image.file(
-                                  _imageFile!,
-                                  fit: BoxFit.cover,
-                                ),
-                              ),
-                              ..._points.asMap().entries.map((entry) {
-                                final idx = entry.key;
-                                final pt = entry.value;
-                                final left = pt.dx * width - 18;
-                                final top = pt.dy * height - 18;
-                                return Positioned(
-                                  left: left,
-                                  top: top,
-                                  child: GestureDetector(
-                                    onTap: () => _showPointSheet(idx, context),
-                                    child: AnimatedContainer(
-                                      duration:
-                                          const Duration(milliseconds: 200),
-                                      width:
-                                          _highlightedIndex == idx ? 36 : 28,
-                                      height:
-                                          _highlightedIndex == idx ? 36 : 28,
-                                      decoration: BoxDecoration(
-                                        color: _highlightedIndex == idx
-                                            ? const Color(0xFF7C6CC6)
-                                            : Colors.white,
-                                        border: Border.all(
-                                          color: _highlightedIndex == idx
-                                              ? const Color(0xFF7C6CC6)
-                                              : Colors.deepPurple,
-                                          width: 2,
-                                        ),
-                                        borderRadius:
-                                            BorderRadius.circular(100),
-                                        boxShadow: [
-                                          if (_highlightedIndex == idx)
-                                            BoxShadow(
-                                              color: Colors.deepPurple
-                                                  .withOpacity(0.3),
-                                              blurRadius: 10,
-                                              spreadRadius: 2,
-                                            )
-                                        ],
-                                      ),
-                                      child: Center(
-                                        child: Text(
-                                          pt.name[0],
-                                          style: TextStyle(
-                                            color: _highlightedIndex == idx
-                                                ? Colors.white
-                                                : Colors.deepPurple,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 15,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ],
-                          );
-                        },
-                      ),
-                    ),
-                    // Top bar
-                    Positioned(
-                      top: 50,
-                      left: 0,
-                      right: 0,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const SizedBox(width: 56),
-                          CircleAvatar(
-                            backgroundColor: Colors.white,
-                            radius: 28,
-                            child: Icon(Icons.face_retouching_natural,
-                                color: Colors.deepPurple[300], size: 34),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.more_vert,
-                                color: Colors.black54),
-                            onPressed: () {},
-                          ),
-                        ],
-                      ),
-                    ),
-                    Positioned(
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 250),
-                        height: _tabSheetHeight(context),
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 8, vertical: 10),
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          borderRadius:
-                              BorderRadius.vertical(top: Radius.circular(30)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 20,
-                              offset: Offset(0, -4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                _buildTabButton("Overview", 0),
-                                _buildTabButton("Symptoms", 1),
-                                _buildTabButton("Treatments", 2),
-                                _buildTabButton("Specialist", 3),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            Expanded(
-                              child: SingleChildScrollView(
-                                physics: const BouncingScrollPhysics(),
-                                child: _tabPanel(context),
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: const Color(0xFF7C6CC6),
-                                  foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(
-                                      vertical: 16),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(10),
-                                  ),
-                                ),
-                                onPressed: () => _showOverviewSheet(context),
-                                child: const Text(
-                                  "View All Overview",
-                                  style: TextStyle(
-                                      fontSize: 15,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+      backgroundColor: const Color(0xfff6f6f6),
+      body: SafeArea(
+        child: _imageFile == null
+            ? _buildInitialPick(context)
+            : _buildImageWithOverlay(context),
+      ),
     );
   }
-}
 
-// Panels for bottom sheet
-
-class _OverviewPanel extends StatelessWidget {
-  final List<_FacePoint> points;
-  final Map<String, dynamic>? analysisJson;
-
-  const _OverviewPanel({required this.points, this.analysisJson});
-
-  @override
-  Widget build(BuildContext context) {
-    final skinAge = points.firstWhere((p) => p.name == "Skin Age",
-        orElse: () => _FacePoint(name: "", dx: 0, dy: 0)).valueText;
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 18),
+  Widget _buildInitialPick(BuildContext context) {
+    return Center(
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text(
-            "Skin Age: ${skinAge ?? '-'}",
-            style: const TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 17,
-                color: Color(0xFF7C6CC6)),
+          const Icon(Icons.camera_alt, size: 96, color: Colors.deepPurple),
+          const SizedBox(height: 32),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xff7c6cc6),
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 40),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            onPressed: _pickImageFromCamera,
+            child: const Text(
+              "Scan now!",
+              style: TextStyle(
+                  fontSize: 18,
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold),
+            ),
           ),
-          const SizedBox(height: 10),
-          ...points
-              .where((pt) => pt.name != "Skin Age")
-              .map((pt) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 3),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(pt.name),
-                        Text(pt.valueText ?? "-",
-                            style: const TextStyle(
-                                color: Color(0xFF7C6CC6),
-                                fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                  )),
         ],
       ),
     );
   }
-}
 
-class _SymptomsPanel extends StatelessWidget {
-  final List<_FacePoint> points;
-  final Map<String, dynamic>? analysisJson;
+  Widget _buildImageWithOverlay(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final dispW = constraints.maxWidth;
+        final dispH = constraints.maxHeight;
+        if (_imageBytes == null || _imageSize == null) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        final imageW = _imageSize!.width;
+        final imageH = _imageSize!.height;
 
-  const _SymptomsPanel({required this.points, this.analysisJson});
+        final scale = (dispW / imageW < dispH / imageH)
+            ? dispW / imageW
+            : dispH / imageH;
+        final renderW = imageW * scale;
+        final renderH = imageH * scale;
+        final dx = (dispW - renderW) / 2;
+        final dy = (dispH - renderH) / 2;
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.symmetric(vertical: 6),
-          child: Text(
-            "Detailed Analysis",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(bottom: 2),
-          child: Text(
-            "Based on AI skin detection",
-            style: TextStyle(fontSize: 13, color: Colors.black54),
-          ),
-        ),
-        const SizedBox(height: 12),
-        ...points
-            .where((pt) =>
-                pt.valueText != null &&
-                pt.valueText != '-' &&
-                pt.valueText != 'None' &&
-                pt.name != "Skin Age")
-            .map(
-              (pt) => Padding(
-                padding: const EdgeInsets.symmetric(vertical: 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        pt.name,
-                        style: const TextStyle(fontWeight: FontWeight.w500),
+        return Stack(
+          children: [
+            // Image
+            Positioned(
+              left: dx,
+              top: dy,
+              width: renderW,
+              height: renderH,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(0),
+                child: Image.memory(
+                  _imageBytes!,
+                  fit: BoxFit.fill,
+                  width: renderW,
+                  height: renderH,
+                ),
+              ),
+            ),
+            // Overlay all rects
+            ..._allRects.asMap().entries.map((entry) {
+              final idx = entry.key;
+              final rect = entry.value.rect;
+              final isHighlighted = _highlightedIdx == idx;
+              final scaledRect = Rect.fromLTWH(
+                rect.left * scale + dx,
+                rect.top * scale + dy,
+                rect.width * scale,
+                rect.height * scale,
+              );
+              return Positioned(
+                left: scaledRect.left,
+                top: scaledRect.top,
+                width: scaledRect.width,
+                height: scaledRect.height,
+                child: GestureDetector(
+                  onTap: () {
+                    setState(() => _highlightedIdx = idx);
+                  },
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                        color: isHighlighted ? Colors.purple : Colors.red,
+                        width: isHighlighted ? 4 : 2,
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                      color: isHighlighted
+                          ? Colors.purple.withOpacity(0.2)
+                          : Colors.transparent,
+                    ),
+                    child: Center(
+                      child: FittedBox(
+                        child: Text(
+                          entry.value.label,
+                          style: TextStyle(
+                              color: isHighlighted
+                                  ? Colors.purple
+                                  : Colors.red,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              shadows: [
+                                Shadow(
+                                    blurRadius: 3,
+                                    color: Colors.white70,
+                                    offset: Offset(1, 1))
+                              ]),
+                        ),
                       ),
                     ),
+                  ),
+                ),
+              );
+            }),
+            // Back button
+            Positioned(
+              left: 16,
+              top: 36,
+              child: ClipOval(
+                child: Material(
+                  color: Colors.white.withOpacity(0.8),
+                  child: IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Colors.deepPurple),
+                    onPressed: () => setState(() {
+                      _imageFile = null;
+                      _imageBytes = null;
+                      _imageSize = null;
+                      _highlightedIdx = null;
+                    }),
+                  ),
+                ),
+              ),
+            ),
+            // Draggable Bottom Sheet
+            if (_highlightedIdx != null)
+              _draggableInfoSheet(context, _allRects[_highlightedIdx!], scale, dx, dy, renderW, renderH),
+            // Label bar (always visible, on bottom)
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: _allLabelsPanel(context),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // Horizontal label bar
+  Widget _allLabelsPanel(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(
+        maxHeight: 100,
+        minHeight: 60,
+      ),
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black12, blurRadius: 8, offset: Offset(0, -2))
+        ]
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: List.generate(_allRects.length, (idx) {
+            final label = _allRects[idx].label;
+            final isHighlighted = _highlightedIdx == idx;
+            return GestureDetector(
+              onTap: () {
+                setState(() => _highlightedIdx = idx);
+              },
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                decoration: BoxDecoration(
+                  color: isHighlighted ? Colors.purple.withOpacity(0.15) : Colors.grey[100],
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isHighlighted ? Colors.purple : Colors.deepPurple[100]!,
+                    width: isHighlighted ? 2 : 1,
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!isHighlighted)
+                      CircleAvatar(
+                        radius: 16,
+                        backgroundColor:
+                            isHighlighted ? Colors.purple : Colors.deepPurple[100],
+                        child: Text(
+                          (idx + 1).toString(),
+                          style: TextStyle(
+                              color: isHighlighted ? Colors.white : Colors.purple,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    if (!isHighlighted) const SizedBox(width: 8),
                     Text(
-                      pt.valueText!,
-                      style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF7C6CC6)),
+                      label,
+                      style: TextStyle(
+                          color: isHighlighted ? Colors.purple : Colors.black87,
+                          fontWeight: isHighlighted ? FontWeight.bold : FontWeight.normal),
                     ),
                   ],
                 ),
               ),
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  // Draggable bottom sheet with zoomed image & info
+  Widget _draggableInfoSheet(
+    BuildContext context,
+    FaceLabelRect rectLabel,
+    double scale,
+    double dx,
+    double dy,
+    double renderW,
+    double renderH,
+  ) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.22,
+      minChildSize: 0.18,
+      maxChildSize: 0.6,
+      builder: (_, controller) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.07),
+                blurRadius: 10,
+                offset: const Offset(0, -2),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            controller: controller,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 42,
+                  height: 6,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(3),
+                  ),
+                ),
+                // --- Zoomed crop image of selected region ---
+                if (_imageBytes != null)
+                  _zoomedCropWidget(rectLabel.rect),
+                const SizedBox(height: 12),
+                Text(
+                  rectLabel.label,
+                  style: const TextStyle(
+                      fontSize: 22,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.purple),
+                ),
+                const SizedBox(height: 8),
+                // Add info here based on label
+                _infoContent(rectLabel.label),
+                const SizedBox(height: 28),
+              ],
             ),
-        const SizedBox(height: 18),
-        const Text(
-          "Be aware",
-          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 15),
-        ),
-        const SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          children: [
-            _tagChip("Dust"),
-            _tagChip("Dehydration"),
-            _tagChip("Stress"),
-            _tagChip("Hair Products"),
-            _tagChip("Touching Face", color: Colors.deepOrange),
-          ],
-        ),
-      ],
+          ),
+        );
+      },
     );
   }
 
-  static Widget _tagChip(String label, {Color color = Colors.black45}) {
-    return Chip(
-      backgroundColor: color.withOpacity(0.1),
-      label: Text(
-        label,
-        style:
-            TextStyle(color: color, fontWeight: FontWeight.w500, fontSize: 13),
+  // Widget to show the cropped image region (zoomed)
+  Widget _zoomedCropWidget(Rect region) {
+    if (_imageBytes == null || _imageSize == null) return const SizedBox();
+    // Use AspectRatio to avoid distortion, show a square window
+    return Container(
+      width: 120,
+      height: 120,
+      clipBehavior: Clip.hardEdge,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.purple, width: 2),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.purple.withOpacity(0.12),
+              blurRadius: 12,
+              spreadRadius: 2)
+        ],
       ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
-    );
-  }
-}
-
-class _TreatmentsPanel extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 18),
-      child: Text(
-        "Recommended treatments and skincare routines.",
-        style: TextStyle(fontSize: 15, color: Colors.black54),
-        textAlign: TextAlign.center,
+      child: FittedBox(
+        fit: BoxFit.cover,
+        child: SizedBox(
+          width: region.width,
+          height: region.height,
+          child: OverflowBox(
+            minWidth: _imageSize!.width,
+            minHeight: _imageSize!.height,
+            maxWidth: _imageSize!.width,
+            maxHeight: _imageSize!.height,
+            child: Image.memory(
+              _imageBytes!,
+              fit: BoxFit.cover,
+              alignment: Alignment.topLeft,
+              // The key trick: shift using Transform to show region
+              // This crops to the region
+              colorBlendMode: BlendMode.srcOver,
+              color: Colors.transparent,
+              // Use Transform to offset the image so the region is at (0,0)
+              // This works because the parent SizedBox is the region size.
+            ),
+          ),
+        ),
       ),
     );
   }
-}
 
-class _SpecialistPanel extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.symmetric(vertical: 18),
+  // Info content for the selected label
+  Widget _infoContent(String label) {
+    // You can expand this map for more details per disease/feature
+    const infoMap = {
+      'Face': 'The detected face region.',
+      'Acne 1': 'Acne: Small inflamed bump on the skin, usually red.',
+      'Brown Spot 1': 'Brown Spot: Hyperpigmentation, harmless but can be a sign of sun exposure.',
+      'Brown Spot 2': 'Brown Spot: Hyperpigmentation, harmless but can be a sign of sun exposure.',
+      'Brown Spot 3': 'Brown Spot: Hyperpigmentation, harmless but can be a sign of sun exposure.',
+      'Brown Spot 4': 'Brown Spot: Hyperpigmentation, harmless but can be a sign of sun exposure.',
+      'Left Eye Pouch': 'Under-eye puffiness, often due to aging or fatigue.',
+      'Right Eye Pouch': 'Under-eye puffiness, often due to aging or fatigue.',
+    };
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.symmetric(vertical: 2),
       child: Text(
-        "Specialist advice and contact.",
-        style: TextStyle(fontSize: 15, color: Colors.black54),
-        textAlign: TextAlign.center,
+        infoMap[label] ??
+            'No additional information about this region.',
+        style: const TextStyle(fontSize: 16, color: Colors.black87),
+        textAlign: TextAlign.left,
       ),
     );
   }

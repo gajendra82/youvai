@@ -19,7 +19,8 @@ class SkinAnalysisScreen extends StatefulWidget {
   State<SkinAnalysisScreen> createState() => _SkinAnalysisScreenState();
 }
 
-class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
+class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
+    with SingleTickerProviderStateMixin {
   CameraController? _cameraController;
   Future<void>? _initializeControllerFuture;
   List<CameraDescription>? _cameras;
@@ -35,13 +36,37 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   bool _loading = false;
   String? _error;
   SkinIssueType? _selectedIssueType;
-  File? _lastImageFile; // For upload
-  Uint8List? _lastImageBytes; // For upload and patching
+  File? _lastImageFile;
+  Uint8List? _lastImageBytes;
+
+  // Animation for scanning line
+  late AnimationController _scanController;
+  late Animation<double> _scanAnimation;
+  Uint8List? _scanningImageBytes;
 
   @override
   void initState() {
     super.initState();
     _initCameras();
+
+    _scanController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _scanAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _scanController, curve: Curves.linear),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _scanController.repeat();
+        }
+      });
+  }
+
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    _scanController.dispose();
+    super.dispose();
   }
 
   Future<void> _initCameras() async {
@@ -87,112 +112,169 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   }
 
   @override
-  void dispose() {
-    _cameraController?.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(title: const Text("Skin Analysis")),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: _showCamera
-            ? _buildCameraOverlay(context)
-            : Column(
-                children: [
-                  Row(
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Column(
+              children: [
+                Expanded(
+                  child: _showCamera
+                      ? _buildCameraOverlay(context)
+                      : _buildImageArea(context),
+                ),
+                Container(
+                  color: Colors.transparent,
+                  padding: const EdgeInsets.only(bottom: 20, top: 8),
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text("Camera"),
-                        onPressed: _cameras == null
+                      _buildBottomButton(
+                        icon: Icons.camera_alt,
+                        label: "Camera",
+                        onTap: _cameras == null
                             ? null
                             : () async {
                                 await _startCamera();
                               },
                       ),
                       const SizedBox(width: 24),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text("Gallery"),
-                        onPressed: () => _pickImage(ImageSource.gallery),
+                      _buildBottomButton(
+                        icon: Icons.photo_library,
+                        label: "Gallery",
+                        onTap: () => _pickImage(ImageSource.gallery),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  if (_loading)
-                    const Expanded(
-                        child: Center(child: CircularProgressIndicator())),
-                  if (_error != null)
-                    Expanded(
-                      child: Center(
-                        child: Text(
-                          _error!,
-                          style: const TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ),
-                  if (_imageProvider != null &&
-                      (_analysisJson != null || _gradioResult != null) &&
-                      _originalImageSize != null)
-                    Expanded(
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: _analysisJson != null
-                                ? SkinAnalysisView(
-                                    analysisJson: _analysisJson!,
-                                    inputImage: _imageProvider!,
-                                    originalImageSize: _originalImageSize!,
-                                    selectedType: _selectedIssueType,
-                                  )
-                                : Image(
-                                    image: _imageProvider!,
-                                    fit: BoxFit.contain),
+                ),
+              ],
+            ),
+            if (_loading &&
+                _scanningImageBytes != null &&
+                _originalImageSize != null)
+              Positioned.fill(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    return Stack(
+                      children: [
+                        Center(
+                          child: Image.memory(
+                            _scanningImageBytes!,
+                            fit: BoxFit.contain,
+                            width: constraints.maxWidth,
+                            height: constraints.maxHeight,
                           ),
-                          if (_analysisJson != null)
-                            _buildHorizontalIssues(_analysisJson!),
-                          if (_gradioResult != null)
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 8.0, horizontal: 16),
-                              child: SizedBox(
-                                width: double.infinity,
-                                child: ElevatedButton.icon(
-                                  icon: const Icon(Icons.analytics),
-                                  label:
-                                      const Text("View Percentage & Summary"),
-                                  onPressed: () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                        builder: (context) =>
-                                            SkinConditionResultPage(
-                                          gradioResult: _gradioResult!,
-                                        ),
-                                      ),
-                                    );
-                                  },
-                                ),
+                        ),
+                        AnimatedBuilder(
+                          animation: _scanController,
+                          builder: (context, child) {
+                            return CustomPaint(
+                              painter:
+                                  ScanningLinePainter(_scanAnimation.value),
+                              size: Size(
+                                constraints.maxWidth,
+                                constraints.maxHeight,
                               ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  if (_imageProvider == null && !_loading && _error == null)
-                    const Expanded(
-                      child: Center(
-                        child: Text(
-                          "Pick an image to start analysis",
-                          style: TextStyle(fontSize: 18, color: Colors.grey),
+                            );
+                          },
+                        ),
+                      ],
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomButton(
+      {required IconData icon, required String label, VoidCallback? onTap}) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(18),
+        onTap: onTap,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.8),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.blueGrey.shade100, width: 1),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, color: Colors.blueGrey, size: 22),
+              const SizedBox(width: 8),
+              Text(label,
+                  style: const TextStyle(fontSize: 16, color: Colors.blueGrey)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildImageArea(BuildContext context) {
+    if (_error != null) {
+      return Center(
+        child: Text(
+          _error!,
+          style: const TextStyle(color: Colors.red),
+        ),
+      );
+    }
+    if (_imageProvider != null &&
+        (_analysisJson != null || _gradioResult != null) &&
+        _originalImageSize != null) {
+      return Column(
+        children: [
+          Expanded(
+            child: _analysisJson != null
+                ? SkinAnalysisView(
+                    analysisJson: _analysisJson!,
+                    inputImage: _imageProvider!,
+                    originalImageSize: _originalImageSize!,
+                    selectedType: _selectedIssueType,
+                  )
+                : Image(image: _imageProvider!, fit: BoxFit.contain),
+          ),
+          if (_analysisJson != null) _buildHorizontalIssues(_analysisJson!),
+          if (_gradioResult != null)
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.analytics),
+                  label: const Text("View Percentage & Summary"),
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => SkinConditionResultPage(
+                          gradioResult: _gradioResult!,
+                          patchJson:
+                              _analysisJson, // pass your patch/first API json here
                         ),
                       ),
-                    ),
-                ],
+                    );
+                  },
+                ),
               ),
+            ),
+        ],
+      );
+    }
+    return const Center(
+      child: Text(
+        "Pick an image to start analysis",
+        style: TextStyle(fontSize: 18, color: Colors.grey),
       ),
     );
   }
@@ -299,19 +381,15 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
   /// Handles both gallery and camera images.
   Future<void> _processPickedImage(XFile picked,
       {bool fromCamera = false}) async {
-    if (kIsWeb) {
-      final bytes = await picked.readAsBytes();
-      _webImageBytes = bytes;
-      _webImageName = picked.name;
-      _imageProvider = MemoryImage(bytes);
-      _originalImageSize = await _getImageSizeWeb(bytes);
-      _lastImageFile = null;
-      _lastImageBytes = bytes;
-    } else {
-      Uint8List bytes = await File(picked.path).readAsBytes();
-      bytes = await fixImageOrientation(bytes); // always fix!
+    Uint8List? bytes;
+    Size? size;
 
-      // If the source is camera and using the FRONT camera, mirror image
+    if (kIsWeb) {
+      bytes = await picked.readAsBytes();
+      size = await _getImageSizeWeb(bytes);
+    } else {
+      bytes = await File(picked.path).readAsBytes();
+      bytes = await fixImageOrientation(bytes);
       if (_cameraController != null &&
           _cameraController!.description.lensDirection ==
               CameraLensDirection.front) {
@@ -321,21 +399,26 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
           bytes = Uint8List.fromList(img.encodeJpg(flipped));
         }
       }
-
-      _imageProvider = MemoryImage(bytes);
-      _originalImageSize = await _getImageSizeMobileBytes(bytes);
-      _lastImageFile = File(picked.path);
-      _lastImageBytes = bytes;
+      size = await _getImageSizeMobileBytes(bytes);
     }
 
     setState(() {
-      _loading = true;
-      _error = null;
+      _scanningImageBytes = bytes;
+      _originalImageSize = size;
       _analysisJson = null;
       _gradioResult = null;
-      _selectedIssueType = null;
+      _loading = true;
+      _imageProvider = null;
     });
-    await _analyzeImage();
+
+    // Start scanning animation immediately
+    _scanController.reset();
+    _scanController.repeat();
+
+    await _analyzeImage(picked, bytes);
+
+    // Stop scanning and show result image
+    _scanController.reset();
   }
 
   Future<Size> _getImageSizeMobileBytes(Uint8List bytes) async {
@@ -348,7 +431,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
     return Size(decodedImage.width.toDouble(), decodedImage.height.toDouble());
   }
 
-  Future<void> _analyzeImage() async {
+  Future<void> _analyzeImage(XFile picked, Uint8List previewBytes) async {
     Map<String, dynamic>? ailabData;
     Map<String, dynamic>? uploadApiResult;
 
@@ -1004,37 +1087,40 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
         "sensitivity_type_v1": 1
       }
     };
+
     ailabData = hardcodedJson;
 
-    // Only call upload API if we have a local file to upload (i.e., on mobile/desktop)
-    if (_lastImageFile != null && _lastImageBytes != null) {
-      try {
-        final uri = Uri.parse(
-            'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
-        var request = http.MultipartRequest('POST', uri);
+    if (!kIsWeb) {
+      _lastImageFile = File(picked.path);
+      _lastImageBytes = previewBytes;
+      if (_lastImageFile != null && _lastImageBytes != null) {
+        try {
+          final uri = Uri.parse(
+              'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
+          var request = http.MultipartRequest('POST', uri);
 
-        request.fields['doctor_id'] = "70690";
-        request.fields['patient_id'] = "42";
-        request.fields['patient_number'] = "8600285374";
+          request.fields['doctor_id'] = "70690";
+          request.fields['patient_id'] = "42";
+          request.fields['patient_number'] = "8600285374";
 
-        // Upload the fixed bytes, not the file path, to ensure correct orientation
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'images[]',
-            _lastImageBytes!,
-            filename: basename(_lastImageFile!.path),
-          ),
-        );
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'images[]',
+              _lastImageBytes!,
+              filename: basename(_lastImageFile!.path),
+            ),
+          );
 
-        var streamedResponse = await request.send();
-        var response = await http.Response.fromStream(streamedResponse);
+          var streamedResponse = await request.send();
+          var response = await http.Response.fromStream(streamedResponse);
 
-        if (response.statusCode == 200) {
-          final decoded = json.decode(response.body);
-          uploadApiResult = decoded;
+          if (response.statusCode == 200) {
+            final decoded = json.decode(response.body);
+            uploadApiResult = decoded;
+          }
+        } catch (e) {
+          uploadApiResult = null;
         }
-      } catch (e) {
-        uploadApiResult = null;
       }
     }
 
@@ -1045,6 +1131,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
       _error = (_analysisJson == null && _gradioResult == null)
           ? "Both APIs failed or returned no detections. Try again."
           : null;
+      _imageProvider = MemoryImage(previewBytes);
+      _scanningImageBytes = null;
     });
   }
 }
@@ -1052,7 +1140,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen> {
 class OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    // Draw a red rectangle in the center for demonstration
     final paint = Paint()
       ..color = Colors.red.withOpacity(0.4)
       ..style = PaintingStyle.stroke
@@ -1063,12 +1150,41 @@ class OverlayPainter extends CustomPainter {
       height: size.height / 3,
     );
     canvas.drawRect(rect, paint);
-
-    // Draw a yellow dot in the center
     canvas.drawCircle(
         size.center(Offset.zero), 10, Paint()..color = Colors.yellow);
   }
 
   @override
   bool shouldRepaint(CustomPainter oldDelegate) => false;
+}
+
+class ScanningLinePainter extends CustomPainter {
+  final double progress;
+
+  ScanningLinePainter(this.progress);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final y = progress * size.height;
+    final paint = Paint()
+      ..color = Colors.green.withOpacity(0.9)
+      ..strokeWidth = 3;
+    canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+
+    final gradientPaint = Paint()
+      ..shader = LinearGradient(
+        colors: [
+          Colors.green.withOpacity(0.05),
+          Colors.green.withOpacity(0.3),
+          Colors.green.withOpacity(0.05),
+        ],
+        begin: Alignment.centerLeft,
+        end: Alignment.centerRight,
+      ).createShader(Rect.fromLTWH(0, y - 6, size.width, 12));
+    canvas.drawRect(Rect.fromLTWH(0, y - 6, size.width, 12), gradientPaint);
+  }
+
+  @override
+  bool shouldRepaint(ScanningLinePainter oldDelegate) =>
+      progress != oldDelegate.progress;
 }

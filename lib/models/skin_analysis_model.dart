@@ -15,6 +15,9 @@ enum SkinIssueType {
   wrinkle,
   eyePouch,
   nasolabialFold,
+  darkSpots,
+  oiliness,
+  dryness,
 }
 
 String skinIssueTypeDisplayName(SkinIssueType type) {

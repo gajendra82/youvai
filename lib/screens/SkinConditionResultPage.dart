@@ -3,12 +3,19 @@ import 'package:flutter/material.dart';
 
 class SkinConditionResultPage extends StatelessWidget {
   final Map<String, dynamic> gradioResult;
+  final Map<String, dynamic>? patchJson; // <-- Pass the first API JSON here
 
-  const SkinConditionResultPage({Key? key, required this.gradioResult})
-      : super(key: key);
+  const SkinConditionResultPage({
+    Key? key,
+    required this.gradioResult,
+    this.patchJson,
+  }) : super(key: key);
 
-  List<Map<String, dynamic>> extractSkinSummaries(dynamic gradioResult) {
+  List<Map<String, dynamic>> extractSkinSummaries(
+      dynamic gradioResult, dynamic patchJson) {
     final List<dynamic> outputs = gradioResult['data']?['outpUt'] ?? [];
+    final patchStats = extractPatchStats(patchJson);
+
     return outputs
         .where((o) => o['analysis'] != null && o['output'] != null)
         .map((result) {
@@ -24,7 +31,6 @@ class SkinConditionResultPage extends StatelessWidget {
                   RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(item);
               if (match != null) {
                 final condition = match.group(1)!.trim();
-                // Exclude Skin Redness
                 if (!condition.toLowerCase().contains('skin redness')) {
                   percentages.add(
                       {'condition': condition, 'percent': match.group(2)!});
@@ -83,7 +89,8 @@ class SkinConditionResultPage extends StatelessWidget {
 
       Map<String, dynamic> assessmentData = getAssessment(percentages);
 
-      double attractivenessScore = calculateAttractivenessScore(percentages);
+      double attractivenessScore =
+          calculateCombinedAttractivenessScore(percentages, patchStats);
 
       return {
         'percentages': percentages,
@@ -97,6 +104,54 @@ class SkinConditionResultPage extends StatelessWidget {
         'attractivenessScore': attractivenessScore,
       };
     }).toList();
+  }
+
+  /// Extract counts/statistics from the first (patch) JSON
+  Map<String, dynamic> extractPatchStats(dynamic patchJson) {
+    if (patchJson == null || patchJson['result'] == null) return {};
+    final r = patchJson['result'];
+    final Map<String, int> patchCounts = {};
+
+    // Example: count for acne, brown_spot etc, using count field or rectangles
+    for (final k in [
+      'acne',
+      'brown_spot',
+      'closed_comedones',
+      'acne_mark',
+      'acne_nodule',
+      'acne_pustule',
+      'mole',
+    ]) {
+      if (r[k] != null) {
+        if (r[k]['count'] != null) {
+          patchCounts[k] = int.tryParse(r[k]['count'].toString()) ?? 0;
+        } else if (r[k]['rectangle'] != null &&
+            r[k]['rectangle'] is List &&
+            r[k]['rectangle'].isNotEmpty) {
+          patchCounts[k] = (r[k]['rectangle'] as List).length;
+        }
+      }
+    }
+    // Wrinkle counts as sum of all wrinkle_count fields
+    if (r['wrinkle_count'] != null && r['wrinkle_count'] is Map) {
+      int wrinkleSum = 0;
+      r['wrinkle_count']
+          .forEach((k, v) => wrinkleSum += int.tryParse(v.toString()) ?? 0);
+      patchCounts['wrinkle'] = wrinkleSum;
+    }
+    // Dark Circle
+    if (r['dark_circle'] != null && r['dark_circle']['value'] != null) {
+      patchCounts['dark_circle'] =
+          int.tryParse(r['dark_circle']['value'].toString()) ?? 0;
+    }
+    // Eye Pouch
+    if (r['eye_pouch'] != null && r['eye_pouch']['value'] != null) {
+      patchCounts['eye_pouch'] =
+          int.tryParse(r['eye_pouch']['value'].toString()) ?? 0;
+    }
+    // Add more as needed for your logic.
+
+    return patchCounts;
   }
 
   Map<String, dynamic> getAssessment(List<Map<String, String>> percentages) {
@@ -134,25 +189,52 @@ class SkinConditionResultPage extends StatelessWidget {
     };
   }
 
-  /// Attractiveness score: always above 6, variable by percentages.
-  double calculateAttractivenessScore(List<Map<String, String>> percentages) {
+  /// Combine both JSONs for more accurate attractiveness score.
+  double calculateCombinedAttractivenessScore(
+      List<Map<String, String>> percentages, Map<String, dynamic> patchStats) {
     double normal = 0;
     double negative = 0;
     final negativeConditions = [
-      "Dry", "Acne", "Wrinkles", "Dark Spots", "Blackheads", "pores", "Eye Bags"
-      // Removed "Skin Redness"
+      "dry",
+      "acne",
+      "wrinkles",
+      "dark spots",
+      "blackheads",
+      "pores",
+      "eye bags",
+      "dark circle",
+      "mole",
+      "brown spot",
+      "comedone",
+      "eye pouch",
+      "nasolabial fold"
     ];
     for (var entry in percentages) {
       final cond = entry['condition']?.toLowerCase() ?? "";
       final val = double.tryParse(entry['percent'] ?? "0") ?? 0;
       if (cond.contains("normal")) {
         normal += val;
-      } else if (negativeConditions
-          .any((c) => cond.contains(c.toLowerCase()))) {
+      } else if (negativeConditions.any((c) => cond.contains(c))) {
         negative += val;
       }
     }
-    double score = 8.0 + (normal / 100) * 2.0 - (negative / 100) * 2.0;
+
+    // Patch count penalties
+    double patchPenalty = 0.0;
+    for (final k in patchStats.keys) {
+      final v = patchStats[k];
+      if (v is int && v > 0) {
+        if (['acne', 'brown_spot', 'closed_comedones', 'mole'].contains(k)) {
+          patchPenalty += v * 0.18;
+        } else if (['wrinkle', 'dark_circle', 'eye_pouch'].contains(k)) {
+          patchPenalty += v * 0.12;
+        }
+      }
+    }
+
+    // Score: start from 8, add positive, subtract negative and patch penalty
+    double score =
+        8.0 + (normal / 100) * 2.0 - (negative / 100) * 2.0 - patchPenalty;
     return score.clamp(6.01, 10.0);
   }
 
@@ -311,7 +393,7 @@ class SkinConditionResultPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final summaries = extractSkinSummaries(gradioResult);
+    final summaries = extractSkinSummaries(gradioResult, patchJson);
 
     return Scaffold(
       appBar: AppBar(

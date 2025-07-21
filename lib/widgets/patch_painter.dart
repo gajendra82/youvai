@@ -1,333 +1,238 @@
 import 'package:flutter/material.dart';
 import '../models/skin_analysis_model.dart';
-import 'dart:math';
-
-const Map<SkinIssueType, Color> issueColors = {
-  SkinIssueType.acne: Colors.red,
-  SkinIssueType.closedComedone: Colors.orange,
-  SkinIssueType.brownSpot: Colors.brown,
-  SkinIssueType.melasma: Colors.purple,
-  SkinIssueType.freckle: Colors.amber,
-  SkinIssueType.mole: Colors.black,
-  SkinIssueType.acnePustule: Colors.pink,
-  SkinIssueType.acneNodule: Colors.indigo,
-  SkinIssueType.acneMark: Colors.blueGrey,
-  SkinIssueType.darkCircle: Colors.blue,
-  SkinIssueType.wrinkle: Colors.green,
-  SkinIssueType.eyePouch: Colors.teal,
-  SkinIssueType.nasolabialFold: Colors.deepOrange,
-};
 
 class PatchPainter extends CustomPainter {
   final List<SkinPatch> patches;
-  final Size originalImageSize;
+  final Size imageSize;
   final Size displaySize;
   final SkinIssueType? selectedType;
-  final bool seeAll; // If true, shows all overlays
 
-  PatchPainter(
-    this.patches, {
-    required this.originalImageSize,
+  PatchPainter({
+    required this.patches,
+    required this.imageSize,
     required this.displaySize,
     this.selectedType,
-    this.seeAll = false,
   });
 
-  static const List<double> arrowAngles = [
-    -pi / 2,
-    -pi / 3,
-    -pi / 4,
-    -pi / 6,
-    0,
-    pi / 6,
-    pi / 4,
-    pi / 3,
-    pi / 2,
-    2 * pi / 3,
-    3 * pi / 4,
-    5 * pi / 6,
-    pi,
-    -5 * pi / 6,
-    -3 * pi / 4,
-    -2 * pi / 3,
-  ];
+  final double _lineLength = 35;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final scaleX = displaySize.width / originalImageSize.width;
-    final scaleY = displaySize.height / originalImageSize.height;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.4;
 
-    // Group patches by issueType
+    final scaleX = displaySize.width / imageSize.width;
+    final scaleY = displaySize.height / imageSize.height;
+
+    // Group patches by issue type
     final Map<SkinIssueType, List<SkinPatch>> grouped = {};
     for (final patch in patches) {
       if (patch.issueType == SkinIssueType.unknown) continue;
-      if (!seeAll && selectedType != null && patch.issueType != selectedType)
-        continue;
       grouped.putIfAbsent(patch.issueType, () => []).add(patch);
     }
 
-    int typeIdx = 0;
+    int leftIndex = 0;
+    int rightIndex = 0;
+
     for (final entry in grouped.entries) {
-      final issueType = entry.key;
-      final group = entry.value;
-      final color = issueColors[issueType] ?? Colors.grey;
+      final type = entry.key;
+      final patchList = entry.value;
 
-      // Paint for dots and arrows
-      final dotPaint = Paint()
-        ..color = color
-        ..style = PaintingStyle.fill;
+      final color = _getColorForIssue(type);
+      paint.color = color;
 
-      final arrowPaint = Paint()
-        ..color = color
-        ..strokeWidth = 1.3
-        ..style = PaintingStyle.stroke;
+      Offset? labelPosition;
 
-      final fillPaint = Paint()
-        ..color = color.withOpacity(0.18)
-        ..style = PaintingStyle.fill;
+      for (int i = 0; i < patchList.length; i++) {
+        final patch = patchList[i];
 
-      final borderPaint = Paint()
-        ..color = color.withOpacity(0.8)
-        ..strokeWidth = 1.3
-        ..style = PaintingStyle.stroke;
-
-      double angle = arrowAngles[typeIdx % arrowAngles.length];
-      typeIdx++;
-
-      // If more than 6, show multiple dots, ONE arrow and patch at centroid
-      if (group.length > 6) {
-        final List<Offset> dotCenters = [];
-        for (final patch in group) {
-          Offset center = _getPatchCenter(patch, scaleX, scaleY);
-          if (center != Offset.zero) {
-            dotCenters.add(center);
-            canvas.drawCircle(center, 6, dotPaint);
-          }
-        }
-        if (dotCenters.isEmpty) continue;
-        // Compute centroid
-        final centroid = Offset(
-          dotCenters.map((e) => e.dx).reduce((a, b) => a + b) /
-              dotCenters.length,
-          dotCenters.map((e) => e.dy).reduce((a, b) => a + b) /
-              dotCenters.length,
-        );
-        // Arrow from centroid
-        double arrowLen = 75.0;
-        Offset arrowVector = Offset(cos(angle), sin(angle));
-        Offset arrowEnd = centroid + arrowVector * arrowLen;
-
-        _drawArrow(canvas, centroid, arrowEnd, arrowPaint);
-
-        // Use average patch size for patch at arrow tip
-        double avgW = 0, avgH = 0, cnt = 0;
-        for (final patch in group) {
-          var sz = _getPatchSize(patch, scaleX, scaleY);
-          avgW += sz.width;
-          avgH += sz.height;
-          cnt++;
-        }
-        avgW = max(36, avgW / cnt * 0.8);
-        avgH = max(22, avgH / cnt * 0.6);
-
-        final patchRect = Rect.fromCenter(
-          center: arrowEnd,
-          width: avgW,
-          height: avgH,
-        );
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(patchRect, Radius.circular(8)),
-          fillPaint,
-        );
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(patchRect, Radius.circular(8)),
-          borderPaint,
-        );
-        _drawLabel(
-            canvas, patchRect, skinIssueTypeDisplayName(issueType), color);
-      }
-      // If 5 or fewer, show arrow+patch+label for each
-      else if (group.length <= 5) {
-        for (final patch in group) {
-          Offset center = _getPatchCenter(patch, scaleX, scaleY);
-          if (center == Offset.zero) continue;
-
-          double arrowLen = 75.0;
-          Offset arrowVector = Offset(cos(angle), sin(angle));
-          Offset arrowEnd = center + arrowVector * arrowLen;
-
-          canvas.drawCircle(center, 6, dotPaint);
-          _drawArrow(canvas, center, arrowEnd, arrowPaint);
-
-          var sz = _getPatchSize(patch, scaleX, scaleY);
-          double patchW = max(36, sz.width * 0.9);
-          double patchH = max(22, sz.height * 0.7);
-
-          final patchRect = Rect.fromCenter(
-            center: arrowEnd,
-            width: patchW,
-            height: patchH,
+        Offset centroid;
+        if (patch.rect != null) {
+          final r = patch.rect!;
+          centroid = Offset(
+            (r.left + r.right) / 2 * scaleX,
+            (r.top + r.bottom) / 2 * scaleY,
           );
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(patchRect, Radius.circular(8)),
-            fillPaint,
+          _drawLCorners(
+              canvas,
+              Rect.fromLTRB(
+                r.left * scaleX,
+                r.top * scaleY,
+                r.right * scaleX,
+                r.bottom * scaleY,
+              ),
+              paint);
+        } else if (patch.polygon != null && patch.polygon!.isNotEmpty) {
+          final polygon = patch.polygon!;
+          final scaled = polygon
+              .map((pt) => Offset(pt.dx * scaleX, pt.dy * scaleY))
+              .toList();
+          centroid = _calculateCentroid(scaled);
+          final path = Path()..addPolygon(scaled, true);
+          canvas.drawPath(path, paint);
+        } else {
+          continue;
+        }
+
+        _drawStartMarker(canvas, centroid, color);
+
+        // For more than 6 patches of the same type, draw label only once
+        bool shouldDrawLabel = patchList.length <= 6 || i == 0;
+        if (shouldDrawLabel) {
+          final isLeft = centroid.dx < displaySize.width / 2;
+          final horizontalOffset = isLeft ? -_lineLength : _lineLength;
+          final intermediate =
+              Offset(centroid.dx + horizontalOffset, centroid.dy);
+          final labelOffset = Offset(
+            intermediate.dx + (isLeft ? -5 : 5),
+            intermediate.dy +
+                (isLeft ? leftIndex++ * 20.0 : rightIndex++ * 20.0),
           );
-          canvas.drawRRect(
-            RRect.fromRectAndRadius(patchRect, Radius.circular(8)),
-            borderPaint,
-          );
-          _drawLabel(
-              canvas, patchRect, skinIssueTypeDisplayName(issueType), color);
-        }
-      }
-      // For 6 exactly, can use either approach; here treat same as >6
-      else if (group.length == 6) {
-        final List<Offset> dotCenters = [];
-        for (final patch in group) {
-          Offset center = _getPatchCenter(patch, scaleX, scaleY);
-          if (center != Offset.zero) {
-            dotCenters.add(center);
-            canvas.drawCircle(center, 6, dotPaint);
-          }
-        }
-        if (dotCenters.isEmpty) continue;
-        final centroid = Offset(
-          dotCenters.map((e) => e.dx).reduce((a, b) => a + b) /
-              dotCenters.length,
-          dotCenters.map((e) => e.dy).reduce((a, b) => a + b) /
-              dotCenters.length,
-        );
-        double arrowLen = 75.0;
-        Offset arrowVector = Offset(cos(angle), sin(angle));
-        Offset arrowEnd = centroid + arrowVector * arrowLen;
 
-        _drawArrow(canvas, centroid, arrowEnd, arrowPaint);
-
-        double avgW = 0, avgH = 0, cnt = 0;
-        for (final patch in group) {
-          var sz = _getPatchSize(patch, scaleX, scaleY);
-          avgW += sz.width;
-          avgH += sz.height;
-          cnt++;
+          _drawLShapedLine(canvas, centroid, intermediate, labelOffset, paint);
+          _drawLabel(canvas, labelOffset, type, color, isLeft);
         }
-        avgW = max(36, avgW / cnt * 0.8);
-        avgH = max(22, avgH / cnt * 0.6);
-
-        final patchRect = Rect.fromCenter(
-          center: arrowEnd,
-          width: avgW,
-          height: avgH,
-        );
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(patchRect, Radius.circular(8)),
-          fillPaint,
-        );
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(patchRect, Radius.circular(8)),
-          borderPaint,
-        );
-        _drawLabel(
-            canvas, patchRect, skinIssueTypeDisplayName(issueType), color);
       }
     }
   }
 
-  Offset _getPatchCenter(SkinPatch patch, double scaleX, double scaleY) {
-    if (patch.rect != null) {
-      final rect = Rect.fromLTWH(
-        patch.rect!.left * scaleX,
-        patch.rect!.top * scaleY,
-        patch.rect!.width * scaleX,
-        patch.rect!.height * scaleY,
-      );
-      return rect.center;
-    } else if (patch.polygon != null && patch.polygon!.isNotEmpty) {
-      double sumX = 0, sumY = 0;
-      for (final pt in patch.polygon!) {
-        sumX += pt.dx * scaleX;
-        sumY += pt.dy * scaleY;
-      }
-      return Offset(sumX / patch.polygon!.length, sumY / patch.polygon!.length);
-    }
-    return Offset.zero;
+  void _drawStartMarker(Canvas canvas, Offset center, Color color) {
+    const double size = 12;
+    final rect = Rect.fromCenter(center: center, width: size, height: size);
+
+    final fillPaint = Paint()..color = Colors.white;
+    final borderPaint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+
+    canvas.drawRect(rect, fillPaint);
+    canvas.drawRect(rect, borderPaint);
+
+    final plusPaint = Paint()
+      ..color = color
+      ..strokeWidth = 1.2;
+
+    final double half = size / 2.2;
+    canvas.drawLine(
+      Offset(center.dx - half + 1, center.dy),
+      Offset(center.dx + half - 1, center.dy),
+      plusPaint,
+    );
+    canvas.drawLine(
+      Offset(center.dx, center.dy - half + 1),
+      Offset(center.dx, center.dy + half - 1),
+      plusPaint,
+    );
   }
 
-  Size _getPatchSize(SkinPatch patch, double scaleX, double scaleY) {
-    if (patch.rect != null) {
-      return Size(patch.rect!.width * scaleX, patch.rect!.height * scaleY);
-    } else if (patch.polygon != null && patch.polygon!.isNotEmpty) {
-      double minX = double.infinity,
-          minY = double.infinity,
-          maxX = double.negativeInfinity,
-          maxY = double.negativeInfinity;
-      for (final pt in patch.polygon!) {
-        final px = pt.dx * scaleX, py = pt.dy * scaleY;
-        if (px < minX) minX = px;
-        if (py < minY) minY = py;
-        if (px > maxX) maxX = px;
-        if (py > maxY) maxY = py;
-      }
-      return Size(maxX - minX, maxY - minY);
-    }
-    return const Size(40, 24);
+  void _drawLShapedLine(
+      Canvas canvas, Offset start, Offset bend, Offset end, Paint paint) {
+    canvas.drawLine(start, bend, paint);
+    canvas.drawLine(bend, end, paint);
   }
 
-  void _drawArrow(Canvas canvas, Offset start, Offset end, Paint arrowPaint) {
-    canvas.drawLine(start, end, arrowPaint);
+  void _drawLabel(
+      Canvas canvas, Offset pos, SkinIssueType type, Color color, bool isLeft) {
+    const double radius = 8;
+    final circleOffset = Offset(
+      isLeft ? pos.dx - radius - 2 : pos.dx + radius + 2,
+      pos.dy,
+    );
+    final textOffset = Offset(
+      isLeft ? pos.dx - 70 : pos.dx + 12,
+      pos.dy - 7,
+    );
 
-    // Arrowhead
-    const double arrowHeadLength = 9;
-    const double arrowHeadAngle = 0.5;
-    final angle = (end - start).direction;
-    final arrowP1 =
-        end + Offset.fromDirection(angle + arrowHeadAngle, -arrowHeadLength);
-    final arrowP2 =
-        end + Offset.fromDirection(angle - arrowHeadAngle, -arrowHeadLength);
-    canvas.drawLine(end, arrowP1, arrowPaint);
-    canvas.drawLine(end, arrowP2, arrowPaint);
-  }
+    final circlePaint = Paint()..color = color;
+    canvas.drawCircle(circleOffset, radius, circlePaint);
 
-  void _drawLabel(Canvas canvas, Rect patchRect, String text, Color bgColor) {
-    final textSpan = TextSpan(
-      text: text,
-      style: TextStyle(
-        color: Colors.white,
-        backgroundColor: Colors.transparent,
-        fontSize: 13,
-        fontWeight: FontWeight.bold,
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: skinIssueTypeDisplayName(type),
+        style: TextStyle(
+          color: Colors.black,
+          fontSize: 12,
+        ),
       ),
-    );
-    final tp = TextPainter(
-      text: textSpan,
       textDirection: TextDirection.ltr,
-      maxLines: 1,
     );
-    tp.layout();
+    textPainter.layout();
+    textPainter.paint(canvas, textOffset);
+  }
 
-    Offset labelOffset = Offset(
-      patchRect.center.dx - tp.width / 2,
-      patchRect.top - tp.height - 5,
-    );
+  void _drawLCorners(Canvas canvas, Rect rect, Paint paint) {
+    const double cornerLength = 12;
+    // Top-left
+    canvas.drawLine(
+        rect.topLeft, rect.topLeft + Offset(cornerLength, 0), paint);
+    canvas.drawLine(
+        rect.topLeft, rect.topLeft + Offset(0, cornerLength), paint);
+    // Top-right
+    canvas.drawLine(
+        rect.topRight, rect.topRight + Offset(-cornerLength, 0), paint);
+    canvas.drawLine(
+        rect.topRight, rect.topRight + Offset(0, cornerLength), paint);
+    // Bottom-left
+    canvas.drawLine(
+        rect.bottomLeft, rect.bottomLeft + Offset(cornerLength, 0), paint);
+    canvas.drawLine(
+        rect.bottomLeft, rect.bottomLeft + Offset(0, -cornerLength), paint);
+    // Bottom-right
+    canvas.drawLine(
+        rect.bottomRight, rect.bottomRight + Offset(-cornerLength, 0), paint);
+    canvas.drawLine(
+        rect.bottomRight, rect.bottomRight + Offset(0, -cornerLength), paint);
+  }
 
-    final bgRect = Rect.fromLTWH(
-      labelOffset.dx - 4,
-      labelOffset.dy - 1,
-      tp.width + 8,
-      tp.height + 4,
-    );
-    final paint = Paint()..color = bgColor.withOpacity(0.85);
-    canvas.drawRRect(
-        RRect.fromRectAndRadius(bgRect, Radius.circular(6)), paint);
+  Offset _calculateCentroid(List<Offset> points) {
+    double x = 0, y = 0;
+    for (final pt in points) {
+      x += pt.dx;
+      y += pt.dy;
+    }
+    return Offset(x / points.length, y / points.length);
+  }
 
-    tp.paint(canvas, labelOffset);
+  Color _getColorForIssue(SkinIssueType type) {
+    switch (type) {
+      case SkinIssueType.acne:
+        return Colors.red;
+      case SkinIssueType.closedComedone:
+        return Colors.orange;
+      case SkinIssueType.brownSpot:
+        return Colors.brown;
+      case SkinIssueType.melasma:
+        return Colors.deepPurple;
+      case SkinIssueType.freckle:
+        return Colors.amber;
+      case SkinIssueType.mole:
+        return Colors.black;
+      case SkinIssueType.acnePustule:
+        return Colors.pink;
+      case SkinIssueType.acneNodule:
+        return Colors.teal;
+      case SkinIssueType.acneMark:
+        return Colors.indigo;
+      case SkinIssueType.darkCircle:
+        return Colors.blueGrey;
+      case SkinIssueType.wrinkle:
+        return Colors.grey;
+      case SkinIssueType.eyePouch:
+        return Colors.lightGreen;
+      case SkinIssueType.nasolabialFold:
+        return Colors.deepOrange;
+      default:
+        return Colors.grey;
+    }
   }
 
   @override
   bool shouldRepaint(covariant PatchPainter oldDelegate) {
     return oldDelegate.patches != patches ||
-        oldDelegate.selectedType != selectedType ||
-        oldDelegate.originalImageSize != originalImageSize ||
+        oldDelegate.imageSize != imageSize ||
         oldDelegate.displaySize != displaySize ||
-        oldDelegate.seeAll != seeAll;
+        oldDelegate.selectedType != selectedType;
   }
 }

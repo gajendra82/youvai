@@ -6,7 +6,7 @@ import 'patch_painter.dart';
 class SkinAnalysisView extends StatefulWidget {
   final Map<String, dynamic> analysisJson;
   final ImageProvider inputImage;
-  final Size originalImageSize;
+  final Size originalImageSize; // updated name to match PatchPainter
   final SkinIssueType? selectedType;
 
   const SkinAnalysisView({
@@ -20,6 +20,13 @@ class SkinAnalysisView extends StatefulWidget {
   @override
   State<SkinAnalysisView> createState() => _SkinAnalysisViewState();
 }
+
+const Map<SkinIssueType, Color> issueColors = {
+  SkinIssueType.acne: Colors.red,
+  SkinIssueType.wrinkle: Colors.purple,
+  SkinIssueType.darkSpots: Colors.orange,
+  SkinIssueType.unknown: Colors.grey,
+};
 
 class _SkinAnalysisViewState extends State<SkinAnalysisView> {
   SkinIssueType? _selectedType;
@@ -48,18 +55,23 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
 
   @override
   Widget build(BuildContext context) {
-    final visiblePatches = _selectedType == null
-        ? _patches
-        : _patches.where((p) => p.issueType == _selectedType).toList();
-
-    // Only show selectable types that have a location (rect or polygon) and are not unknown
-    final foundTypes = _patches
+    final foundTypesSet = _patches
         .where((p) =>
             p.issueType != SkinIssueType.unknown &&
             (p.rect != null || (p.polygon != null && p.polygon!.isNotEmpty)))
         .map((p) => p.issueType)
-        .toSet()
-        .toList();
+        .toSet();
+
+    final foundTypes = [
+      null,
+      ...foundTypesSet.toList()
+        ..sort((a, b) => skinIssueTypeDisplayName(a!)
+            .compareTo(skinIssueTypeDisplayName(b!)))
+    ];
+
+    final visiblePatches = _selectedType == null
+        ? _patches
+        : _patches.where((p) => p.issueType == _selectedType).toList();
 
     return Column(
       children: [
@@ -85,8 +97,8 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                       Positioned.fill(
                         child: CustomPaint(
                           painter: PatchPainter(
-                            visiblePatches,
-                            originalImageSize: widget.originalImageSize,
+                            patches: visiblePatches,
+                            imageSize: widget.originalImageSize,
                             displaySize: containerSize,
                             selectedType: _selectedType,
                           ),
@@ -113,24 +125,25 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                 final type = foundTypes[idx];
                 final selected = _selectedType == type;
                 return TextButton(
+                  key: ValueKey(type?.toString() ?? "all"),
                   style: TextButton.styleFrom(
                     backgroundColor: selected
-                        ? Colors.blue.withOpacity(0.15)
+                        ? Colors.blue.withOpacity(0.12)
                         : Colors.transparent,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                       side: selected
-                          ? const BorderSide(color: Colors.blue, width: 2)
+                          ? const BorderSide(color: Colors.blue, width: 1)
                           : BorderSide.none,
                     ),
                   ),
                   onPressed: () {
                     setState(() {
-                      _selectedType = selected ? null : type;
+                      _selectedType = type;
                     });
                   },
                   child: Text(
-                    skinIssueTypeDisplayName(type),
+                    type == null ? "All" : skinIssueTypeDisplayName(type),
                     style: TextStyle(
                       fontWeight:
                           selected ? FontWeight.bold : FontWeight.normal,
@@ -142,15 +155,11 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
               },
             ),
           ),
-        // ---------- ADD THIS BUTTON BELOW ----------
-
-        // -------------------------------------------
       ],
     );
   }
 
   Widget _buildSummaryPanel(List<SkinPatch> patches) {
-    // Group patches by issue type, counting only those with no location (summary only)
     final Map<SkinIssueType, int> summaryCounts = {};
     for (final patch in patches) {
       if (patch.rect == null &&

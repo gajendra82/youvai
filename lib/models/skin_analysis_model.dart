@@ -1,9 +1,10 @@
-import 'package:flutter/material.dart';
+import 'dart:ui';
 
 enum SkinIssueType {
+  unknown,
   acne,
-  brownSpot,
   closedComedone,
+  brownSpot,
   melasma,
   freckle,
   mole,
@@ -14,39 +15,41 @@ enum SkinIssueType {
   wrinkle,
   eyePouch,
   nasolabialFold,
-  unknown,
+  darkSpots,
+  oiliness,
+  dryness,
 }
 
 String skinIssueTypeDisplayName(SkinIssueType type) {
   switch (type) {
     case SkinIssueType.acne:
-      return 'Acne';
-    case SkinIssueType.brownSpot:
-      return 'Brown Spot';
+      return "Acne";
     case SkinIssueType.closedComedone:
-      return 'Closed Comedone';
+      return "Closed Comedone";
+    case SkinIssueType.brownSpot:
+      return "Brown Spot";
     case SkinIssueType.melasma:
-      return 'Melasma';
+      return "Melasma";
     case SkinIssueType.freckle:
-      return 'Freckle';
+      return "Freckle";
     case SkinIssueType.mole:
-      return 'Mole';
+      return "Mole";
     case SkinIssueType.acnePustule:
-      return 'Acne Pustule';
+      return "Acne Pustule";
     case SkinIssueType.acneNodule:
-      return 'Acne Nodule';
+      return "Acne Nodule";
     case SkinIssueType.acneMark:
-      return 'Acne Mark';
+      return "Acne Mark";
     case SkinIssueType.darkCircle:
-      return 'Dark Circle';
+      return "Dark Circle";
     case SkinIssueType.wrinkle:
-      return 'Wrinkle';
+      return "Wrinkle";
     case SkinIssueType.eyePouch:
-      return 'Eye Pouch';
+      return "Eye Pouch";
     case SkinIssueType.nasolabialFold:
-      return 'Nasolabial Fold';
-    case SkinIssueType.unknown:
-      return 'Unknown';
+      return "Nasolabial Fold";
+    default:
+      return "Unknown";
   }
 }
 
@@ -63,180 +66,131 @@ class SkinPatch {
     this.confidence,
   });
 
-  /// Extended parser for all types present in the JSON
+  bool containsPoint(Offset point) {
+    if (rect != null) return rect!.contains(point);
+    if (polygon != null && polygon!.isNotEmpty)
+      return _pointInPolygon(point, polygon!);
+    return false;
+  }
+
+  bool _pointInPolygon(Offset point, List<Offset> polygon) {
+    int intersectCount = 0;
+    for (int j = 0; j < polygon.length; j++) {
+      int i = (j + 1) % polygon.length;
+      if (((polygon[j].dy > point.dy) != (polygon[i].dy > point.dy)) &&
+          (point.dx <
+              (polygon[i].dx - polygon[j].dx) *
+                      (point.dy - polygon[j].dy) /
+                      (polygon[i].dy - polygon[j].dy) +
+                  polygon[j].dx)) {
+        intersectCount++;
+      }
+    }
+    return (intersectCount % 2 == 1);
+  }
+
+  factory SkinPatch.none() =>
+      SkinPatch(issueType: SkinIssueType.unknown, rect: null, polygon: null);
+
+  // --- THE IMPORTANT PART ---
   static List<SkinPatch> fromJsonAll(Map<String, dynamic> json) {
     final List<SkinPatch> patches = [];
-    final result = json['result'] ?? {};
+    final result = json['result'];
+    if (result is Map<String, dynamic>) {
+      void extractRectsPolys(String key, SkinIssueType type) {
+        final obj = result[key];
+        if (obj is Map<String, dynamic>) {
+          // Rectangles
+          final rects = obj['rectangle'];
+          if (rects is List) {
+            for (int i = 0; i < rects.length; i++) {
+              final rect = rects[i];
+              if (rect is Map) {
+                final confidence =
+                    (obj['confidence'] is List && obj['confidence'].length > i)
+                        ? (obj['confidence'][i] as num?)?.toDouble()
+                        : null;
+                patches.add(SkinPatch(
+                  issueType: type,
+                  rect: Rect.fromLTWH(
+                    (rect['left'] as num?)?.toDouble() ?? 0,
+                    (rect['top'] as num?)?.toDouble() ?? 0,
+                    (rect['width'] as num?)?.toDouble() ?? 0,
+                    (rect['height'] as num?)?.toDouble() ?? 0,
+                  ),
+                  confidence: confidence,
+                ));
+              }
+            }
+          }
+          // Polygons
+          final polys = obj['polygon'];
+          if (polys is List) {
+            for (int i = 0; i < polys.length; i++) {
+              final poly = polys[i];
+              if (poly is List && poly.isNotEmpty) {
+                patches.add(SkinPatch(
+                  issueType: type,
+                  polygon: poly
+                      .map<Offset>((pt) => Offset(
+                          (pt['x'] as num?)?.toDouble() ?? 0,
+                          (pt['y'] as num?)?.toDouble() ?? 0))
+                      .toList(),
+                  confidence: (obj['confidence'] is List &&
+                          obj['confidence'].length > i)
+                      ? (obj['confidence'][i] as num?)?.toDouble()
+                      : null,
+                ));
+              }
+            }
+          }
+        }
+      }
 
-    // Acne
-    if (result['acne'] != null) {
-      final acne = result['acne'];
-      if (acne['rectangle'] is List) {
-        for (int i = 0; i < acne['rectangle'].length; i++) {
-          final r = acne['rectangle'][i];
+      extractRectsPolys('acne', SkinIssueType.acne);
+      extractRectsPolys('closed_comedones', SkinIssueType.closedComedone);
+      extractRectsPolys('brown_spot', SkinIssueType.brownSpot);
+      extractRectsPolys('melasma', SkinIssueType.melasma);
+      extractRectsPolys('freckle', SkinIssueType.freckle);
+      extractRectsPolys('mole', SkinIssueType.mole);
+      extractRectsPolys('acne_pustule', SkinIssueType.acnePustule);
+      extractRectsPolys('acne_nodule', SkinIssueType.acneNodule);
+      extractRectsPolys('acne_mark', SkinIssueType.acneMark);
+
+      // Dark circle patches: add rectangles if available
+      final darkCircleMark = result['dark_circle_mark'];
+      if (darkCircleMark is Map) {
+        if (darkCircleMark['left_eye_rect'] != null) {
+          final r = darkCircleMark['left_eye_rect'];
           patches.add(SkinPatch(
-            issueType: SkinIssueType.acne,
+            issueType: SkinIssueType.darkCircle,
             rect: Rect.fromLTWH(
               (r['left'] ?? 0).toDouble(),
               (r['top'] ?? 0).toDouble(),
               (r['width'] ?? 0).toDouble(),
               (r['height'] ?? 0).toDouble(),
             ),
-            confidence:
-                (acne['confidence'] is List && acne['confidence'].length > i)
-                    ? (acne['confidence'][i] as num?)?.toDouble()
-                    : null,
           ));
         }
-      }
-      if (acne['polygon'] is List) {
-        for (var poly in acne['polygon']) {
+        if (darkCircleMark['right_eye_rect'] != null) {
+          final r = darkCircleMark['right_eye_rect'];
           patches.add(SkinPatch(
-            issueType: SkinIssueType.acne,
-            polygon: (poly is List)
-                ? poly
-                    .map((p) => Offset(
-                        (p['x'] as num).toDouble(), (p['y'] as num).toDouble()))
-                    .toList()
-                : null,
-          ));
-        }
-      }
-    }
-
-    // Brown Spot
-    if (result['brown_spot'] != null) {
-      final brownSpot = result['brown_spot'];
-      if (brownSpot['rectangle'] is List) {
-        for (int i = 0; i < brownSpot['rectangle'].length; i++) {
-          final r = brownSpot['rectangle'][i];
-          patches.add(SkinPatch(
-            issueType: SkinIssueType.brownSpot,
+            issueType: SkinIssueType.darkCircle,
             rect: Rect.fromLTWH(
               (r['left'] ?? 0).toDouble(),
               (r['top'] ?? 0).toDouble(),
               (r['width'] ?? 0).toDouble(),
               (r['height'] ?? 0).toDouble(),
             ),
-            confidence: (brownSpot['confidence'] is List &&
-                    brownSpot['confidence'].length > i)
-                ? (brownSpot['confidence'][i] as num?)?.toDouble()
-                : null,
           ));
         }
       }
-      if (brownSpot['polygon'] is List) {
-        for (var poly in brownSpot['polygon']) {
-          patches.add(SkinPatch(
-            issueType: SkinIssueType.brownSpot,
-            polygon: (poly is List)
-                ? poly
-                    .map((p) => Offset(
-                        (p['x'] as num).toDouble(), (p['y'] as num).toDouble()))
-                    .toList()
-                : null,
-          ));
-        }
-      }
-    }
 
-    // Closed Comedones
-    if (result['closed_comedones'] != null) {
-      final cc = result['closed_comedones'];
-      if (cc['rectangle'] is List) {
-        for (int i = 0; i < cc['rectangle'].length; i++) {
-          final r = cc['rectangle'][i];
-          patches.add(SkinPatch(
-            issueType: SkinIssueType.closedComedone,
-            rect: Rect.fromLTWH(
-              (r['left'] ?? 0).toDouble(),
-              (r['top'] ?? 0).toDouble(),
-              (r['width'] ?? 0).toDouble(),
-              (r['height'] ?? 0).toDouble(),
-            ),
-            confidence:
-                (cc['confidence'] is List && cc['confidence'].length > i)
-                    ? (cc['confidence'][i] as num?)?.toDouble()
-                    : null,
-          ));
-        }
-      }
-      if (cc['polygon'] is List) {
-        for (var poly in cc['polygon']) {
-          patches.add(SkinPatch(
-            issueType: SkinIssueType.closedComedone,
-            polygon: (poly is List)
-                ? poly
-                    .map((p) => Offset(
-                        (p['x'] as num).toDouble(), (p['y'] as num).toDouble()))
-                    .toList()
-                : null,
-          ));
-        }
-      }
-    }
-
-    // Mole
-    if (result['mole'] != null) {
-      final mole = result['mole'];
-      if (mole['rectangle'] is List) {
-        for (int i = 0; i < mole['rectangle'].length; i++) {
-          final r = mole['rectangle'][i];
-          patches.add(SkinPatch(
-            issueType: SkinIssueType.mole,
-            rect: Rect.fromLTWH(
-              (r['left'] ?? 0).toDouble(),
-              (r['top'] ?? 0).toDouble(),
-              (r['width'] ?? 0).toDouble(),
-              (r['height'] ?? 0).toDouble(),
-            ),
-            confidence:
-                (mole['confidence'] is List && mole['confidence'].length > i)
-                    ? (mole['confidence'][i] as num?)?.toDouble()
-                    : null,
-          ));
-        }
-      }
-      if (mole['polygon'] is List) {
-        for (var poly in mole['polygon']) {
-          patches.add(SkinPatch(
-            issueType: SkinIssueType.mole,
-            polygon: (poly is List)
-                ? poly
-                    .map((p) => Offset(
-                        (p['x'] as num).toDouble(), (p['y'] as num).toDouble()))
-                    .toList()
-                : null,
-          ));
-        }
-      }
-    }
-
-    // Melasma
-    if (result['melasma'] != null && result['melasma']['value'] == 1) {
-      patches.add(SkinPatch(
-        issueType: SkinIssueType.melasma,
-        rect: null,
-        confidence: result['melasma']['confidence']?.toDouble(),
-      ));
-    }
-
-    // Freckle
-    if (result['freckle'] != null && result['freckle']['value'] == 1) {
-      patches.add(SkinPatch(
-        issueType: SkinIssueType.freckle,
-        rect: null,
-        confidence: result['freckle']['confidence']?.toDouble(),
-      ));
-    }
-
-    // Dark Circle (from dark_circle_mark region rectangles)
-    if (result['dark_circle_mark'] != null) {
-      final dcm = result['dark_circle_mark'];
-      if (dcm['left_eye_rect'] != null) {
-        final r = dcm['left_eye_rect'];
+      // Eye pouch
+      if (result['left_eye_pouch_rect'] != null) {
+        final r = result['left_eye_pouch_rect'];
         patches.add(SkinPatch(
-          issueType: SkinIssueType.darkCircle,
+          issueType: SkinIssueType.eyePouch,
           rect: Rect.fromLTWH(
             (r['left'] ?? 0).toDouble(),
             (r['top'] ?? 0).toDouble(),
@@ -245,10 +199,10 @@ class SkinPatch {
           ),
         ));
       }
-      if (dcm['right_eye_rect'] != null) {
-        final r = dcm['right_eye_rect'];
+      if (result['right_eye_pouch_rect'] != null) {
+        final r = result['right_eye_pouch_rect'];
         patches.add(SkinPatch(
-          issueType: SkinIssueType.darkCircle,
+          issueType: SkinIssueType.eyePouch,
           rect: Rect.fromLTWH(
             (r['left'] ?? 0).toDouble(),
             (r['top'] ?? 0).toDouble(),
@@ -257,74 +211,46 @@ class SkinPatch {
           ),
         ));
       }
-    }
 
-    // Eye Pouch (from left_eye_pouch_rect and right_eye_pouch_rect)
-    if (result['left_eye_pouch_rect'] != null) {
-      final r = result['left_eye_pouch_rect'];
-      patches.add(SkinPatch(
-        issueType: SkinIssueType.eyePouch,
-        rect: Rect.fromLTWH(
-          (r['left'] ?? 0).toDouble(),
-          (r['top'] ?? 0).toDouble(),
-          (r['width'] ?? 0).toDouble(),
-          (r['height'] ?? 0).toDouble(),
-        ),
-      ));
-    }
-    if (result['right_eye_pouch_rect'] != null) {
-      final r = result['right_eye_pouch_rect'];
-      patches.add(SkinPatch(
-        issueType: SkinIssueType.eyePouch,
-        rect: Rect.fromLTWH(
-          (r['left'] ?? 0).toDouble(),
-          (r['top'] ?? 0).toDouble(),
-          (r['width'] ?? 0).toDouble(),
-          (r['height'] ?? 0).toDouble(),
-        ),
-      ));
-    }
+      // Nasolabial fold (no geometry, but you might want to show a chip)
+      if (result['nasolabial_fold'] != null &&
+          result['nasolabial_fold']['value'] == 1) {
+        patches.add(SkinPatch(
+          issueType: SkinIssueType.nasolabialFold,
+          rect: null,
+          confidence:
+              (result['nasolabial_fold']['confidence'] as num?)?.toDouble(),
+        ));
+      }
 
-    // Nasolabial Fold (region rectangles not provided; add as summary)
-    if (result['nasolabial_fold'] != null &&
-        result['nasolabial_fold']['value'] == 1) {
-      patches.add(SkinPatch(
-        issueType: SkinIssueType.nasolabialFold,
-        rect: null,
-        confidence: result['nasolabial_fold']['confidence']?.toDouble(),
-      ));
-    }
-
-    // Wrinkle (from wrinkle_count and *_wrinkle_info; only if count > 0)
-    if (result['wrinkle_count'] != null) {
-      final wc = result['wrinkle_count'];
-      for (final region in [
-        'forehead_count',
-        'left_undereye_count',
-        'right_undereye_count',
-        'left_mouth_count',
-        'right_mouth_count',
-        'left_nasolabial_count',
-        'right_nasolabial_count',
-        'glabella_count',
-        'left_cheek_count',
-        'right_cheek_count',
-        'left_crowsfeet_count',
-        'right_crowsfeet_count',
-      ]) {
-        final count = wc[region] ?? 0;
-        if (count > 0) {
-          patches.add(SkinPatch(
-            issueType: SkinIssueType.wrinkle,
-            rect: null,
-            confidence: null,
-          ));
+      // Wrinkle: count only, no geometry
+      if (result['wrinkle_count'] != null) {
+        final wc = result['wrinkle_count'];
+        for (final region in [
+          'forehead_count',
+          'left_undereye_count',
+          'right_undereye_count',
+          'left_mouth_count',
+          'right_mouth_count',
+          'left_nasolabial_count',
+          'right_nasolabial_count',
+          'glabella_count',
+          'left_cheek_count',
+          'right_cheek_count',
+          'left_crowsfeet_count',
+          'right_crowsfeet_count',
+        ]) {
+          final count = wc[region] ?? 0;
+          if (count > 0) {
+            patches.add(SkinPatch(
+              issueType: SkinIssueType.wrinkle,
+              rect: null,
+              confidence: null,
+            ));
+          }
         }
       }
     }
-
-    // TODO: Add more types as needed, e.g. acne_mark, acne_nodule, acne_pustule if locations are provided in API
-
     return patches;
   }
 }

@@ -32,10 +32,9 @@ class _CameraTabScreenState extends State<CameraTabScreen> {
     return Scaffold(
       body: Center(
         child: _imageFile == null
-            ? ElevatedButton(
-                onPressed: _showDialogAndPickImage,
-                child: const Text('Scan'),
-              )
+            ? Container(
+              child: ScanFaceScreen(),
+            )
             : Stack(
                 children: [
                   Positioned.fill(

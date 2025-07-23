@@ -279,8 +279,54 @@ class SkinConditionResultPage extends StatelessWidget {
 
   Widget buildAssessmentChart(double score, {String? label}) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.center,
       children: [
+        SizedBox(
+          height: 80,
+          width: 80,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                height: 80,
+                width: 80,
+                child: CircularProgressIndicator(
+                  value: (score / 10).clamp(0.0, 1.0),
+                  strokeWidth: 8,
+                  backgroundColor: Colors.grey.shade300,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    score >= 8.5
+                        ? Colors.green
+                        : score >= 7.5
+                            ? Colors.lightGreen
+                            : score >= 6.5
+                                ? Colors.orange
+                                : Colors.red,
+                  ),
+                ),
+              ),
+              Text(
+                "${score.toStringAsFixed(2)}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: Colors.black87,
+                ),
+              ),
+              const Positioned(
+                bottom: 10,
+                child: Text(
+                  "/ 10",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+       SizedBox(height: 15),
         if (label != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 2.0),
@@ -289,45 +335,6 @@ class SkinConditionResultPage extends StatelessWidget {
               style: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-        SizedBox(
-          height: 28,
-          child: Stack(
-            children: [
-              Container(
-                height: 20,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              FractionallySizedBox(
-                widthFactor: (score / 10).clamp(0.0, 1.0),
-                child: Container(
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: score >= 8.5
-                        ? Colors.green
-                        : score >= 7.5
-                            ? Colors.lightGreen
-                            : score >= 6.5
-                                ? Colors.orange
-                                : Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: Center(
-                  child: Text(
-                    "${score.toStringAsFixed(2)} / 10",
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
   }
@@ -433,7 +440,7 @@ class SkinConditionResultPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final summaries = extractSkinSummaries(gradioResult, patchJson);
-    print(summaries[0]);
+    print(summaries[0]['percentages']);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Skin Analysis Results'),
@@ -475,17 +482,20 @@ class SkinConditionResultPage extends StatelessWidget {
                                 )),
                           ],
                         ),
+                        const SizedBox(height: 20),
+                        Wrap(
+                          spacing: 24,
+                          runSpacing: 10,
+                          children: [
+                            buildAssessmentChart(scoreOutOf10,
+                                label: primaryCondition),
+                            buildAssessmentChart(attractivenessScore,
+                                label: "Attractiveness"),
+                          ],
+                        ),
                         const SizedBox(height: 10),
-                        buildAssessmentChart(scoreOutOf10,
-                            label: primaryCondition),
-                        const SizedBox(height: 10),
-                        buildAttractivenessChart(attractivenessScore),
-                        // const SizedBox(height: 10),
-                        // Text(
-                        //   assessment,
-                        //   style: const TextStyle(
-                        //     fontSize: 16,
-                        //     fontWeight: FontWeight.bold,
+
+                        // buildAttractivenessChart(attractivenessScore),
                         //     color: Colors.deepPurple),
                         // ),
                         const SizedBox(height: 10),
@@ -541,32 +551,32 @@ class SkinConditionResultPage extends StatelessWidget {
                             ),
                           ],
                         ),
-                        ExpansionTile(
-                          title: const Text("What medicines are recommended?",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Builder(
-                                builder: (context) {
-                                  // Try to extract "Recommended Medicines" section
-                                  final recRegex = RegExp(
-                                      r'Recommended Medicines[:\s]*([\s\S]*?)(\n\n|$)',
-                                      caseSensitive: false);
-                                  final recMatch =
-                                      recRegex.firstMatch(fullOutput);
-                                  if (recMatch != null) {
-                                    return Text(recMatch.group(1)!.trim(),
-                                        style: const TextStyle(fontSize: 15));
-                                  }
-                                  // Fallback: show all recommendations
-                                  return Text(summary['recommendations'] ?? '',
-                                      style: const TextStyle(fontSize: 15));
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
+                        // ExpansionTile(
+                        //   title: const Text("What medicines are recommended?",
+                        //       style: TextStyle(fontWeight: FontWeight.bold)),
+                        //   children: [
+                        //     Padding(
+                        //       padding: const EdgeInsets.all(8.0),
+                        //       child: Builder(
+                        //         builder: (context) {
+                        //           // Try to extract "Recommended Medicines" section
+                        //           final recRegex = RegExp(
+                        //               r'Recommended Medicines[:\s]*([\s\S]*?)(\n\n|$)',
+                        //               caseSensitive: false);
+                        //           final recMatch =
+                        //               recRegex.firstMatch(fullOutput);
+                        //           if (recMatch != null) {
+                        //             return Text(recMatch.group(1)!.trim(),
+                        //                 style: const TextStyle(fontSize: 15));
+                        //           }
+                        //           // Fallback: show all recommendations
+                        //           return Text(summary['recommendations'] ?? '',
+                        //               style: const TextStyle(fontSize: 15));
+                        //         },
+                        //       ),
+                        //     ),
+                        //   ],
+                        // ),
                         ExpansionTile(
                           title: const Text("What are the treatment notes?",
                               style: TextStyle(fontWeight: FontWeight.bold)),

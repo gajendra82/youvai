@@ -2,7 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:skin_assessment/screens/skin_analysis_screen.dart';
 
 class ScanFaceScreen extends StatelessWidget {
-  const ScanFaceScreen({super.key});
+  const ScanFaceScreen(
+      {super.key, this.onCameraPressed, this.onGalleryPressed});
+
+  final Function? onCameraPressed;
+  final Function? onGalleryPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -17,15 +21,15 @@ class ScanFaceScreen extends StatelessWidget {
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           // Close Button Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
-            ],
-          ),
+          // Row(
+          //   mainAxisAlignment: MainAxisAlignment.end,
+          //   children: [
+          //     IconButton(
+          //       icon: const Icon(Icons.close),
+          //       onPressed: () => Navigator.of(context).pop(),
+          //     ),
+          //   ],
+          // ),
           const SizedBox(height: 10),
           // Title and Description
           const Text(
@@ -162,11 +166,11 @@ class ScanFaceScreen extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (context) => SkinAnalysisScreen(),
-                      ),
-                    );
+                    // print(onCamere);
+                    if (onCameraPressed != null) {
+                      print("Camera button pressed");
+                      onCameraPressed!();
+                    }
                   },
                 ),
               ),
@@ -190,9 +194,10 @@ class ScanFaceScreen extends StatelessWidget {
                     ),
                   ),
                   onPressed: () {
-                    // Add logic to get image from gallery
-                    Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => SkinAnalysisScreen()));
+                    print("Gallery button pressed");
+                    if (onGalleryPressed != null) {
+                      onGalleryPressed!();
+                    }
                   },
                 ),
               ),

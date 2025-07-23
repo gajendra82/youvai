@@ -14,225 +14,131 @@ class PatchPainter extends CustomPainter {
     this.selectedType,
   });
 
-  final double _lineLength = 35;
+  final Paint linePaint = Paint()
+    ..color = Colors.white
+    ..strokeWidth = 1.2
+    ..style = PaintingStyle.stroke;
+
+  final TextStyle labelStyle = const TextStyle(
+    color: Colors.white,
+    fontSize: 10,
+    fontWeight: FontWeight.w500,
+  );
+
+  final List<Rect> usedLabelRects = [];
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.4;
+    final double scaleX = displaySize.width / imageSize.width;
+    final double scaleY = displaySize.height / imageSize.height;
 
-    final scaleX = displaySize.width / imageSize.width;
-    final scaleY = displaySize.height / imageSize.height;
+    final Map<SkinIssueType, List<Offset>> conditionPoints = {};
 
-    // Group patches by issue type
-    final Map<SkinIssueType, List<SkinPatch>> grouped = {};
-    for (final patch in patches) {
-      if (patch.issueType == SkinIssueType.unknown) continue;
-      grouped.putIfAbsent(patch.issueType, () => []).add(patch);
+    for (var patch in patches) {
+      if (selectedType != null && patch.issueType != selectedType) continue;
+
+      final Offset offset;
+      if (patch.rect != null) {
+        offset = Offset(
+          (patch.rect!.left + patch.rect!.right) / 2 * scaleX,
+          (patch.rect!.top + patch.rect!.bottom) / 2 * scaleY,
+        );
+      } else if (patch.polygon != null && patch.polygon!.isNotEmpty) {
+        final poly = patch.polygon!;
+        final center = poly.reduce((a, b) => a + b) / poly.length.toDouble();
+        offset = Offset(center.dx * scaleX, center.dy * scaleY);
+      } else {
+        continue;
+      }
+
+      conditionPoints.putIfAbsent(patch.issueType, () => []).add(offset);
     }
 
-    int leftIndex = 0;
-    int rightIndex = 0;
+    for (var entry in conditionPoints.entries) {
+      final condition = entry.key;
+      final points = entry.value;
 
-    for (final entry in grouped.entries) {
-      final type = entry.key;
-      final patchList = entry.value;
+      if (points.isEmpty) continue;
 
-      final color = _getColorForIssue(type);
-      paint.color = color;
+      final Offset basePoint = points.length > 6
+          ? points.reduce((a, b) => a + b) / points.length.toDouble()
+          : points[0];
 
-      Offset? labelPosition;
+      final Offset labelOffset = _calculateLabelOffset(basePoint, size);
 
-      for (int i = 0; i < patchList.length; i++) {
-        final patch = patchList[i];
+      // Line direction vector (normalized)
+      Offset dir = labelOffset - basePoint;
+      double length = dir.distance;
+      if (length == 0) continue; // Prevent divide by zero
+      dir = Offset(dir.dx / length, dir.dy / length);
 
-        Offset centroid;
-        if (patch.rect != null) {
-          final r = patch.rect!;
-          centroid = Offset(
-            (r.left + r.right) / 2 * scaleX,
-            (r.top + r.bottom) / 2 * scaleY,
-          );
-          _drawLCorners(
-              canvas,
-              Rect.fromLTRB(
-                r.left * scaleX,
-                r.top * scaleY,
-                r.right * scaleX,
-                r.bottom * scaleY,
-              ),
-              paint);
-        } else if (patch.polygon != null && patch.polygon!.isNotEmpty) {
-          final polygon = patch.polygon!;
-          final scaled = polygon
-              .map((pt) => Offset(pt.dx * scaleX, pt.dy * scaleY))
-              .toList();
-          centroid = _calculateCentroid(scaled);
-          final path = Path()..addPolygon(scaled, true);
-          canvas.drawPath(path, paint);
-        } else {
-          continue;
-        }
+      // Draw line touching circle edge, not going inside
+      const double radius = 3;
+      final Offset lineStart = basePoint + dir * radius;
+      canvas.drawLine(lineStart, labelOffset, linePaint);
 
-        _drawStartMarker(canvas, centroid, color);
+      // Hollow circle
+      canvas.drawCircle(basePoint, radius, linePaint);
 
-        // For more than 6 patches of the same type, draw label only once
-        bool shouldDrawLabel = patchList.length <= 6 || i == 0;
-        if (shouldDrawLabel) {
-          final isLeft = centroid.dx < displaySize.width / 2;
-          final horizontalOffset = isLeft ? -_lineLength : _lineLength;
-          final intermediate =
-              Offset(centroid.dx + horizontalOffset, centroid.dy);
-          final labelOffset = Offset(
-            intermediate.dx + (isLeft ? -5 : 5),
-            intermediate.dy +
-                (isLeft ? leftIndex++ * 20.0 : rightIndex++ * 20.0),
-          );
+      // Draw label text
+      final textSpan = TextSpan(
+        text: condition.name.toUpperCase(),
+        style: labelStyle,
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
 
-          _drawLShapedLine(canvas, centroid, intermediate, labelOffset, paint);
-          _drawLabel(canvas, labelOffset, type, color, isLeft);
+      final adjustedLabel = _adjustForOverlap(
+          labelOffset + const Offset(4, -4), textPainter.size);
+      textPainter.paint(canvas, adjustedLabel);
+
+      usedLabelRects.add(Rect.fromLTWH(
+        adjustedLabel.dx,
+        adjustedLabel.dy,
+        textPainter.width,
+        textPainter.height,
+      ));
+    }
+  }
+
+  Offset _calculateLabelOffset(Offset base, Size canvasSize) {
+    const double offsetDistance = 50;
+    bool isLeft = base.dx < canvasSize.width / 2;
+    bool isTop = base.dy < canvasSize.height / 2;
+
+    double dx = base.dx + (isLeft ? -offsetDistance : offsetDistance);
+    double dy = base.dy + (isTop ? -offsetDistance / 2 : offsetDistance / 2);
+
+    dx = dx.clamp(0.0, canvasSize.width - 40);
+    dy = dy.clamp(0.0, canvasSize.height - 12);
+
+    return Offset(dx, dy);
+  }
+
+  Offset _adjustForOverlap(Offset proposed, Size size) {
+    const double spacing = 4;
+    Offset adjusted = proposed;
+    bool hasOverlap;
+
+    do {
+      hasOverlap = false;
+      for (final rect in usedLabelRects) {
+        final newRect =
+            Rect.fromLTWH(adjusted.dx, adjusted.dy, size.width, size.height);
+        if (newRect.overlaps(rect)) {
+          adjusted = adjusted.translate(0, size.height + spacing);
+          hasOverlap = true;
+          break;
         }
       }
-    }
-  }
+    } while (hasOverlap);
 
-  void _drawStartMarker(Canvas canvas, Offset center, Color color) {
-    const double size = 12;
-    final rect = Rect.fromCenter(center: center, width: size, height: size);
-
-    final fillPaint = Paint()..color = Colors.white;
-    final borderPaint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawRect(rect, fillPaint);
-    canvas.drawRect(rect, borderPaint);
-
-    final plusPaint = Paint()
-      ..color = color
-      ..strokeWidth = 1.2;
-
-    final double half = size / 2.2;
-    canvas.drawLine(
-      Offset(center.dx - half + 1, center.dy),
-      Offset(center.dx + half - 1, center.dy),
-      plusPaint,
-    );
-    canvas.drawLine(
-      Offset(center.dx, center.dy - half + 1),
-      Offset(center.dx, center.dy + half - 1),
-      plusPaint,
-    );
-  }
-
-  void _drawLShapedLine(
-      Canvas canvas, Offset start, Offset bend, Offset end, Paint paint) {
-    canvas.drawLine(start, bend, paint);
-    canvas.drawLine(bend, end, paint);
-  }
-
-  void _drawLabel(
-      Canvas canvas, Offset pos, SkinIssueType type, Color color, bool isLeft) {
-    const double radius = 8;
-    final circleOffset = Offset(
-      isLeft ? pos.dx - radius - 2 : pos.dx + radius + 2,
-      pos.dy,
-    );
-    final textOffset = Offset(
-      isLeft ? pos.dx - 70 : pos.dx + 12,
-      pos.dy - 7,
-    );
-
-    final circlePaint = Paint()..color = color;
-    canvas.drawCircle(circleOffset, radius, circlePaint);
-
-    final textPainter = TextPainter(
-      text: TextSpan(
-        text: skinIssueTypeDisplayName(type),
-        style: TextStyle(
-          color: Colors.black,
-          fontSize: 12,
-        ),
-      ),
-      textDirection: TextDirection.ltr,
-    );
-    textPainter.layout();
-    textPainter.paint(canvas, textOffset);
-  }
-
-  void _drawLCorners(Canvas canvas, Rect rect, Paint paint) {
-    const double cornerLength = 12;
-    // Top-left
-    canvas.drawLine(
-        rect.topLeft, rect.topLeft + Offset(cornerLength, 0), paint);
-    canvas.drawLine(
-        rect.topLeft, rect.topLeft + Offset(0, cornerLength), paint);
-    // Top-right
-    canvas.drawLine(
-        rect.topRight, rect.topRight + Offset(-cornerLength, 0), paint);
-    canvas.drawLine(
-        rect.topRight, rect.topRight + Offset(0, cornerLength), paint);
-    // Bottom-left
-    canvas.drawLine(
-        rect.bottomLeft, rect.bottomLeft + Offset(cornerLength, 0), paint);
-    canvas.drawLine(
-        rect.bottomLeft, rect.bottomLeft + Offset(0, -cornerLength), paint);
-    // Bottom-right
-    canvas.drawLine(
-        rect.bottomRight, rect.bottomRight + Offset(-cornerLength, 0), paint);
-    canvas.drawLine(
-        rect.bottomRight, rect.bottomRight + Offset(0, -cornerLength), paint);
-  }
-
-  Offset _calculateCentroid(List<Offset> points) {
-    double x = 0, y = 0;
-    for (final pt in points) {
-      x += pt.dx;
-      y += pt.dy;
-    }
-    return Offset(x / points.length, y / points.length);
-  }
-
-  Color _getColorForIssue(SkinIssueType type) {
-    switch (type) {
-      case SkinIssueType.acne:
-        return Colors.red;
-      case SkinIssueType.closedComedone:
-        return Colors.orange;
-      case SkinIssueType.brownSpot:
-        return Colors.brown;
-      case SkinIssueType.melasma:
-        return Colors.deepPurple;
-      case SkinIssueType.freckle:
-        return Colors.amber;
-      case SkinIssueType.mole:
-        return Colors.black;
-      case SkinIssueType.acnePustule:
-        return Colors.pink;
-      case SkinIssueType.acneNodule:
-        return Colors.teal;
-      case SkinIssueType.acneMark:
-        return Colors.indigo;
-      case SkinIssueType.darkCircle:
-        return Colors.blueGrey;
-      case SkinIssueType.wrinkle:
-        return Colors.grey;
-      case SkinIssueType.eyePouch:
-        return Colors.lightGreen;
-      case SkinIssueType.nasolabialFold:
-        return Colors.deepOrange;
-      default:
-        return Colors.grey;
-    }
+    return adjusted;
   }
 
   @override
-  bool shouldRepaint(covariant PatchPainter oldDelegate) {
-    return oldDelegate.patches != patches ||
-        oldDelegate.imageSize != imageSize ||
-        oldDelegate.displaySize != displaySize ||
-        oldDelegate.selectedType != selectedType;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

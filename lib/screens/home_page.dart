@@ -3,6 +3,7 @@ import 'package:skin_assessment/screens/appointment.dart';
 import 'package:skin_assessment/screens/chat_page.dart';
 import 'package:skin_assessment/screens/dashboard.dart';
 import 'package:skin_assessment/screens/camera_tab.dart';
+import 'package:skin_assessment/screens/skin_analysis_screen.dart';
 import 'package:skin_assessment/widgets/custom_bottom_navbar.dart';
 // Add your other screen imports here
 
@@ -19,7 +20,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final List<Widget> _pages = [
     DashboardScreen(),
     BookAppointmentPage(),
-    CameraTabScreen(),
+    // CameraTabScreen(),
+    SkinAnalysisScreen(),
     Center(child: Text('Analytics')),
     ChatPage(),
   ];
@@ -48,7 +50,17 @@ class _HomeScreenState extends State<HomeScreen> {
               child: CustomBottomNavBar(
                 selectedIndex: _selectedIndex,
                 onItemSelected: (index) {
-                  setState(() => _selectedIndex = index);
+                  if (index == 2) {
+                    // Navigate to your custom page (replace YourAnalyticsPage with your actual page)
+                    Navigator.of(context).push(MaterialPageRoute(
+                      builder: (context) => SkinAnalysisScreen(),
+                    ));
+                    // Optionally, do NOT update the index in this case
+                    // If you want to keep old tab selected
+                  } else {
+                    setState(() => _selectedIndex = index);
+                  }
+                  // setState(() => _selectedIndex = index);
                 },
               ),
             ),

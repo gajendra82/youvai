@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import 'package:skin_assessment/screens/scan_face_screen.dart';
 import '../widgets/skin_analysis_view.dart';
 import '../models/skin_analysis_model.dart';
 import 'SkinConditionResultPage.dart';
@@ -39,10 +40,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   File? _lastImageFile;
   Uint8List? _lastImageBytes;
 
-  // Animation for scanning line
   late AnimationController _scanController;
   late Animation<double> _scanAnimation;
   Uint8List? _scanningImageBytes;
+
+  Uint8List? _blackBgFaceImage;
+  bool _removingBg = false;
+  bool _showScanning = false;
 
   @override
   void initState() {
@@ -115,7 +119,45 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text("Skin Analysis")),
+      // appBar: AppBar(title: const Text("Skin Analysis")),
+      // bottomNavigationBar: _analysisJson != null
+      //     ? Container(
+      //       height: 100,
+      //       padding:EdgeInsets.all(8),
+      //         alignment: Alignment.bottomCenter,
+      //         child: Column(
+      //           mainAxisSize: MainAxisSize.min,
+      //           children: [
+      //             // _buildHorizontalIssues(_analysisJson!),
+      //             if (_gradioResult != null)
+      //               Padding(
+      //                 padding: const EdgeInsets.symmetric(
+      //                     vertical: 8.0, horizontal: 16),
+      //                 child: SizedBox(
+      //                   width: double.infinity,
+      //                   child: ElevatedButton.icon(
+      //                     icon: const Icon(Icons.analytics),
+      //                     label: const Text("View Percentage & Summary"),
+      //                     onPressed: () {
+      //                       Navigator.push(
+      //                         context,
+      //                         MaterialPageRoute(
+      //                           builder: (context) => SkinConditionResultPage(
+      //                             gradioResult: _gradioResult!,
+      //                             patchJson: _analysisJson,
+      //                           ),
+      //                         ),
+      //                       );
+      //                     },
+      //                   ),
+      //                 ),
+      //               ),
+      //           ],
+      //         ),
+      //       )
+      //     : SizedBox(
+      //         height: 0,
+      //       ),
       body: SafeArea(
         child: Stack(
           children: [
@@ -126,30 +168,35 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                       ? _buildCameraOverlay(context)
                       : _buildImageArea(context),
                 ),
-                Container(
-                  color: Colors.transparent,
-                  padding: const EdgeInsets.only(bottom: 20, top: 8),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _buildBottomButton(
-                        icon: Icons.camera_alt,
-                        label: "Camera",
-                        onTap: _cameras == null
-                            ? null
-                            : () async {
-                                await _startCamera();
-                              },
-                      ),
-                      const SizedBox(width: 24),
-                      _buildBottomButton(
-                        icon: Icons.photo_library,
-                        label: "Gallery",
-                        onTap: () => _pickImage(ImageSource.gallery),
-                      ),
-                    ],
-                  ),
-                ),
+                // if (_blackBgFaceImage == null)
+                // ScanFaceScreen(
+                //   onCameraPressed: _startCamera,
+                //   onGalleryPressed: () => _pickImage(ImageSource.gallery),
+                // ),
+                // Container(
+                //   color: Colors.transparent,
+                //   padding: const EdgeInsets.only(bottom: 20, top: 8),
+                //   child: Row(
+                //     mainAxisAlignment: MainAxisAlignment.center,
+                //     children: [
+                //       _buildBottomButton(
+                //         icon: Icons.camera_alt,
+                //         label: "Camera",
+                //         onTap: _cameras == null
+                //             ? null
+                //             : () async {
+                //                 await _startCamera();
+                //               },
+                //       ),
+                //       const SizedBox(width: 24),
+                //       _buildBottomButton(
+                //         icon: Icons.photo_library,
+                //         label: "Gallery",
+                //         onTap: () => _pickImage(ImageSource.gallery),
+                //       ),
+                //     ],
+                //   ),
+                // ),
               ],
             ),
             if (_loading &&
@@ -186,6 +233,27 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   },
                 ),
               ),
+            if (_removingBg)
+              Container(
+                color: Colors.black.withOpacity(0.7),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(color: Colors.white),
+                      SizedBox(height: 18),
+                      Text(
+                        "Removing background...",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
           ],
         ),
       ),
@@ -220,6 +288,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   Widget _buildImageArea(BuildContext context) {
+    if (_removingBg) {
+      return const SizedBox.shrink();
+    }
     if (_error != null) {
       return Center(
         child: Text(
@@ -228,53 +299,42 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         ),
       );
     }
-    if (_imageProvider != null &&
-        (_analysisJson != null || _gradioResult != null) &&
-        _originalImageSize != null) {
-      return Column(
+    if (_blackBgFaceImage != null && _originalImageSize != null) {
+      return Stack(
         children: [
-          Expanded(
-            child: _analysisJson != null
-                ? SkinAnalysisView(
-                    analysisJson: _analysisJson!,
-                    inputImage: _imageProvider!,
-                    originalImageSize: _originalImageSize!,
-                    selectedType: _selectedIssueType,
-                  )
-                : Image(image: _imageProvider!, fit: BoxFit.contain),
+          Positioned.fill(
+            child: Image.memory(_blackBgFaceImage!, fit: BoxFit.contain),
           ),
-          if (_analysisJson != null) _buildHorizontalIssues(_analysisJson!),
-          if (_gradioResult != null)
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  icon: const Icon(Icons.analytics),
-                  label: const Text("View Percentage & Summary"),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => SkinConditionResultPage(
-                          gradioResult: _gradioResult!,
-                          patchJson:
-                              _analysisJson, // pass your patch/first API json here
-                        ),
-                      ),
-                    );
-                  },
-                ),
+          if (_showScanning)
+            Positioned.fill(
+              child: AnimatedBuilder(
+                animation: _scanController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: ScanningLinePainter(_scanAnimation.value),
+                    size: MediaQuery.of(context).size,
+                  );
+                },
+              ),
+            ),
+          if (_analysisJson != null)
+            Positioned.fill(
+              child: SkinAnalysisView(
+                analysisJson: _analysisJson!,
+                inputImage: MemoryImage(_blackBgFaceImage!),
+                originalImageSize: _originalImageSize!,
+                selectedType: _selectedIssueType,
+                gradioResult: _gradioResult,
               ),
             ),
         ],
       );
     }
-    return const Center(
-      child: Text(
-        "Pick an image to start analysis",
-        style: TextStyle(fontSize: 18, color: Colors.grey),
+    return Container(
+      height: 100,
+      child: ScanFaceScreen(
+        onCameraPressed: _startCamera,
+        onGalleryPressed: _pickImage,
       ),
     );
   }
@@ -362,15 +422,14 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     );
   }
 
-  Future<void> _pickImage(ImageSource source) async {
+  Future<void> _pickImage() async {
     final picker = ImagePicker();
-    final picked = await picker.pickImage(source: source);
+    final picked = await picker.pickImage(source: ImageSource.gallery);
     if (picked != null) {
       await _processPickedImage(picked, fromCamera: false);
     }
   }
 
-  // Always fix orientation for all images!
   Future<Uint8List> fixImageOrientation(Uint8List bytes) async {
     final original = img.decodeImage(bytes);
     if (original == null) return bytes;
@@ -378,7 +437,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     return Uint8List.fromList(img.encodeJpg(fixed));
   }
 
-  /// Handles both gallery and camera images.
   Future<void> _processPickedImage(XFile picked,
       {bool fromCamera = false}) async {
     Uint8List? bytes;
@@ -409,16 +467,58 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _gradioResult = null;
       _loading = true;
       _imageProvider = null;
+      _blackBgFaceImage = null;
+      _removingBg = true;
+      _showScanning = false;
     });
 
-    // Start scanning animation immediately
+    if (picked.path.isNotEmpty) {
+      await _getBlackBgFace(File(picked.path));
+    }
+
+    setState(() {
+      _removingBg = false;
+      _loading = false;
+      _showScanning = true;
+      _imageProvider =
+          _blackBgFaceImage != null ? MemoryImage(_blackBgFaceImage!) : null;
+    });
+
     _scanController.reset();
     _scanController.repeat();
 
-    await _analyzeImage(picked, bytes);
-
-    // Stop scanning and show result image
+    if (_blackBgFaceImage != null) {
+      await _analyzeImage(picked, _blackBgFaceImage!);
+    } else {
+      await _analyzeImage(picked, bytes);
+    }
     _scanController.reset();
+    setState(() {
+      _showScanning = false;
+    });
+  }
+
+  Future<void> _getBlackBgFace(File imageFile) async {
+    try {
+      final uri = Uri.parse("http://192.168.1.110:5000/black-bg-face");
+      final request = http.MultipartRequest("POST", uri);
+      request.files
+          .add(await http.MultipartFile.fromPath('image', imageFile.path));
+      final response = await request.send();
+      if (response.statusCode == 200) {
+        final bytes = await response.stream.toBytes();
+        final decodedImage = await decodeImageFromList(bytes);
+        setState(() {
+          _blackBgFaceImage = bytes;
+          _originalImageSize = Size(
+              decodedImage.width.toDouble(), decodedImage.height.toDouble());
+        });
+      } else {
+        print('Error from face crop API: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Failed to connect to face crop API: $e');
+    }
   }
 
   Future<Size> _getImageSizeMobileBytes(Uint8List bytes) async {
@@ -435,7 +535,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     Map<String, dynamic>? ailabData;
     Map<String, dynamic>? uploadApiResult;
 
-    // Use your hardcodedJson here or call your inference API
     final hardcodedJson = {
       "error_code": 0,
       "error_detail": {
@@ -1087,7 +1186,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         "sensitivity_type_v1": 1
       }
     };
-
     ailabData = hardcodedJson;
 
     if (!kIsWeb) {
@@ -1167,7 +1265,7 @@ class ScanningLinePainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final y = progress * size.height;
     final paint = Paint()
-      ..color = Colors.green.withOpacity(0.9)
+      ..color = Colors.green.withOpacity(0.8)
       ..strokeWidth = 3;
     canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
 

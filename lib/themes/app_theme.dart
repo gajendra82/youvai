@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static ThemeData get lightTheme {
     return ThemeData(
-      primaryColor: const Color(0xFF7C6CC6),
+      primaryColor: const Color(
+        0xFF663635,
+      ),
+      
       scaffoldBackgroundColor: const Color(0xFFF8F7FA),
-      fontFamily: 'Poppins',
+      fontFamily: 'GT America Trial',
       useMaterial3: true,
       appBarTheme: const AppBarTheme(
         elevation: 0,
@@ -14,7 +17,8 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: Color(0xFF22223B),
           fontSize: 20,
-          fontWeight: FontWeight.bold,
+          fontFamily: "GT America Trial",
+          fontWeight: FontWeight.normal,
         ),
       ),
       textTheme: const TextTheme(
@@ -39,12 +43,12 @@ class AppTheme {
         ),
       ),
       colorScheme: ColorScheme.fromSwatch().copyWith(
-        primary: const Color(0xFF7C6CC6),
-        secondary: const Color(0xFFEEEAFE),
+        primary: const Color(0xFF663635),
+        secondary: const Color(0xFFeaabad),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF7C6CC6),
+          backgroundColor: const Color(0xFF663635),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),
           ),
@@ -78,7 +82,8 @@ class AppTheme {
           borderRadius: BorderRadius.circular(12),
           borderSide: BorderSide.none,
         ),
-        contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
         hintStyle: const TextStyle(color: Colors.grey),
       ),
     );

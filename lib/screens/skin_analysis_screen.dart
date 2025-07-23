@@ -97,7 +97,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       ),
       ResolutionPreset.high,
       enableAudio: false,
-      
     );
     _initializeControllerFuture = _cameraController!.initialize();
     setState(() {
@@ -349,84 +348,85 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
           return Stack(
             children: [
               Center(
-                child: CameraPreview(_cameraController!
-                
-                ),
+                child: CameraPreview(_cameraController!),
               ),
               CustomPaint(
                 painter: OverlayPainter(),
                 child: Container(),
-                ),
-                // Top fade with instruction text
-                Positioned(
+              ),
+              // Top fade with instruction text
+              Positioned(
                 left: 0,
                 right: 0,
                 top: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
                   decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.0),
-                    ],
-                  ),
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.0),
+                      ],
+                    ),
                   ),
                   child: const Text(
-                  'Set your face in the center of the circle',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
+                    'Set your face in the center of the circle',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
                   ),
                 ),
-                ),
-                // Bottom fade with button
-                Positioned(
+              ),
+              // Bottom fade with button
+              Positioned(
                 left: 0,
                 right: 0,
                 bottom: 0,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
                   decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.bottomCenter,
-                    end: Alignment.topCenter,
-                    colors: [
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.0),
-                    ],
-                  ),
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.0),
+                      ],
+                    ),
                   ),
                   child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    minimumSize: const Size.fromHeight(54),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
-                    ),
-                    onPressed: _captureAndAnalyze,
-                    child: const Text(
-                    'Capture & Analyze',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size.fromHeight(54),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: _captureAndAnalyze,
+                      child: const Text(
+                        'Capture & Analyze',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
                     ),
                   ),
-                  ),
                 ),
-                ),
+              ),
               // Positioned(
               //   left: 20,
               //   top: 20,
@@ -564,7 +564,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
   Future<void> _getBlackBgFace(File imageFile) async {
     try {
-      final uri = Uri.parse("http://192.168.1.110:5000/black-bg-face");
+      // final uri = Uri.parse("http://192.168.1.110:5000/black-bg-face");
+      final uri = Uri.parse("http://192.168.1.11:5000/black-bg-face");
       final request = http.MultipartRequest("POST", uri);
       request.files
           .add(await http.MultipartFile.fromPath('image', imageFile.path));

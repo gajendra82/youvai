@@ -73,7 +73,7 @@ class ScanFaceScreen extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Column(
+            child: Column(
               children: [
                 // Tip 1
                 Row(
@@ -81,7 +81,7 @@ class ScanFaceScreen extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: const Color(0xff7c6cc6), // purplish
+                      backgroundColor: Theme.of(context).colorScheme.secondary, // purplish
                       child: const Text(
                         '1',
                         style: TextStyle(
@@ -114,7 +114,8 @@ class ScanFaceScreen extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 16,
-                      backgroundColor: const Color(0xff7c6cc6),
+                      backgroundColor:
+                          Theme.of(context).primaryColor, // primary color
                       child: const Text(
                         '2',
                         style: TextStyle(
@@ -150,7 +151,7 @@ class ScanFaceScreen extends StatelessWidget {
               Expanded(
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xff7c6cc6),
+                    backgroundColor: Theme.of(context).primaryColor,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
@@ -178,7 +179,7 @@ class ScanFaceScreen extends StatelessWidget {
               Expanded(
                 child: ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[400],
+                    backgroundColor: Theme.of(context).colorScheme.secondary,
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),

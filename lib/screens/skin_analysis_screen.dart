@@ -95,8 +95,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         (c) => c.lensDirection == CameraLensDirection.front,
         orElse: () => _cameras!.first,
       ),
-      ResolutionPreset.medium,
+      ResolutionPreset.high,
       enableAudio: false,
+      
     );
     _initializeControllerFuture = _cameraController!.initialize();
     setState(() {
@@ -331,7 +332,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       );
     }
     return Container(
-      height: 100,
+      // height: 100,
       child: ScanFaceScreen(
         onCameraPressed: _startCamera,
         onGalleryPressed: _pickImage,
@@ -347,32 +348,95 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
             _cameraController != null) {
           return Stack(
             children: [
-              Center(child: CameraPreview(_cameraController!)),
+              Center(
+                child: CameraPreview(_cameraController!
+                
+                ),
+              ),
               CustomPaint(
                 painter: OverlayPainter(),
                 child: Container(),
-              ),
-              Positioned(
+                ),
+                // Top fade with instruction text
+                Positioned(
                 left: 0,
                 right: 0,
-                bottom: 20,
-                child: Center(
-                  child: ElevatedButton(
-                    onPressed: _captureAndAnalyze,
-                    child: const Text('Capture & Analyze'),
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+                  decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: [
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.0),
+                    ],
+                  ),
+                  ),
+                  child: const Text(
+                  'Set your face in the center of the circle',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
                   ),
                 ),
-              ),
-              Positioned(
-                left: 20,
-                top: 20,
-                child: IconButton(
-                  icon: const Icon(Icons.close, color: Colors.white, size: 36),
-                  onPressed: () {
-                    setState(() => _showCamera = false);
-                  },
                 ),
-              ),
+                // Bottom fade with button
+                Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+                  decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.bottomCenter,
+                    end: Alignment.topCenter,
+                    colors: [
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.0),
+                    ],
+                  ),
+                  ),
+                  child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    minimumSize: const Size.fromHeight(54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                    ),
+                    onPressed: _captureAndAnalyze,
+                    child: const Text(
+                    'Capture & Analyze',
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  ),
+                ),
+                ),
+              // Positioned(
+              //   left: 20,
+              //   top: 20,
+              //   child: IconButton(
+              //     icon: const Icon(Icons.close, color: Colors.white, size: 36),
+              //     onPressed: () {
+              //       setState(() => _showCamera = false);
+              //     },
+              //   ),
+              // ),
             ],
           );
         } else {
@@ -1238,18 +1302,48 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 class OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = Colors.red.withOpacity(0.4)
+    final center = size.center(Offset.zero);
+    final ovalWidth = size.width * 0.75;
+    final ovalHeight = size.height * 0.50;
+    final rect = Rect.fromCenter(
+      center: center,
+      width: ovalWidth,
+      height: ovalHeight,
+    );
+
+    // Draw overlay everywhere except the oval
+    final overlayPaint = Paint()..color = Colors.black.withOpacity(0.6);
+
+    // Create a path for the whole area
+    final overlayPath = Path()..addRect(Offset.zero & size);
+
+    // Create a path for the oval
+    final ovalPath = Path()..addOval(rect);
+
+    // Subtract oval from overlayPath, leaving only the area outside the oval
+    final maskPath =
+        Path.combine(PathOperation.difference, overlayPath, ovalPath);
+    canvas.drawPath(maskPath, overlayPaint);
+
+    // Draw dashed oval border
+    final dashPaint = Paint()
+      ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
-    final rect = Rect.fromCenter(
-      center: size.center(Offset.zero),
-      width: size.width / 2,
-      height: size.height / 3,
-    );
-    canvas.drawRect(rect, paint);
-    canvas.drawCircle(
-        size.center(Offset.zero), 10, Paint()..color = Colors.yellow);
+
+    const dashLength = 12.0;
+    const gapLength = 8.0;
+    final perimeter = 2 * 3.141592653589793 * ((ovalWidth + ovalHeight) / 4);
+    final dashCount = (perimeter / (dashLength + gapLength)).floor();
+
+    for (int i = 0; i < dashCount; i++) {
+      final startAngle =
+          (i * (dashLength + gapLength)) / ((ovalWidth + ovalHeight) / 4);
+      final endAngle = startAngle + dashLength / ((ovalWidth + ovalHeight) / 4);
+      final path = Path();
+      path.addArc(rect, startAngle, endAngle - startAngle);
+      canvas.drawPath(path, dashPaint);
+    }
   }
 
   @override

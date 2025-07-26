@@ -138,9 +138,12 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                     child: Stack(
                       children: [
                         Positioned.fill(
-                          child: Image(
-                            image: widget.inputImage,
-                            fit: BoxFit.contain,
+                          child: Container(
+                            color: Colors.black,
+                            child: Image(
+                              image: widget.inputImage,
+                              fit: BoxFit.contain,
+                            ),
                           ),
                         ),
                         if (visiblePatches.isNotEmpty)

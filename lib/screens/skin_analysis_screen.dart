@@ -47,6 +47,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
   Uint8List? _blackBgFaceImage;
   bool _removingBg = false;
+  bool _getSkinPoint = false;
+  bool _uploadToServer = false;
   bool _showScanning = false;
 
   @override
@@ -119,7 +121,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
       // appBar: AppBar(title: const Text("Skin Analysis")),
       // bottomNavigationBar: _analysisJson != null
       //     ? Container(
@@ -234,17 +236,21 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   },
                 ),
               ),
-            if (_removingBg)
+            if (_loading)
               Container(
                 color: Colors.black.withOpacity(0.7),
-                child: const Center(
+                child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(color: Colors.white),
+                      const CircularProgressIndicator(color: Colors.white),
                       SizedBox(height: 18),
                       Text(
-                        "Removing background...",
+                        (_removingBg == false)
+                            ? "Removing background..."
+                            : (_getSkinPoint == false)
+                                ? " Getting skin points..."
+                                : "Almost done...",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -289,9 +295,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   Widget _buildImageArea(BuildContext context) {
-    if (_removingBg) {
-      return const SizedBox.shrink();
-    }
+    // if (_removingBg ) {
+    //   return const SizedBox.shrink();
+    // }
     if (_error != null) {
       return Center(
         child: Text(
@@ -506,7 +512,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       {bool fromCamera = false}) async {
     Uint8List? bytes;
     Size? size;
-
+    print("process started");
     if (kIsWeb) {
       bytes = await picked.readAsBytes();
       size = await _getImageSizeWeb(bytes);
@@ -533,17 +539,20 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _loading = true;
       _imageProvider = null;
       _blackBgFaceImage = null;
-      _removingBg = true;
+      _removingBg = false;
       _showScanning = false;
     });
 
     if (picked.path.isNotEmpty) {
       await _getBlackBgFace(File(picked.path));
     }
+    print("get black bg face done");
 
     setState(() {
-      _removingBg = false;
-      _loading = false;
+      _removingBg = true;
+      _getSkinPoint = false;
+      _uploadToServer = false;
+      // _loading = false;
       _showScanning = true;
       _imageProvider =
           _blackBgFaceImage != null ? MemoryImage(_blackBgFaceImage!) : null;
@@ -561,6 +570,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     setState(() {
       _showScanning = false;
     });
+    print("analysis done");
   }
 
   Future<void> _getBlackBgFace(File imageFile) async {
@@ -600,7 +610,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   Future<void> _analyzeImage(XFile picked, Uint8List previewBytes) async {
     Map<String, dynamic>? ailabData;
     Map<String, dynamic>? uploadApiResult;
-
+    print("analyze started");
     // final hardcodedJson = {
     //   "error_code": 0,
     //   "error_detail": {
@@ -1289,6 +1299,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         if (!filename.contains('.')) filename = "image.jpg";
         bytesToSend = previewBytes;
       }
+      // Add a 5 second delay before sending the API request
 
       req.files.add(http.MultipartFile.fromBytes(
         'image',
@@ -1316,6 +1327,16 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       print('API exception: $e\n$st');
       ailabData = null;
     }
+    print("get label analysis done");
+    setState(() {
+      // _loading = true;
+      _error = null;
+      _getSkinPoint = true;
+      _uploadToServer = false;
+      // _scanningImageBytes = previewBytes;
+      // _imageProvider = MemoryImage(previewBytes);
+    });
+
     if (!kIsWeb) {
       _lastImageFile = File(picked.path);
       _lastImageBytes = previewBytes;
@@ -1350,8 +1371,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       }
     }
 
+    // await Future.delayed(const Duration(seconds: 5));
+    print("complete upload to server");
     setState(() {
       _analysisJson = ailabData;
+      _uploadToServer = true;
       _gradioResult = uploadApiResult;
       _loading = false;
       _error = (_analysisJson == null && _gradioResult == null)

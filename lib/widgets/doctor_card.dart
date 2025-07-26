@@ -11,12 +11,13 @@ class DoctorCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
+        gradient:  LinearGradient(
           colors: [
-            Color(0xFF9575CD), // Darker purple
-            Color(0xFFB39DDB), // Soft purple
-            Color.fromARGB(255, 213, 207, 224), // Soft purple
-            Color.fromARGB(255, 213, 207, 224), // Soft purple
+            Theme.of(context).primaryColor, // Primary color
+            Theme.of(context).primaryColor, // Primary color
+
+            Theme.of(context).colorScheme.secondary, // Soft purple
+            Theme.of(context).colorScheme.secondary, // Soft purple
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,

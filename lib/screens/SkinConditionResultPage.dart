@@ -19,27 +19,32 @@ class SkinConditionResultPage extends StatelessWidget {
 
     return outputs
         .where((o) => o['analysis'] != null && o['output'] != null)
-        .map((result) {
+        .map<Map<String, dynamic>>((result) {
       String analysis = result['analysis'];
       List<Map<String, String>> percentages = [];
 
       if (analysis.trim().startsWith('[')) {
         try {
           final decoded = json.decode(analysis);
+          print(decoded);
           if (decoded is List) {
             for (var item in decoded) {
-              final match =
-                  RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(item);
-              if (match != null) {
-                final condition = match.group(1)!.trim();
-                if (!condition.toLowerCase().contains('skin redness')) {
-                  percentages.add(
-                      {'condition': condition, 'percent': match.group(2)!});
+              // Each item may be a string with multiple conditions separated by commas or newlines
+              final lines = item.toString().split(RegExp(r'[,\n]'));
+              for (var line in lines) {
+                final match =
+                    RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(line);
+                if (match != null) {
+                  final condition = match.group(1)!.trim();
+                  if (!condition.toLowerCase().contains('skin redness')) {
+                    percentages.add(
+                        {'condition': condition, 'percent': match.group(2)!});
+                  }
                 }
               }
             }
           }
-        } catch (_) {
+        } catch (e) {
           for (var line in analysis.split('\n')) {
             final match =
                 RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(line);
@@ -155,11 +160,92 @@ class SkinConditionResultPage extends StatelessWidget {
     return patchCounts;
   }
 
-  Widget _summaryStat(String label, String value, IconData icon, Color color) {
+  // Map condition names to icons and colors
+  IconData _getConditionIcon(String condition) {
+    final cond = condition.toLowerCase();
+    if (cond.contains('normal')) return Icons.check_circle;
+    if (cond.contains('wrinkle')) return Icons.blur_on;
+    if (cond.contains('acne')) return Icons.bubble_chart;
+    if (cond.contains('blackhead')) return Icons.circle;
+    if (cond.contains('dark spot')) return Icons.brightness_3;
+    if (cond.contains('pores')) return Icons.grain;
+    if (cond.contains('eye bag')) return Icons.remove_red_eye;
+    if (cond.contains('brown spot')) return Icons.brightness_2;
+    if (cond.contains('mole')) return Icons.adjust;
+    if (cond.contains('comedone')) return Icons.bubble_chart;
+    if (cond.contains('dark circle')) return Icons.remove_red_eye;
+    if (cond.contains('skin redness')) return Icons.warning;
+    return Icons.info_outline;
+  }
+
+  Color _getConditionColor(String condition) {
+    final cond = condition.toLowerCase();
+    if (cond.contains('normal')) return Colors.green;
+    if (cond.contains('wrinkle')) return Colors.orange;
+    if (cond.contains('acne')) return Colors.redAccent;
+    if (cond.contains('blackhead')) return Colors.brown;
+    if (cond.contains('dark spot')) return Colors.deepPurple;
+    if (cond.contains('pores')) return Colors.blueGrey;
+    if (cond.contains('eye bag')) return Colors.indigo;
+    if (cond.contains('brown spot')) return Colors.deepOrange;
+    if (cond.contains('mole')) return Colors.black;
+    if (cond.contains('comedone')) return Colors.purple;
+    if (cond.contains('dark circle')) return Colors.blue;
+    if (cond.contains('skin redness')) return Colors.pinkAccent;
+    return Colors.grey;
+  }
+
+  int getNormalPercentage(String condition) {
+    final cond = condition.toLowerCase();
+
+    if (cond.contains('normal')) return 100;
+    if (cond.contains('wrinkle')) return 60;
+    if (cond.contains('acne')) return 50;
+    if (cond.contains('blackhead')) return 55;
+    if (cond.contains('dark spot')) return 40;
+    if (cond.contains('pores')) return 65;
+    if (cond.contains('eye bag')) return 45;
+    if (cond.contains('brown spot')) return 42;
+    if (cond.contains('mole')) return 50;
+    if (cond.contains('comedone')) return 55;
+    if (cond.contains('dark circle')) return 48;
+    if (cond.contains('skin redness')) return 58;
+
+    return 70; // Default percentage for unknown conditions
+  }
+
+  String _getConditionStatus(String condition, double percent) {
+    if (condition.toLowerCase().contains('normal')) {
+      return percent >= 70 ? "Normal" : "Not Normal";
+    }
+    if (percent >= 70) return "High";
+    if (percent >= 40) return "Moderate";
+    if (percent >= 20) return "Mild";
+    return "Minimal";
+  }
+
+  Widget _summaryStat(String label, String value, IconData? icon, Color? color,
+      {String? status, double? compareTo}) {
+    // Parse the value as double for comparison
+    double currentValue = double.tryParse(value.replaceAll('%', '')) ?? 0.0;
+    String? compareText;
+    Color? compareColor;
+
+    if (compareTo != null) {
+      if (currentValue > compareTo) {
+        compareText = "Higher than average (${compareTo.toStringAsFixed(1)}%)";
+        compareColor = Colors.redAccent;
+      } else if (currentValue < compareTo) {
+        compareText = "Lower than average (${compareTo.toStringAsFixed(1)}%)";
+        compareColor = Colors.green;
+      } else {
+        compareText = "Equal to average (${compareTo.toStringAsFixed(1)}%)";
+        compareColor = Colors.blueGrey;
+      }
+    }
+
     return Container(
-      width: 150,
-      // height: 150,
-      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+      // padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(13),
@@ -174,20 +260,50 @@ class SkinConditionResultPage extends StatelessWidget {
       child: Row(
         children: [
           CircleAvatar(
-            backgroundColor: color.withOpacity(0.15),
-            child: Icon(icon, color: color, size: 22),
+            backgroundColor: (color ?? Colors.grey).withOpacity(0.15),
+            child: Icon(icon ?? Icons.info_outline,
+                color: color ?? Colors.grey, size: 22),
             radius: 20,
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: const TextStyle(fontWeight: FontWeight.bold)),
-              Text(value,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                Text(
+                  value,
                   style: TextStyle(
-                      color: color, fontWeight: FontWeight.bold, fontSize: 18)),
-            ],
-          ),
+                      color: color ?? Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 18),
+                  overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
+                ),
+                if (status != null)
+                  Text(
+                    status,
+                    style: TextStyle(
+                        color: color ?? Colors.grey,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                  ),
+                if (compareText != null)
+                  Text(
+                    compareText,
+                    overflow: TextOverflow.visible,
+                    style: TextStyle(
+                        color: compareColor,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 13),
+                    maxLines: 1,
+                  ),
+              ],
+            ),
+          )
         ],
       ),
     );
@@ -326,7 +442,7 @@ class SkinConditionResultPage extends StatelessWidget {
             ],
           ),
         ),
-       SizedBox(height: 15),
+        SizedBox(height: 15),
         if (label != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 2.0),
@@ -463,191 +579,290 @@ class SkinConditionResultPage extends StatelessWidget {
                 final fullOutput = summary['fullOutput'] as String;
 
                 return Card(
-                  margin:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Wrap(
-                          spacing: 50,
-                          runSpacing: 14,
+                    margin: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ...percentages.map((p) => _summaryStat(
-                                  p['condition'] ?? '',
-                                  "${p['percent']}%",
-                                  Icons.analytics,
-                                  Colors.blueAccent,
-                                )),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
-                        Wrap(
-                          spacing: 24,
-                          runSpacing: 10,
-                          children: [
-                            buildAssessmentChart(scoreOutOf10,
-                                label: primaryCondition),
-                            buildAssessmentChart(attractivenessScore,
-                                label: "Attractiveness"),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-
-                        // buildAttractivenessChart(attractivenessScore),
-                        //     color: Colors.deepPurple),
-                        // ),
-                        const SizedBox(height: 10),
-                        Text("From Recently Uploaded Image",
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black)),
-                        const SizedBox(height: 10),
-                        if (imageUrl != null && imageUrl.isNotEmpty)
-                          SizedBox(
-                            height: 110,
-                            child: ListView(
-                              scrollDirection: Axis.horizontal,
+                            GridView.builder(
+                              shrinkWrap: true,
+                              // physics: const NeverScrollableScrollPhysics(),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2, // Two cards per row
+                                childAspectRatio:
+                                    MediaQuery.of(context).size.width < 400
+                                        ? 1.3
+                                        : 2.4, // More square on mobile
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                              ),
+                              itemCount: percentages.length,
+                              itemBuilder: (context, idx) {
+                                final p = percentages[idx];
+                                return _summaryStat(
+                                    p['condition'] ?? '',
+                                    "${p['percent']}%",
+                                    _getConditionIcon(p['condition'] ?? ''),
+                                    _getConditionColor(p['condition'] ?? ''),
+                                    compareTo:
+                                        getNormalPercentage(p['condition'])
+                                            .toDouble());
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            Row(
                               children: [
-                                Card(
-                                  margin: const EdgeInsets.only(right: 12),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12)),
-                                  child: ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.network(
-                                      imageUrl,
-                                      width: 140,
-                                      height: 100,
-                                      fit: BoxFit.cover,
-                                      errorBuilder:
-                                          (context, error, stackTrace) =>
-                                              Container(
-                                        width: 140,
-                                        height: 100,
-                                        color: Colors.grey.shade200,
-                                        child: const Icon(Icons.broken_image,
-                                            size: 40, color: Colors.grey),
+                                Expanded(
+                                  child: Card(
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(16)),
+                                    elevation: 3,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 18, horizontal: 8),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          buildAssessmentChart(scoreOutOf10,
+                                              label: primaryCondition),
+                                          const SizedBox(height: 8),
+                                        ],
                                       ),
                                     ),
                                   ),
                                 ),
-                                // Add more cards for other images if available in your data
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: Card(
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(16)),
+                                    elevation: 3,
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .secondary,
+                                            Theme.of(context)
+                                                .colorScheme
+                                                .primary,
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 18, horizontal: 8),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          buildAssessmentChart(
+                                              attractivenessScore,
+                                              label: "Attractive"),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
                               ],
-                            ),
-                          ),
-                        const Divider(height: 24),
-                        // ExpansionTiles for Q&A style extraction
-                        ExpansionTile(
-                          title: const Text("What's the diagnosis?",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(mainDiagnosis,
-                                  style: const TextStyle(fontSize: 15)),
-                            ),
-                          ],
-                        ),
-                        // ExpansionTile(
-                        //   title: const Text("What medicines are recommended?",
-                        //       style: TextStyle(fontWeight: FontWeight.bold)),
-                        //   children: [
-                        //     Padding(
-                        //       padding: const EdgeInsets.all(8.0),
-                        //       child: Builder(
-                        //         builder: (context) {
-                        //           // Try to extract "Recommended Medicines" section
-                        //           final recRegex = RegExp(
-                        //               r'Recommended Medicines[:\s]*([\s\S]*?)(\n\n|$)',
-                        //               caseSensitive: false);
-                        //           final recMatch =
-                        //               recRegex.firstMatch(fullOutput);
-                        //           if (recMatch != null) {
-                        //             return Text(recMatch.group(1)!.trim(),
-                        //                 style: const TextStyle(fontSize: 15));
-                        //           }
-                        //           // Fallback: show all recommendations
-                        //           return Text(summary['recommendations'] ?? '',
-                        //               style: const TextStyle(fontSize: 15));
-                        //         },
-                        //       ),
-                        //     ),
-                        //   ],
-                        // ),
-                        ExpansionTile(
-                          title: const Text("What are the treatment notes?",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Builder(
-                                builder: (context) {
-                                  // Try to extract "Treatment Notes" or similar section
-                                  final notesRegex = RegExp(
-                                      r'(Treatment Notes|Treatment|Advice|Notes)[:\s]*([\s\S]*?)(\n\n|$)',
-                                      caseSensitive: false);
-                                  final notesMatch =
-                                      notesRegex.firstMatch(fullOutput);
-                                  if (notesMatch != null) {
-                                    return Text(notesMatch.group(2)!.trim(),
-                                        style: const TextStyle(fontSize: 15));
-                                  }
-                                  // Fallback: show full output
-                                  return Text(fullOutput,
-                                      style: const TextStyle(fontSize: 15));
-                                },
-                              ),
-                            ),
-                          ],
-                        ),
-                        ExpansionTile(
-                          title: const Text("Show full details",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
-                              child: Text(fullOutput,
-                                  style: const TextStyle(fontSize: 15)),
-                            ),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const SizedBox(height: 10),
-                            const Text(
-                              "Recommended Doctor's",
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
                             ),
                             const SizedBox(height: 10),
 
-                            // 👇 Fixed horizontal ListView inside a SizedBox
-                            SizedBox(
-                              height:
-                                  300, // Adjust based on your DoctorCard height
-                              child: ListView.builder(
-                                physics: const BouncingScrollPhysics(),
-                                padding: const EdgeInsets.only(right: 16),
-                                scrollDirection: Axis.horizontal,
-                                itemCount: 5,
-                                itemBuilder: (context, index) {
-                                  return const DoctorCard(); // Replace with actual data if needed
-                                },
+                            // buildAttractivenessChart(attractivenessScore),
+                            //     color: Colors.deepPurple),
+                            // ),
+                            const SizedBox(height: 10),
+                            Text("From Recently Uploaded Image",
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black)),
+                            const SizedBox(height: 10),
+                            if (imageUrl != null && imageUrl.isNotEmpty)
+                              SizedBox(
+                                height: 110,
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children: [
+                                    Card(
+                                      margin: const EdgeInsets.only(right: 12),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Image.network(
+                                          imageUrl,
+                                          width: 140,
+                                          height: 100,
+                                          fit: BoxFit.cover,
+                                          errorBuilder:
+                                              (context, error, stackTrace) =>
+                                                  Container(
+                                            width: 140,
+                                            height: 100,
+                                            color: Colors.grey.shade200,
+                                            child: const Icon(
+                                                Icons.broken_image,
+                                                size: 40,
+                                                color: Colors.grey),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    // Add more cards for other images if available in your data
+                                  ],
+                                ),
                               ),
+                            const Divider(height: 24),
+                            // ExpansionTiles for Q&A style extraction
+                            ExpansionTile(
+                              title: const Text("What's the diagnosis?",
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(mainDiagnosis,
+                                      style: const TextStyle(fontSize: 15)),
+                                ),
+                              ],
                             ),
+                            // ExpansionTile(
+                            //   title: const Text("What medicines are recommended?",
+                            //       style: TextStyle(fontWeight: FontWeight.bold)),
+                            //   children: [
+                            //     Padding(
+                            //       padding: const EdgeInsets.all(8.0),
+                            //       child: Builder(
+                            //         builder: (context) {
+                            //           // Try to extract "Recommended Medicines" section
+                            //           final recRegex = RegExp(
+                            //               r'Recommended Medicines[:\s]*([\s\S]*?)(\n\n|$)',
+                            //               caseSensitive: false);
+                            //           final recMatch =
+                            //               recRegex.firstMatch(fullOutput);
+                            //           if (recMatch != null) {
+                            //             return Text(recMatch.group(1)!.trim(),
+                            //                 style: const TextStyle(fontSize: 15));
+                            //           }
+                            //           // Fallback: show all recommendations
+                            //           return Text(summary['recommendations'] ?? '',
+                            //               style: const TextStyle(fontSize: 15));
+                            //         },
+                            //       ),
+                            //     ),
+                            //   ],
+                            // ),
+                            ExpansionTile(
+                              title: const Text("What are the treatment notes?",
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Builder(
+                                    builder: (context) {
+                                      // Try to extract "Treatment Notes" or similar section
+                                      final notesRegex = RegExp(
+                                          r'(Treatment Notes|Treatment|Advice|Notes)[:\s]*([\s\S]*?)(\n\n|$)',
+                                          caseSensitive: false);
+                                      final notesMatch =
+                                          notesRegex.firstMatch(fullOutput);
+                                      if (notesMatch != null) {
+                                        return Text(notesMatch.group(2)!.trim(),
+                                            style:
+                                                const TextStyle(fontSize: 15));
+                                      }
+                                      // Fallback: show full output
+                                      return Text(fullOutput,
+                                          style: const TextStyle(fontSize: 15));
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                            ExpansionTile(
+                              title: const Text("Show full details",
+                                  style:
+                                      TextStyle(fontWeight: FontWeight.bold)),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: Text(fullOutput,
+                                      style: const TextStyle(fontSize: 15)),
+                                ),
+                              ],
+                            ),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const SizedBox(height: 10),
+                                const Text(
+                                  "Recommended Doctor's",
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+
+                                // 👇 Fixed horizontal ListView inside a SizedBox
+                                SizedBox(
+                                  height:
+                                      300, // Adjust based on your DoctorCard height
+                                  child: ListView.builder(
+                                    physics: const BouncingScrollPhysics(),
+                                    padding: const EdgeInsets.only(right: 16),
+                                    scrollDirection: Axis.horizontal,
+                                    itemCount: 5,
+                                    itemBuilder: (context, index) {
+                                      return const DoctorCard(); // Replace with actual data if needed
+                                    },
+                                  ),
+                                ),
+                              ],
+                            )
                           ],
-                        )
-                      ],
-                    ),
-                  ),
-                );
+                        ),
+                      ),
+                    ));
               },
             ),
     );

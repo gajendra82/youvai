@@ -72,7 +72,7 @@ class StartPage extends StatelessWidget {
             left: 0,
             right: 0,
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: isWeb ? 400.0 : 32.0),
+              padding: EdgeInsets.symmetric(horizontal: isWeb ? 80.0 : 32.0),
               child: Column(
                 children: [
                   Text(

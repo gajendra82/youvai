@@ -88245,7 +88245,7 @@ p=A.dD(A.bJ(A.b([A.cs(A.eq(B.N,A.b([A.bk(m,A.dD(A.a5A("assets/logo.png",m,200,20
 o=A.b5("Ready to analyze your skin",m,m,m,A.cx(m,m,B.cy,m,m,m,m,m,m,m,m,16,m,m,m,m,m,!0,m,m,m,m,m,m,m,m),B.ck,m)
 n=A.bn(15)
 s=A.b([s,l.ax.y],t.t_)
-return A.mW(m,B.h,A.eq(B.b4,A.b([r,p,A.pQ(120,new A.bv(new A.a5(400,0,400,0),A.bJ(A.b([o,B.fb,A.bk(m,A.a2G(!1,B.Zm,m,m,m,m,m,m,new A.agv(a),m,A.oC(m,m,B.u,m,m,m,m,m,m,m,m,B.Sm,m,B.u,new A.bM(A.bn(15),B.n),m,m,m,m,m)),B.m,m,m,new A.bh(m,m,m,n,m,new A.hl(B.bQ,B.ed,B.be,s,m,m),B.G),m,48,m,m,m,m,1/0)],q),B.y,B.t,B.v),m),m,m,0,0,m,m)],q),B.E,B.aI,m),m,!1)}}
+return A.mW(m,B.h,A.eq(B.b4,A.b([r,p,A.pQ(120,new A.bv(new A.a5(80,0,80,0),A.bJ(A.b([o,B.fb,A.bk(m,A.a2G(!1,B.Zm,m,m,m,m,m,m,new A.agv(a),m,A.oC(m,m,B.u,m,m,m,m,m,m,m,m,B.Sm,m,B.u,new A.bM(A.bn(15),B.n),m,m,m,m,m)),B.m,m,m,new A.bh(m,m,m,n,m,new A.hl(B.bQ,B.ed,B.be,s,m,m),B.G),m,48,m,m,m,m,1/0)],q),B.y,B.t,B.v),m),m,m,0,0,m,m)],q),B.E,B.aI,m),m,!1)}}
 A.agu.prototype={
 $0(){},
 $S:0}

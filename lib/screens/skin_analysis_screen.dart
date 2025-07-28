@@ -433,6 +433,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       {bool fromCamera = false}) async {
     Uint8List? bytes;
     Size? size;
+    setState(() {
+      _loading = true;
+    });
     if (kIsWeb) {
       bytes = await picked.readAsBytes();
       size = await _getImageSizeWeb(bytes);
@@ -463,15 +466,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _showScanning = false;
     });
 
-    if (kIsWeb) {
-      // Convert bytes to a temporary file for web using universal_html
-      // (Flutter web does not support File, so skip _getBlackBgFace or handle differently)
-      // You may need to call an API that accepts bytes directly, or skip this step on web.
-      // For now, just assign _blackBgFaceImage = bytes;
-      _blackBgFaceImage = bytes;
-      _lastImageBytes = bytes;
-    } else {
-      if (picked.path.isNotEmpty) {
+    if (bytes != null) {
+      if (kIsWeb) {
+        await _getBlackBgFaceFromBytes(bytes, picked.name);
+      } else {
         await _getBlackBgFace(File(picked.path));
       }
     }
@@ -507,6 +505,43 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         imageFile.path,
         contentType: MediaType('image', 'jpeg'), // or png based on your file
       ));
+
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
+        final decodedImage = await decodeImageFromList(bytes);
+        setState(() {
+          _blackBgFaceImage = bytes;
+          _originalImageSize = Size(
+            decodedImage.width.toDouble(),
+            decodedImage.height.toDouble(),
+          );
+        });
+      } else {
+        debugPrint('❌ Error from face crop API: ${response.statusCode}');
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to connect to face crop API: $e');
+    }
+  }
+
+  Future<void> _getBlackBgFaceFromBytes(
+      Uint8List imageBytes, String fileName) async {
+    try {
+      final uri = Uri.parse("http://192.168.1.42:5000/zoom_face");
+
+      final request = http.MultipartRequest("POST", uri);
+
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'image',
+          imageBytes,
+          filename: fileName,
+          contentType: MediaType('image', 'jpeg'), // or 'png' based on actual
+        ),
+      );
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);

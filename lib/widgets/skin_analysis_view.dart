@@ -114,7 +114,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                                         ),
                                       ),
                                       const SizedBox(width: 12),
-                                      const Text("Loading..."),
+                                      const Text("Getting Results..."),
                                     ],
                                   )
                                 : const Text("View Percentage & Summary"),

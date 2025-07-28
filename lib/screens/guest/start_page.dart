@@ -20,10 +20,10 @@ class StartPage extends StatelessWidget {
             right: isWeb ? 40 : 20,
             child: TextButton(
               onPressed: () {
-                // Navigator.pushNamed(context, AppRoutes.login);
+                Navigator.pushNamed(context, AppRoutes.onboard);
               },
               child: Text(
-                'Login',
+                'Login/Registration',
                 style: TextStyle(
                   color: theme.primaryColor,
                   fontWeight: FontWeight.normal,

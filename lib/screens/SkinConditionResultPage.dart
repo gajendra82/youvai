@@ -6,7 +6,7 @@ class SkinConditionResultPage extends StatelessWidget {
   final Map<String, dynamic> gradioResult;
   final Map<String, dynamic>? patchJson; // <-- Pass the first API JSON here
 
-  const SkinConditionResultPage({
+  SkinConditionResultPage({
     Key? key,
     required this.gradioResult,
     this.patchJson,
@@ -199,19 +199,20 @@ class SkinConditionResultPage extends StatelessWidget {
     final cond = condition.toLowerCase();
 
     if (cond.contains('normal')) return 100;
-    if (cond.contains('wrinkle')) return 60;
-    if (cond.contains('acne')) return 50;
-    if (cond.contains('blackhead')) return 55;
-    if (cond.contains('dark spot')) return 40;
-    if (cond.contains('pores')) return 65;
-    if (cond.contains('eye bag')) return 45;
-    if (cond.contains('brown spot')) return 42;
-    if (cond.contains('mole')) return 50;
-    if (cond.contains('comedone')) return 55;
-    if (cond.contains('dark circle')) return 48;
-    if (cond.contains('skin redness')) return 58;
+    if (cond.contains('wrinkle')) return 25;
+    if (cond.contains('acne')) return 15;
+    if (cond.contains('blackhead')) return 20;
+    if (cond.contains('dark spot')) return 15;
+    if (cond.contains('pores')) return 25;
+    if (cond.contains('eye bag')) return 20;
+    if (cond.contains('brown spot')) return 15;
+    if (cond.contains('mole'))
+      return 30; // Moles aren't usually by %, but this is acceptable
+    if (cond.contains('comedone')) return 20;
+    if (cond.contains('dark circle')) return 20;
+    if (cond.contains('skin redness')) return 20;
 
-    return 70; // Default percentage for unknown conditions
+    return 30; // Default threshold for unknown or uncategorized conditions
   }
 
   String _getConditionStatus(String condition, double percent) {
@@ -224,7 +225,239 @@ class SkinConditionResultPage extends StatelessWidget {
     return "Minimal";
   }
 
+  final conditionInfo = {
+    "normal": {
+      "type": "Normal Skin",
+      "meaning":
+          "Your skin is well-balanced — not too oily or too dry. It feels smooth and has minimal blemishes or sensitivity.",
+      "cause":
+          "Typically maintained by genetics, a consistent skincare routine, proper hydration, and a healthy lifestyle.",
+      "suggestion":
+          "Continue your current skincare habits and protect your skin with sunscreen daily.",
+      "ageInfo": {
+        "typicalAge": "All ages",
+        "averageRange": "100%",
+        "under": "-",
+        "normal": "Perfect skin condition",
+        "high": "-",
+        "statusThresholds": {"under": 100, "normal": 100}
+      },
+    },
+    "wrinkles": {
+      "type": "Wrinkles",
+      "meaning":
+          "Fine lines or deep creases that appear on the skin as a natural sign of aging. Most commonly seen around eyes, forehead, and mouth.",
+      "cause":
+          "Aging, repeated facial expressions, sun exposure, dehydration, or lifestyle factors like smoking.",
+      "suggestion":
+          "Use anti-aging serums, moisturizers with retinol, and always apply sunscreen to prevent further aging.",
+      "ageInfo": {
+        "typicalAge": "After 30 years, common in 40s–50s",
+        "averageRange": "15–30%",
+        "under": "Below 15% – Youthful skin, minimal wrinkles",
+        "normal": "15–30% – Fine lines, normal for age 30–45",
+        "high": "Above 30% – Visible wrinkles, signs of aging",
+        "statusThresholds": {"under": 15, "normal": 30}
+      },
+    },
+    "acne": {
+      "type": "Acne",
+      "meaning":
+          "A skin condition that occurs when hair follicles become plugged with oil and dead skin cells, leading to pimples or cysts.",
+      "cause":
+          "Hormonal imbalance, excess oil (sebum), bacteria, poor hygiene, or stress.",
+      "suggestion":
+          "Use non-comedogenic skincare, cleanse twice daily, and consider seeing a dermatologist for severe acne.",
+      "ageInfo": {
+        "typicalAge": "10–30 years",
+        "averageRange": "10–25%",
+        "under": "Below 10% – Clear skin, minimal acne signs",
+        "normal": "10–25% – Mild acne, common in teens & early adults",
+        "high": "Above 25% – Moderate to severe acne, consult a dermatologist",
+        "statusThresholds": {"under": 10, "normal": 25}
+      },
+    },
+    "blackheads": {
+      "type": "Blackheads",
+      "meaning":
+          "Small, dark bumps that form when pores become clogged with oil and dead skin and remain open.",
+      "cause": "Overactive sebaceous glands and poor exfoliation habits.",
+      "suggestion":
+          "Use salicylic acid or charcoal-based cleansers and exfoliate 2–3 times a week to clear pores.",
+      "ageInfo": {
+        "typicalAge": "Teenagers to 30s",
+        "averageRange": "10–25%",
+        "under": "Below 10% – Clean pores, minimal blackheads",
+        "normal": "10–25% – Mild blackheads, common for most people",
+        "high": "Above 25% – Prominent blackheads, oily skin likely",
+        "statusThresholds": {"under": 10, "normal": 25}
+      },
+    },
+    "dark spots": {
+      "type": "Dark Spots",
+      "meaning":
+          "Patches of skin that appear darker due to excess melanin production, commonly on cheeks, forehead, or chin.",
+      "cause": "Sun exposure, acne scarring, hormonal changes, or aging.",
+      "suggestion":
+          "Use products with vitamin C, niacinamide, or alpha arbutin. Apply SPF 30+ daily to prevent darkening.",
+      "ageInfo": {
+        "typicalAge": "After 25–30 years, especially with sun exposure",
+        "averageRange": "10–20%",
+        "under": "Below 10% – Even skin tone, minimal pigmentation",
+        "normal": "10–20% – Mild pigmentation, often due to sun",
+        "high": "Above 20% – Dark spots visible, aging or sun damage",
+        "statusThresholds": {"under": 10, "normal": 20}
+      },
+    },
+    "pores": {
+      "type": "Enlarged Pores",
+      "meaning":
+          "Visibly large skin openings, mostly on the nose, cheeks, or forehead, making skin texture uneven.",
+      "cause": "Excess sebum, aging, genetics, or sun damage.",
+      "suggestion":
+          "Use clay masks or products with niacinamide and retinol to tighten pores.",
+      "ageInfo": {
+        "typicalAge": "Any age, often increases with age or oiliness",
+        "averageRange": "15–30%",
+        "under": "Below 15% – Tight, smooth skin",
+        "normal": "15–30% – Mild pore visibility, normal for most",
+        "high": "Above 30% – Enlarged pores, oily or aging skin",
+        "statusThresholds": {"under": 15, "normal": 30}
+      },
+    },
+    "eye bags": {
+      "type": "Eye Bags",
+      "meaning":
+          "Swelling or puffiness under the eyes, often accompanied by loose skin or mild discoloration.",
+      "cause": "Aging, lack of sleep, water retention, or genetics.",
+      "suggestion":
+          "Use cold compresses, caffeine-infused eye creams, and ensure adequate sleep and hydration.",
+      "ageInfo": {
+        "typicalAge": "After 30 years",
+        "averageRange": "10–25%",
+        "under": "Below 10% – Fresh under-eye area",
+        "normal": "10–25% – Mild puffiness, common in 30s–40s",
+        "high": "Above 25% – Puffy or sagging eyes, fatigue or aging",
+        "statusThresholds": {"under": 10, "normal": 25}
+      },
+    },
+    "dark circle": {
+      "type": "Dark Circles",
+      "meaning":
+          "Dark discoloration under the eyes, making the face look tired or aged.",
+      "cause": "Fatigue, aging, thin under-eye skin, genetics, or allergies.",
+      "suggestion":
+          "Apply brightening eye creams, get enough rest, and use sunscreen around the eyes.",
+      "ageInfo": {
+        "typicalAge": "After teenage years, worsens with age or stress",
+        "averageRange": "10–25%",
+        "under": "Below 10% – Bright under-eye area",
+        "normal": "10–25% – Slight darkness, common with stress or genetics",
+        "high": "Above 25% – Prominent dark circles, fatigue or aging",
+        "statusThresholds": {"under": 10, "normal": 25}
+      },
+    },
+    "mole": {
+      "type": "Mole",
+      "meaning":
+          "Small, usually brown or black skin growths formed by clusters of pigmented cells. Can be flat or raised.",
+      "cause":
+          "Genetics and sun exposure. Most are benign but should be monitored for changes.",
+      "suggestion":
+          "Check moles regularly for changes in size, shape, or color. Consult a dermatologist for unusual moles.",
+      "ageInfo": {
+        "typicalAge": "Any age (some are congenital)",
+        "averageRange": "10–30%",
+        "under": "Below 10% – Few or no moles",
+        "normal": "10–30% – Common moles, generally benign",
+        "high": "Above 30% – Multiple or large moles, needs observation",
+        "statusThresholds": {"under": 10, "normal": 30}
+      },
+    },
+    "brown spot": {
+      "type": "Brown Spots",
+      "meaning":
+          "Flat brown patches often found on sun-exposed areas such as the face, hands, and shoulders.",
+      "cause":
+          "UV exposure, hormonal fluctuations, or aging (also known as liver spots or sun spots).",
+      "suggestion":
+          "Apply brightening serums and sunscreen. Consider dermatological treatments like chemical peels if persistent.",
+      "ageInfo": {
+        "typicalAge": "After 30, mostly due to sun damage",
+        "averageRange": "10–20%",
+        "under": "Below 10% – Clear skin, minimal sun damage",
+        "normal": "10–20% – Mild brown spots, sun exposure",
+        "high": "Above 20% – Visible pigmentation, aging skin",
+        "statusThresholds": {"under": 10, "normal": 20}
+      },
+    },
+    "comedone": {
+      "type": "Comedones",
+      "meaning":
+          "Blocked hair follicles; open comedones are blackheads, and closed ones are whiteheads.",
+      "cause":
+          "Accumulation of oil and dead skin cells, especially on oily skin types.",
+      "suggestion":
+          "Use exfoliating cleansers with BHA (salicylic acid) to prevent pore blockages.",
+      "ageInfo": {
+        "typicalAge": "Teens to 30s",
+        "averageRange": "10–25%",
+        "under": "Below 10% – Clear skin",
+        "normal": "10–25% – Mild clogged pores, common for oily skin",
+        "high": "Above 25% – Frequent clogged pores, acne risk",
+        "statusThresholds": {"under": 10, "normal": 25}
+      },
+    },
+    "skin redness": {
+      "type": "Skin Redness",
+      "meaning":
+          "Inflammation or irritation leading to visibly red or blotchy skin, sometimes with burning or itching.",
+      "cause":
+          "Allergies, rosacea, harsh products, sunburn, or skin sensitivity.",
+      "suggestion":
+          "Use calming skincare products with aloe vera or chamomile and avoid known irritants.",
+      "ageInfo": {
+        "typicalAge": "Any age, more in sensitive or dry skin types",
+        "averageRange": "10–25%",
+        "under": "Below 10% – Even skin tone",
+        "normal": "10–25% – Mild redness, common for dry or sensitive skin",
+        "high": "Above 25% – Flushed appearance, irritation or skin issues",
+        "statusThresholds": {"under": 10, "normal": 25}
+      },
+    },
+    "eye pouch": {
+      "type": "Under-Eye Puffiness",
+      "meaning":
+          "Slight bulging or loose skin under the eyes, often associated with tiredness or age.",
+      "cause":
+          "Loss of skin elasticity, fluid retention, or hereditary factors.",
+      "suggestion":
+          "Try gentle massage, cooling eye gels, and reduce salt intake.",
+      "ageInfo": {
+        "average": "15–30%",
+        "under": "Youthful, tight under-eye skin. Common in 20s.",
+        "normal": "Mild puffiness, normal in 30s–40s.",
+        "high": "Noticeable sagging or puffiness, often 40+."
+      }
+    },
+    "nasolabial fold": {
+      "type": "Nasolabial Folds",
+      "meaning":
+          "Deep lines running from the sides of the nose to the corners of the mouth, visible more with age.",
+      "cause": "Loss of collagen and fat in the face due to aging.",
+      "suggestion":
+          "Use firming creams, facial exercises, or consult for fillers if the lines are deep.",
+      "ageInfo": {
+        "average": "15–30%",
+        "under": "Soft or invisible folds. Common in people under 25.",
+        "normal": "Shallow lines, visible in 30s–40s.",
+        "high": "Deep folds from nose to mouth. Common after 45."
+      }
+    },
+  };
+
   Widget _summaryStat(String label, String value, IconData? icon, Color? color,
+      BuildContext context,
       {String? status, double? compareTo}) {
     // Parse the value as double for comparison
     double currentValue = double.tryParse(value.replaceAll('%', '')) ?? 0.0;
@@ -234,77 +467,166 @@ class SkinConditionResultPage extends StatelessWidget {
     if (compareTo != null) {
       if (currentValue > compareTo) {
         compareText = "Higher than average (${compareTo.toStringAsFixed(1)}%)";
-        compareColor = Colors.redAccent;
+        compareColor = Colors.redAccent; // High is usually a concern
       } else if (currentValue < compareTo) {
         compareText = "Lower than average (${compareTo.toStringAsFixed(1)}%)";
-        compareColor = Colors.green;
+        compareColor =
+            Colors.green; // Lower can mean healthier or under control
       } else {
         compareText = "Equal to average (${compareTo.toStringAsFixed(1)}%)";
-        compareColor = Colors.blueGrey;
+        compareColor = Colors.blueGrey; // Neutral
       }
     }
 
-    return Container(
-      // padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.06),
-            blurRadius: 7,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: (color ?? Colors.grey).withOpacity(0.15),
-            child: Icon(icon ?? Icons.info_outline,
-                color: color ?? Colors.grey, size: 22),
-            radius: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(label,
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
-                Text(
-                  value,
-                  style: TextStyle(
-                      color: color ?? Colors.grey,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
+    return InkWell(
+      onTap: () {
+        print("clcikc");
+        final info = conditionInfo[label.toLowerCase()];
+        if (info != null) {
+          showModalBottomSheet(
+            context: context,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+            ),
+            builder: (context) {
+              return Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(label,
+                        style: const TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    RichText(
+                      text: TextSpan(
+                        style: DefaultTextStyle.of(context).style,
+                        children: [
+                          const TextSpan(
+                            text: "Meaning: ",
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          TextSpan(
+                            text: "${info['meaning']}",
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    RichText(
+                      text: TextSpan(
+                        style: DefaultTextStyle.of(context).style,
+                        children: [
+                          TextSpan(
+                              text: "Inital Cause: ",
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          TextSpan(text: "${info['cause']}"),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    RichText(
+                      text: TextSpan(
+                        style: DefaultTextStyle.of(context).style,
+                        children: [
+                          TextSpan(
+                              text: "Suggestions: ",
+                              style: TextStyle(fontWeight: FontWeight.bold)),
+                          TextSpan(text: "${info['suggestion']}"),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    if (info['ageInfo'] != null && info['ageInfo'] is Map) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        "Age Information:",
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(height: 4),
+                      if ((info['ageInfo'] as Map?)?['typicalAge'] != null)
+                        Text(
+                            "Typical Age: ${(info['ageInfo'] as Map)['typicalAge']}"),
+                      if ((info['ageInfo'] as Map?)?['averageRange'] != null)
+                        Text(
+                            "Average Range: ${(info['ageInfo'] as Map)['averageRange']}"),
+                      if ((info['ageInfo'] as Map?)?['under'] != null)
+                        Text("Under: ${(info['ageInfo'] as Map)['under']}"),
+                      if ((info['ageInfo'] as Map?)?['normal'] != null)
+                        Text("Normal: ${(info['ageInfo'] as Map)['normal']}"),
+                      if ((info['ageInfo'] as Map?)?['high'] != null)
+                        Text("High: ${(info['ageInfo'] as Map)['high']}"),
+                    ],
+                  ],
                 ),
-                if (status != null)
+              );
+            },
+          );
+        }
+      },
+      child: Container(
+        // padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(13),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.grey.withOpacity(0.06),
+              blurRadius: 7,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: (color ?? Colors.grey).withOpacity(0.15),
+              child: Icon(icon ?? Icons.info_outline,
+                  color: color ?? Colors.grey, size: 22),
+              radius: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(label,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   Text(
-                    status,
+                    value,
                     style: TextStyle(
                         color: color ?? Colors.grey,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18),
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
-                if (compareText != null)
-                  Text(
-                    compareText,
-                    overflow: TextOverflow.visible,
-                    style: TextStyle(
-                        color: compareColor,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13),
-                    maxLines: 1,
-                  ),
-              ],
-            ),
-          )
-        ],
+                  if (status != null)
+                    Text(
+                      status,
+                      style: TextStyle(
+                          color: color ?? Colors.grey,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 1,
+                    ),
+                  if (compareText != null)
+                    Text(
+                      compareText,
+                      overflow: TextOverflow.visible,
+                      style: TextStyle(
+                          color: compareColor,
+                          fontWeight: FontWeight.w500,
+                          fontSize: 13),
+                      maxLines: 1,
+                    ),
+                ],
+              ),
+            )
+          ],
+        ),
       ),
     );
   }
@@ -608,6 +930,7 @@ class SkinConditionResultPage extends StatelessWidget {
                                     "${p['percent']}%",
                                     _getConditionIcon(p['condition'] ?? ''),
                                     _getConditionColor(p['condition'] ?? ''),
+                                    context,
                                     compareTo:
                                         getNormalPercentage(p['condition'])
                                             .toDouble());

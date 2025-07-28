@@ -6,9 +6,12 @@ import 'patch_painter.dart';
 class SkinAnalysisView extends StatefulWidget {
   final Map<String, dynamic> analysisJson;
   final ImageProvider inputImage;
-  final Size originalImageSize; // updated name to match PatchPainter
+  final Size originalImageSize;
   final SkinIssueType? selectedType;
   final Map<String, dynamic>? gradioResult;
+
+  final Future<Map<String, dynamic>?> Function()? onViewPercentageSummary;
+  final void Function(Map<String, dynamic>?)? onGradioResult;
 
   const SkinAnalysisView({
     Key? key,
@@ -17,6 +20,8 @@ class SkinAnalysisView extends StatefulWidget {
     required this.originalImageSize,
     required this.gradioResult,
     this.selectedType,
+    this.onViewPercentageSummary,
+    this.onGradioResult,
   }) : super(key: key);
 
   @override
@@ -29,21 +34,14 @@ const Map<SkinIssueType, Color> issueColors = {
   SkinIssueType.darkSpots: Colors.orange,
   SkinIssueType.unknown: Colors.grey,
 };
-const Map<SkinIssueType, String> issueTypeIntros = {
-  SkinIssueType.acne:
-      "Acne is a common skin condition that occurs when hair follicles become clogged with oil and dead skin cells. Learn more about treatment and prevention.",
-  SkinIssueType.wrinkle:
-      "Wrinkles are folds or creases in the skin caused by aging and environmental factors.",
-  SkinIssueType.darkSpots:
-      "Dark spots are patches of skin that become darker than your usual skin tone, often due to sun exposure.",
-  SkinIssueType.unknown: "Unknown skin issue detected.",
-};
 
 class _SkinAnalysisViewState extends State<SkinAnalysisView> {
   SkinIssueType? _selectedType;
   final TransformationController _transformationController =
       TransformationController();
   late List<SkinPatch> _patches;
+
+  bool _uploading = false;
 
   @override
   void initState() {
@@ -59,9 +57,9 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
   @override
   void didUpdateWidget(covariant SkinAnalysisView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // if (oldWidget.analysisJson != widget.analysisJson) {
-    //   _parsePatches();
-    // }
+    if (oldWidget.analysisJson != widget.analysisJson) {
+      _parsePatches();
+    }
   }
 
   @override
@@ -85,16 +83,15 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
         : _patches.where((p) => p.issueType == _selectedType).toList();
 
     return Scaffold(
-        bottomNavigationBar: this.widget.analysisJson != null
+        bottomNavigationBar: widget.analysisJson != null
             ? Container(
                 height: 80,
-                // padding: EdgeInsets.all(8),
                 alignment: Alignment.bottomCenter,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    // _buildHorizontalIssues(_analysisJson!),
-                    if (this.widget.gradioResult != null)
+                    if (widget.gradioResult != null ||
+                        widget.onViewPercentageSummary != null)
                       Padding(
                         padding: const EdgeInsets.symmetric(
                             vertical: 8.0, horizontal: 16),
@@ -102,18 +99,54 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.analytics),
-                            label: const Text("View Percentage & Summary"),
-                            onPressed: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) => SkinConditionResultPage(
-                                    gradioResult: this.widget.gradioResult!,
-                                    patchJson: this.widget.analysisJson,
-                                  ),
-                                ),
-                              );
-                            },
+                            label: _uploading
+                                ? Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                          color: Colors
+                                              .white, // or Colors.black if button is white
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      const Text("Loading..."),
+                                    ],
+                                  )
+                                : const Text("View Percentage & Summary"),
+                            onPressed: _uploading
+                                ? null
+                                : () async {
+                                    Map<String, dynamic>? result =
+                                        widget.gradioResult;
+                                    if (widget.onViewPercentageSummary !=
+                                            null &&
+                                        widget.gradioResult == null) {
+                                      setState(() => _uploading = true);
+                                      result = await widget
+                                          .onViewPercentageSummary!();
+                                      setState(() => _uploading = false);
+                                      if (result != null &&
+                                          widget.onGradioResult != null) {
+                                        widget.onGradioResult!(result);
+                                      }
+                                    }
+                                    if (result != null) {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (context) =>
+                                              SkinConditionResultPage(
+                                            gradioResult: result!,
+                                            patchJson: widget.analysisJson,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                  },
                           ),
                         ),
                       ),

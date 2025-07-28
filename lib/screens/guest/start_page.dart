@@ -1,14 +1,66 @@
 import 'package:flutter/material.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class StartPage extends StatelessWidget {
+class StartPage extends StatefulWidget {
   const StartPage({Key? key}) : super(key: key);
+
+  @override
+  State<StartPage> createState() => _StartPageState();
+}
+
+class _StartPageState extends State<StartPage> {
+  late final SharedPreferences prefs;
+  bool isLogin = false;
+  String _username = '';
+  void _initPrefs() async {
+    print("Initializing preferences");
+    prefs = await SharedPreferences.getInstance();
+    setState(() {
+      isLogin = prefs.getBool('isLogin') ?? false;
+      // Try to extract username from userInfo JSON string if available
+      final userInfoStr = prefs.getString('userInfo');
+      if (userInfoStr != null && userInfoStr.isNotEmpty) {
+        try {
+          final userInfo = Map<String, dynamic>.from(
+            (userInfoStr.startsWith('{'))
+                ? (userInfoStr == '{}'
+                    ? {}
+                    : (userInfoStr.contains('"')
+                        ? (userInfoStr.contains('name')
+                            ? {
+                                'name': userInfoStr
+                                    .split('"name":"')[1]
+                                    .split('"')[0]
+                              }
+                            : {})
+                        : {}))
+                : {},
+          );
+          _username = userInfo['name'] ?? '';
+        } catch (_) {
+          _username = '';
+        }
+      } else {
+        _username = '';
+      }
+    });
+    print("Is user logged in: $isLogin");
+    print("Username: $_username");
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initPrefs();
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isWeb = Theme.of(context).platform == TargetPlatform.fuchsia ||
-        identical(0, 0.0); // Fallback for web (since kIsWeb is not available here)
+        identical(
+            0, 0.0); // Fallback for web (since kIsWeb is not available here)
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -23,11 +75,11 @@ class StartPage extends StatelessWidget {
                 Navigator.pushNamed(context, AppRoutes.onboard);
               },
               child: Text(
-                'Login/Registration',
+                isLogin ? "Hello, $_username" : 'Login/Registration',
                 style: TextStyle(
                   color: theme.primaryColor,
                   fontWeight: FontWeight.normal,
-                  fontSize: 16,
+                  fontSize: 20,
                 ),
               ),
             ),

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/themes/app_theme.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
-
 
 void main() {
   runApp(const MyApp());
@@ -12,12 +13,15 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Skin Analysis',
-      theme: AppTheme.lightTheme,
-      initialRoute: AppRoutes.start,
-      routes: AppRoutes.getRoutes(),
+    return BlocProvider(
+      create: (context) => AuthBloc(),
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Skin Analysis',
+        theme: AppTheme.lightTheme,
+        initialRoute: AppRoutes.start,
+        routes: AppRoutes.getRoutes(),
+      ),
     );
   }
 }

@@ -7,6 +7,8 @@ class StartPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isWeb = Theme.of(context).platform == TargetPlatform.fuchsia ||
+        identical(0, 0.0); // Fallback for web (since kIsWeb is not available here)
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -14,8 +16,8 @@ class StartPage extends StatelessWidget {
         children: [
           // Top right Login button
           Positioned(
-            top: 40,
-            right: 20,
+            top: isWeb ? 24 : 40,
+            right: isWeb ? 40 : 20,
             child: TextButton(
               onPressed: () {
                 // Navigator.pushNamed(context, AppRoutes.login);
@@ -37,46 +39,40 @@ class StartPage extends StatelessWidget {
               children: [
                 // Animated background behind logo
                 SizedBox(
-                  // width: 140,
-                  // height: 140,
+                  width: isWeb ? 400 : 348,
+                  height: isWeb ? 400 : 348,
                   child: Stack(
                     alignment: Alignment.center,
                     children: [
-                      // Simple animated "snookte" effect (using animated circles)
-                      // Positioned.fill(
-                      // child: AnimatedSnookte(),
-                      // ),
+                      // Animated "snookte" effect
+                      // if (!isWeb)
+                      //   Positioned.fill(child: AnimatedSnookte()),
                       // Logo image
                       Container(
-                        // width: 80,
-                        // height: 80,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          // color: theme.primaryColor,
                         ),
                         child: Center(
                           child: Image.asset(
                             'assets/logo.png',
-                            width: 348,
-                            height: 348,
+                            width: isWeb ? 200 : 200,
+                            height: isWeb ? 200 : 240,
                           ),
                         ),
                       ),
                     ],
                   ),
                 ),
-
                 const SizedBox(height: 32),
-                // Start and Ready to analyze your skin
               ],
             ),
           ),
           Positioned(
-            bottom: 90,
+            bottom: isWeb ? 120 : 90,
             left: 0,
             right: 0,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              padding: EdgeInsets.symmetric(horizontal: isWeb ? 400.0 : 32.0),
               child: Column(
                 children: [
                   Text(

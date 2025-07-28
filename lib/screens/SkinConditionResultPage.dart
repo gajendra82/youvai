@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:skin_assessment/widgets/doctor_card.dart';
 
@@ -885,309 +886,312 @@ class SkinConditionResultPage extends StatelessWidget {
       ),
       body: summaries.isEmpty
           ? const Center(child: Text('No skin condition data found.'))
-          : ListView.builder(
-              padding: const EdgeInsets.only(bottom: 24),
-              itemCount: summaries.isEmpty ? 0 : 1,
-              itemBuilder: (context, i) {
-                final summary = summaries[i];
-                final percentages = summary['percentages'] as List<dynamic>;
-                final imageUrl = summary['imageUrl'] as String?;
-                final mainDiagnosis = summary['mainDiagnosis'] as String;
-                final assessment = summary['assessment'] as String;
-                final scoreOutOf10 = summary['scoreOutOf10'] as double;
-                final attractivenessScore =
-                    summary['attractivenessScore'] as double;
-                final primaryCondition = summary['primaryCondition'] as String;
-                final fullOutput = summary['fullOutput'] as String;
-
-                return Card(
-                    margin: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 12),
-                    child: Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: SingleChildScrollView(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            GridView.builder(
-                              shrinkWrap: true,
-                              // physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2, // Two cards per row
-                                childAspectRatio:
-                                    MediaQuery.of(context).size.width < 400
-                                        ? 1.3
-                                        : 2.4, // More square on mobile
-                                crossAxisSpacing: 14,
-                                mainAxisSpacing: 14,
+          : Container(
+            width:kIsWeb  ? 600:  double.infinity,
+            child: ListView.builder(
+                padding: const EdgeInsets.only(bottom: 24),
+                itemCount: summaries.isEmpty ? 0 : 1,
+                itemBuilder: (context, i) {
+                  final summary = summaries[i];
+                  final percentages = summary['percentages'] as List<dynamic>;
+                  final imageUrl = summary['imageUrl'] as String?;
+                  final mainDiagnosis = summary['mainDiagnosis'] as String;
+                  final assessment = summary['assessment'] as String;
+                  final scoreOutOf10 = summary['scoreOutOf10'] as double;
+                  final attractivenessScore =
+                      summary['attractivenessScore'] as double;
+                  final primaryCondition = summary['primaryCondition'] as String;
+                  final fullOutput = summary['fullOutput'] as String;
+            
+                  return Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GridView.builder(
+                                shrinkWrap: true,
+                                // physics: const NeverScrollableScrollPhysics(),
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2, // Two cards per row
+                                  childAspectRatio:
+                                      MediaQuery.of(context).size.width < 400
+                                          ? 1.3
+                                          : 2.4, // More square on mobile
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                ),
+                                itemCount: percentages.length,
+                                itemBuilder: (context, idx) {
+                                  final p = percentages[idx];
+                                  return _summaryStat(
+                                      p['condition'] ?? '',
+                                      "${p['percent']}%",
+                                      _getConditionIcon(p['condition'] ?? ''),
+                                      _getConditionColor(p['condition'] ?? ''),
+                                      context,
+                                      compareTo:
+                                          getNormalPercentage(p['condition'])
+                                              .toDouble());
+                                },
                               ),
-                              itemCount: percentages.length,
-                              itemBuilder: (context, idx) {
-                                final p = percentages[idx];
-                                return _summaryStat(
-                                    p['condition'] ?? '',
-                                    "${p['percent']}%",
-                                    _getConditionIcon(p['condition'] ?? ''),
-                                    _getConditionColor(p['condition'] ?? ''),
-                                    context,
-                                    compareTo:
-                                        getNormalPercentage(p['condition'])
-                                            .toDouble());
-                              },
-                            ),
-                            const SizedBox(height: 20),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Card(
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(16)),
-                                    elevation: 3,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .secondary,
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .secondary,
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .secondary,
-                                          ],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 18, horizontal: 8),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          buildAssessmentChart(scoreOutOf10,
-                                              label: primaryCondition),
-                                          const SizedBox(height: 8),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 16),
-                                Expanded(
-                                  child: Card(
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(16)),
-                                    elevation: 3,
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        gradient: LinearGradient(
-                                          colors: [
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .secondary,
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .secondary,
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .secondary,
-                                            Theme.of(context)
-                                                .colorScheme
-                                                .primary,
-                                          ],
-                                          begin: Alignment.topLeft,
-                                          end: Alignment.bottomRight,
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 18, horizontal: 8),
-                                      child: Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          buildAssessmentChart(
-                                              attractivenessScore,
-                                              label: "Attractive"),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 10),
-
-                            // buildAttractivenessChart(attractivenessScore),
-                            //     color: Colors.deepPurple),
-                            // ),
-                            const SizedBox(height: 10),
-                            Text("From Recently Uploaded Image",
-                                style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black)),
-                            const SizedBox(height: 10),
-                            if (imageUrl != null && imageUrl.isNotEmpty)
-                              SizedBox(
-                                height: 110,
-                                child: ListView(
-                                  scrollDirection: Axis.horizontal,
-                                  children: [
-                                    Card(
-                                      margin: const EdgeInsets.only(right: 12),
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Card(
                                       shape: RoundedRectangleBorder(
                                           borderRadius:
-                                              BorderRadius.circular(12)),
-                                      child: ClipRRect(
-                                        borderRadius: BorderRadius.circular(12),
-                                        child: Image.network(
-                                          imageUrl,
-                                          width: 140,
-                                          height: 100,
-                                          fit: BoxFit.cover,
-                                          errorBuilder:
-                                              (context, error, stackTrace) =>
-                                                  Container(
+                                              BorderRadius.circular(16)),
+                                      elevation: 3,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .secondary,
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .secondary,
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .secondary,
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 18, horizontal: 8),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            buildAssessmentChart(scoreOutOf10,
+                                                label: primaryCondition),
+                                            const SizedBox(height: 8),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Card(
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(16)),
+                                      elevation: 3,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .secondary,
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .secondary,
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .secondary,
+                                              Theme.of(context)
+                                                  .colorScheme
+                                                  .primary,
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius: BorderRadius.circular(16),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 18, horizontal: 8),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            buildAssessmentChart(
+                                                attractivenessScore,
+                                                label: "Attractive"),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+            
+                              // buildAttractivenessChart(attractivenessScore),
+                              //     color: Colors.deepPurple),
+                              // ),
+                              const SizedBox(height: 10),
+                              Text("From Recently Uploaded Image",
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black)),
+                              const SizedBox(height: 10),
+                              if (imageUrl != null && imageUrl.isNotEmpty)
+                                SizedBox(
+                                  height: 110,
+                                  child: ListView(
+                                    scrollDirection: Axis.horizontal,
+                                    children: [
+                                      Card(
+                                        margin: const EdgeInsets.only(right: 12),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                        child: ClipRRect(
+                                          borderRadius: BorderRadius.circular(12),
+                                          child: Image.network(
+                                            imageUrl,
                                             width: 140,
                                             height: 100,
-                                            color: Colors.grey.shade200,
-                                            child: const Icon(
-                                                Icons.broken_image,
-                                                size: 40,
-                                                color: Colors.grey),
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Container(
+                                              width: 140,
+                                              height: 100,
+                                              color: Colors.grey.shade200,
+                                              child: const Icon(
+                                                  Icons.broken_image,
+                                                  size: 40,
+                                                  color: Colors.grey),
+                                            ),
                                           ),
                                         ),
                                       ),
-                                    ),
-                                    // Add more cards for other images if available in your data
-                                  ],
+                                      // Add more cards for other images if available in your data
+                                    ],
+                                  ),
                                 ),
+                              const Divider(height: 24),
+                              // ExpansionTiles for Q&A style extraction
+                              ExpansionTile(
+                                title: const Text("What's the diagnosis?",
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(mainDiagnosis,
+                                        style: const TextStyle(fontSize: 15)),
+                                  ),
+                                ],
                               ),
-                            const Divider(height: 24),
-                            // ExpansionTiles for Q&A style extraction
-                            ExpansionTile(
-                              title: const Text("What's the diagnosis?",
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text(mainDiagnosis,
-                                      style: const TextStyle(fontSize: 15)),
-                                ),
-                              ],
-                            ),
-                            // ExpansionTile(
-                            //   title: const Text("What medicines are recommended?",
-                            //       style: TextStyle(fontWeight: FontWeight.bold)),
-                            //   children: [
-                            //     Padding(
-                            //       padding: const EdgeInsets.all(8.0),
-                            //       child: Builder(
-                            //         builder: (context) {
-                            //           // Try to extract "Recommended Medicines" section
-                            //           final recRegex = RegExp(
-                            //               r'Recommended Medicines[:\s]*([\s\S]*?)(\n\n|$)',
-                            //               caseSensitive: false);
-                            //           final recMatch =
-                            //               recRegex.firstMatch(fullOutput);
-                            //           if (recMatch != null) {
-                            //             return Text(recMatch.group(1)!.trim(),
-                            //                 style: const TextStyle(fontSize: 15));
-                            //           }
-                            //           // Fallback: show all recommendations
-                            //           return Text(summary['recommendations'] ?? '',
-                            //               style: const TextStyle(fontSize: 15));
-                            //         },
-                            //       ),
-                            //     ),
-                            //   ],
-                            // ),
-                            ExpansionTile(
-                              title: const Text("What are the treatment notes?",
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Builder(
-                                    builder: (context) {
-                                      // Try to extract "Treatment Notes" or similar section
-                                      final notesRegex = RegExp(
-                                          r'(Treatment Notes|Treatment|Advice|Notes)[:\s]*([\s\S]*?)(\n\n|$)',
-                                          caseSensitive: false);
-                                      final notesMatch =
-                                          notesRegex.firstMatch(fullOutput);
-                                      if (notesMatch != null) {
-                                        return Text(notesMatch.group(2)!.trim(),
-                                            style:
-                                                const TextStyle(fontSize: 15));
-                                      }
-                                      // Fallback: show full output
-                                      return Text(fullOutput,
-                                          style: const TextStyle(fontSize: 15));
-                                    },
+                              // ExpansionTile(
+                              //   title: const Text("What medicines are recommended?",
+                              //       style: TextStyle(fontWeight: FontWeight.bold)),
+                              //   children: [
+                              //     Padding(
+                              //       padding: const EdgeInsets.all(8.0),
+                              //       child: Builder(
+                              //         builder: (context) {
+                              //           // Try to extract "Recommended Medicines" section
+                              //           final recRegex = RegExp(
+                              //               r'Recommended Medicines[:\s]*([\s\S]*?)(\n\n|$)',
+                              //               caseSensitive: false);
+                              //           final recMatch =
+                              //               recRegex.firstMatch(fullOutput);
+                              //           if (recMatch != null) {
+                              //             return Text(recMatch.group(1)!.trim(),
+                              //                 style: const TextStyle(fontSize: 15));
+                              //           }
+                              //           // Fallback: show all recommendations
+                              //           return Text(summary['recommendations'] ?? '',
+                              //               style: const TextStyle(fontSize: 15));
+                              //         },
+                              //       ),
+                              //     ),
+                              //   ],
+                              // ),
+                              ExpansionTile(
+                                title: const Text("What are the treatment notes?",
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Builder(
+                                      builder: (context) {
+                                        // Try to extract "Treatment Notes" or similar section
+                                        final notesRegex = RegExp(
+                                            r'(Treatment Notes|Treatment|Advice|Notes)[:\s]*([\s\S]*?)(\n\n|$)',
+                                            caseSensitive: false);
+                                        final notesMatch =
+                                            notesRegex.firstMatch(fullOutput);
+                                        if (notesMatch != null) {
+                                          return Text(notesMatch.group(2)!.trim(),
+                                              style:
+                                                  const TextStyle(fontSize: 15));
+                                        }
+                                        // Fallback: show full output
+                                        return Text(fullOutput,
+                                            style: const TextStyle(fontSize: 15));
+                                      },
+                                    ),
                                   ),
-                                ),
-                              ],
-                            ),
-                            ExpansionTile(
-                              title: const Text("Show full details",
-                                  style:
-                                      TextStyle(fontWeight: FontWeight.bold)),
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.all(8.0),
-                                  child: Text(fullOutput,
-                                      style: const TextStyle(fontSize: 15)),
-                                ),
-                              ],
-                            ),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const SizedBox(height: 10),
-                                const Text(
-                                  "Recommended Doctor's",
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black,
+                                ],
+                              ),
+                              ExpansionTile(
+                                title: const Text("Show full details",
+                                    style:
+                                        TextStyle(fontWeight: FontWeight.bold)),
+                                children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Text(fullOutput,
+                                        style: const TextStyle(fontSize: 15)),
                                   ),
-                                ),
-                                const SizedBox(height: 10),
-
-                                // 👇 Fixed horizontal ListView inside a SizedBox
-                                SizedBox(
-                                  height:
-                                      300, // Adjust based on your DoctorCard height
-                                  child: ListView.builder(
-                                    physics: const BouncingScrollPhysics(),
-                                    padding: const EdgeInsets.only(right: 16),
-                                    scrollDirection: Axis.horizontal,
-                                    itemCount: 5,
-                                    itemBuilder: (context, index) {
-                                      return const DoctorCard(); // Replace with actual data if needed
-                                    },
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    "Recommended Doctor's",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
                                   ),
-                                ),
-                              ],
-                            )
-                          ],
+                                  const SizedBox(height: 10),
+            
+                                  // 👇 Fixed horizontal ListView inside a SizedBox
+                                  SizedBox(
+                                    height:
+                                        300, // Adjust based on your DoctorCard height
+                                    child: ListView.builder(
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: const EdgeInsets.only(right: 16),
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: 5,
+                                      itemBuilder: (context, index) {
+                                        return const DoctorCard(); // Replace with actual data if needed
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
                         ),
-                      ),
-                    ));
-              },
-            ),
+                      ));
+                },
+              ),
+          ),
     );
   }
 }

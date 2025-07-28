@@ -265,7 +265,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                 },
                 onViewPercentageSummary: () async {
                   // Place your upload code here
-                  if (_lastImageFile != null && _lastImageBytes != null) {
+                  print("View Percentage & Summary pressed");
+                  if (_lastImageFile != null || _lastImageBytes != null) {
+                    debugPrint("Uploading last image...");
                     try {
                       final uri = Uri.parse(
                           'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
@@ -277,9 +279,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                         http.MultipartFile.fromBytes(
                           'images[]',
                           _lastImageBytes!,
-                          filename: basename(_lastImageFile!.path),
+                          filename: "image.jpg",
                         ),
                       );
+                      print("Uploading last image...");
+
                       var streamedResponse = await request.send();
                       var response =
                           await http.Response.fromStream(streamedResponse);
@@ -288,9 +292,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                         return decoded;
                       }
                     } catch (e) {
+                      print('Error uploading image: $e');
                       return null;
                     }
                   }
+                  print("No image to upload");
                   return null;
                 },
               ),
@@ -305,92 +311,100 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   Widget _buildCameraOverlay(BuildContext context) {
+    final bool isWeb = kIsWeb;
     return FutureBuilder<void>(
       future: _initializeControllerFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             _cameraController != null) {
-          return Stack(
-            children: [
-              Center(
-                child: CameraPreview(_cameraController!),
-              ),
-              CustomPaint(
-                painter: OverlayPainter(),
-                child: Container(),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.0),
-                      ],
-                    ),
+          return Container(
+            alignment: Alignment.center,
+            width: isWeb ? 600 : double.infinity,
+            child: Center(
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Center(
+                    child: CameraPreview(_cameraController!),
                   ),
-                  child: const Text(
-                    'Set your face in the center of the circle',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    textAlign: TextAlign.center,
+                  CustomPaint(
+                    painter: OverlayPainter(),
+                    child: Container(),
                   ),
-                ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.0),
-                      ],
-                    ),
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        minimumSize: const Size.fromHeight(54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 42, horizontal: 24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.85),
+                            Colors.black.withOpacity(0.85),
+                            Colors.black.withOpacity(0.85),
+                            Colors.black.withOpacity(0.0),
+                          ],
                         ),
-                        elevation: 0,
                       ),
-                      onPressed: _captureAndAnalyze,
                       child: const Text(
-                        'Capture & Analyze',
+                        'Set your face in the center of the circle',
                         style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w600),
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
-                ),
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 42, horizontal: 24),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.bottomCenter,
+                          end: Alignment.topCenter,
+                          colors: [
+                            Colors.black.withOpacity(0.85),
+                            Colors.black.withOpacity(0.85),
+                            Colors.black.withOpacity(0.85),
+                            Colors.black.withOpacity(0.0),
+                          ],
+                        ),
+                      ),
+                      child: SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            minimumSize: const Size.fromHeight(54),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16),
+                            ),
+                            elevation: 0,
+                          ),
+                          onPressed: _captureAndAnalyze,
+                          child: const Text(
+                            'Capture & Analyze',
+                            style: TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           );
         } else {
           return const Center(child: CircularProgressIndicator());
@@ -448,8 +462,17 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _showScanning = false;
     });
 
-    if (picked.path.isNotEmpty) {
-      await _getBlackBgFace(File(picked.path));
+    if (kIsWeb) {
+      // Convert bytes to a temporary file for web using universal_html
+      // (Flutter web does not support File, so skip _getBlackBgFace or handle differently)
+      // You may need to call an API that accepts bytes directly, or skip this step on web.
+      // For now, just assign _blackBgFaceImage = bytes;
+      _blackBgFaceImage = bytes;
+      _lastImageBytes = bytes;
+    } else {
+      if (picked.path.isNotEmpty) {
+        await _getBlackBgFace(File(picked.path));
+      }
     }
 
     setState(() {

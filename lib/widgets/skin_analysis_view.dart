@@ -118,8 +118,11 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                                   )
                                 : const Text("View Percentage & Summary"),
                             onPressed: _uploading
-                                ? null
+                                ? (){
+                                  print("Already uploading, please wait...");
+                                }
                                 : () async {
+                                  print("View Percentage & Summary pressed");
                                     Map<String, dynamic>? result =
                                         widget.gradioResult;
                                     if (widget.onViewPercentageSummary !=
@@ -134,6 +137,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                                         widget.onGradioResult!(result);
                                       }
                                     }
+                                    print("Gradio result: $result");
                                     if (result != null) {
                                       Navigator.push(
                                         context,

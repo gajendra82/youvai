@@ -87,6 +87,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
             ? Container(
                 height: 80,
                 alignment: Alignment.bottomCenter,
+
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -100,7 +101,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                           child: ElevatedButton.icon(
                             icon: const Icon(Icons.analytics),
                             label: _uploading
-                                ? Row(
+                                ? const Row(
                                     mainAxisSize: MainAxisSize.min,
                                     children: [
                                       SizedBox(
@@ -109,7 +110,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                                         child: CircularProgressIndicator(
                                           strokeWidth: 2,
                                           color: Colors
-                                              .white, // or Colors.black if button is white
+                                              .white, 
                                         ),
                                       ),
                                       const SizedBox(width: 12),
@@ -118,11 +119,11 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                                   )
                                 : const Text("View Percentage & Summary"),
                             onPressed: _uploading
-                                ? (){
-                                  print("Already uploading, please wait...");
-                                }
+                                ? () {
+                                    print("Already uploading, please wait...");
+                                  }
                                 : () async {
-                                  print("View Percentage & Summary pressed");
+                                    print("View Percentage & Summary pressed");
                                     Map<String, dynamic>? result =
                                         widget.gradioResult;
                                     if (widget.onViewPercentageSummary !=
@@ -203,6 +204,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
             _buildSummaryPanel(_patches),
             if (foundTypes.isNotEmpty)
               Container(
+                padding: EdgeInsets.only(top: 10),
                 height: 60,
                 width: double.infinity,
                 color: Colors.transparent,
@@ -214,31 +216,56 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                   itemBuilder: (context, idx) {
                     final type = foundTypes[idx];
                     final selected = _selectedType == type;
-                    return TextButton(
+                    final text =
+                        type == null ? "All" : skinIssueTypeDisplayName(type);
+                    final selectedGradient = LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        // Theme.of(context).colorScheme.secondary,
+                        // Theme.of(context).colorScheme.secondary.withOpacity(0.9),
+                        // Theme.of(context).colorScheme.secondary.withOpacity(0.8),
+                        // Theme.of(context).primaryColor.withOpacity(0.7),
+                        Theme.of(context).primaryColor,
+                        Theme.of(context).primaryColor,
+                      ],
+                    );
+                    final unselectedGradient = const LinearGradient(
+                      colors: [Colors.white, Colors.white],
+                    );
+                    return Container(
                       key: ValueKey(type?.toString() ?? "all"),
-                      style: TextButton.styleFrom(
-                        backgroundColor: selected
-                            ? Colors.blue.withOpacity(0.12)
-                            : Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                          side: selected
-                              ? const BorderSide(color: Colors.blue, width: 1)
-                              : BorderSide.none,
-                        ),
+                      decoration: BoxDecoration(
+                        gradient:
+                            selected ? selectedGradient : unselectedGradient,
+                        borderRadius: BorderRadius.circular(25),
+                        border: selected
+                            ? Border.all(color: Colors.blue, width: 1)
+                            : Border.all(color: Colors.black, width: 1),
                       ),
-                      onPressed: () {
-                        setState(() {
-                          _selectedType = type;
-                        });
-                      },
-                      child: Text(
-                        type == null ? "All" : skinIssueTypeDisplayName(type),
-                        style: TextStyle(
-                          fontWeight:
-                              selected ? FontWeight.bold : FontWeight.normal,
-                          color: selected ? Colors.blue : Colors.black,
-                          fontSize: 16,
+                      child: Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              _selectedType = type;
+                            });
+                          },
+                          borderRadius: BorderRadius.circular(8),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 12),
+                            child: Center(
+                              child: Text(
+                                text,
+                                style: TextStyle(
+                                  color: selected ? Colors.white : Colors.black,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              ),
+                            ),
+                          ),
                         ),
                       ),
                     );

@@ -319,7 +319,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
             _cameraController != null) {
           return Container(
             alignment: Alignment.center,
-            width: isWeb ? 600 : double.infinity,
+            // width: isWeb ? 600 : double.infinity,
+            // height: isWeb ? 600 : double.infinity,
             child: Center(
               child: Stack(
                 alignment: Alignment.center,

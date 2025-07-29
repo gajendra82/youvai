@@ -198,9 +198,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     // // _razorpay.on('external.wallet', );
     // _razorpay.open(options);
     js.context.callMethod('openRazorpayCheckout', [
-      "rzp_test_GD4tLv8EAG4UnR", // Replace with your Razorpay key
-      "rzp_test_GD4tLv8EAG4UnR",
-      "49900",
+      "rzp_live_jBXpBOtKrydrbs", // Replace with your Razorpay key
+      "rzp_live_jBXpBOtKrydrbs",
+      "100",
     ]);
   }
 

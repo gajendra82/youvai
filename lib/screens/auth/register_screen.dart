@@ -24,7 +24,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
   final TextEditingController _genderController = TextEditingController();
   final TextEditingController _dobController = TextEditingController();
-  final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _mobileController = TextEditingController();
 
   // For image picker placeholder
   // Implement your own image pick logic
@@ -86,15 +86,11 @@ class _RegisterPageState extends State<RegisterPage> {
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 28),
-                  // Add Photo Circle
                   Center(
                     child: GestureDetector(
                       onTap: () async {
-                        // TODO: Add image picker logic
-
                         final ImagePicker _picker = ImagePicker();
-                        final XFile? image = await _picker.pickImage(
-                            source: ImageSource.gallery);
+                        final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
                         if (image != null) {
                           setState(() {
                             _profileImagePath = image.path;
@@ -102,40 +98,88 @@ class _RegisterPageState extends State<RegisterPage> {
                         }
                       },
                       child: Container(
-                        width: 200,
-                        height: 200,
+                        width: 120,
+                        height: 120,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: purpleColor.withOpacity(0.10),
+                          color: Colors.green.withOpacity(0.10),
                           border: Border.all(
-                            color: purpleColor,
+                            color: Colors.green,
                             width: 3,
                           ),
                         ),
                         child: Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
+                          child:
+                          //  _profileImagePath == null
+                          //     ? 
                               Icon(
-                                Icons.add_a_photo_rounded,
-                                size: 38,
-                                color: purpleColor,
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                "Add Photo",
-                                style: TextStyle(
-                                  color: purpleColor,
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 14,
-                                ),
-                              )
-                            ],
-                          ),
+                                  Icons.person_add_alt_1_rounded,
+                                  size: 48,
+                                  color: Colors.green,
+                                )
+                              // : ClipOval(
+                                //   child: Image.file(
+                                //     File(_profileImagePath!),
+                                //     width: 110,
+                                //     height: 110,
+                                //     fit: BoxFit.cover,
+                                //   ),
+                                // ),
                         ),
                       ),
                     ),
                   ),
+                  // Add Photo Circle
+                  // Center(
+                  //   child: GestureDetector(
+                  //     onTap: () async {
+                  //       // TODO: Add image picker logic
+
+                  //       final ImagePicker _picker = ImagePicker();
+                  //       final XFile? image = await _picker.pickImage(
+                  //           source: ImageSource.gallery);
+                  //       if (image != null) {
+                  //         setState(() {
+                  //           _profileImagePath = image.path;
+                  //         });
+                  //       }
+                  //     },
+                  //     child: Container(
+                  //       width: 200,
+                  //       height: 200,
+                  //       decoration: BoxDecoration(
+                  //         shape: BoxShape.circle,
+                  //         color: purpleColor.withOpacity(0.10),
+                  //         border: Border.all(
+                  //           color: purpleColor,
+                  //           width: 3,
+                  //         ),
+                  //       ),
+                  //       child: Center(
+                  //         child: Column(
+                  //           mainAxisAlignment: MainAxisAlignment.center,
+                  //           children: [
+                  //             Icon(
+                  //               Icons.add_a_photo_rounded,
+                  //               size: 38,
+                  //               color: purpleColor,
+                  //             ),
+                  //             const SizedBox(height: 2),
+                  //             Text(
+                  //               "Add Photo",
+                  //               style: TextStyle(
+                  //                 color: purpleColor,
+                  //                 fontWeight: FontWeight.w600,
+                  //                 fontSize: 14,
+                  //               ),
+                  //             )
+                  //           ],
+                  //         ),
+                  //       ),
+                  //     ),
+                  //   ),
+                  // ),
+                  
                   const SizedBox(height: 28),
                   // Username
                   TextField(
@@ -163,6 +207,24 @@ class _RegisterPageState extends State<RegisterPage> {
                       prefixIcon:
                           Icon(Icons.email_outlined, color: purpleColor),
                       hintText: "Email",
+                      filled: true,
+                      fillColor: const Color(0xFFF6F6F6),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 18, horizontal: 0),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  // Mobile Number
+                  TextField(
+                    controller: _mobileController,
+                    keyboardType: TextInputType.phone,
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.phone_android, color: purpleColor),
+                      hintText: "Mobile Number",
                       filled: true,
                       fillColor: const Color(0xFFF6F6F6),
                       border: OutlineInputBorder(
@@ -213,35 +275,35 @@ class _RegisterPageState extends State<RegisterPage> {
                   ),
                   const SizedBox(height: 16),
                   // Date of Birth
-                  TextField(
-                    controller: _dobController,
-                    readOnly: true,
-                    onTap: () async {
-                      DateTime? picked = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime(2000, 1, 1),
-                        firstDate: DateTime(1900),
-                        lastDate: DateTime.now(),
-                      );
-                      if (picked != null) {
-                        _dobController.text =
-                            "${picked.toLocal()}".split(' ')[0];
-                      }
-                    },
-                    decoration: InputDecoration(
-                      prefixIcon: Icon(Icons.cake_outlined, color: purpleColor),
-                      hintText: "Date of Birth",
-                      filled: true,
-                      fillColor: const Color(0xFFF6F6F6),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 0),
-                    ),
-                  ),
-                  const SizedBox(height: 30),
+                  // TextField(
+                  //   controller: _dobController,
+                  //   readOnly: true,
+                  //   onTap: () async {
+                  //     DateTime? picked = await showDatePicker(
+                  //       context: context,
+                  //       initialDate: DateTime(2000, 1, 1),
+                  //       firstDate: DateTime(1900),
+                  //       lastDate: DateTime.now(),
+                  //     );
+                  //     if (picked != null) {
+                  //       _dobController.text =
+                  //           "${picked.toLocal()}".split(' ')[0];
+                  //     }
+                  //   },
+                  //   decoration: InputDecoration(
+                  //     prefixIcon: Icon(Icons.cake_outlined, color: purpleColor),
+                  //     hintText: "Date of Birth",
+                  //     filled: true,
+                  //     fillColor: const Color(0xFFF6F6F6),
+                  //     border: OutlineInputBorder(
+                  //       borderRadius: BorderRadius.circular(10),
+                  //       borderSide: BorderSide.none,
+                  //     ),
+                  //     contentPadding: const EdgeInsets.symmetric(
+                  //         vertical: 18, horizontal: 0),
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 30),
                   // Register Button
                   SizedBox(
                     height: 48,
@@ -256,7 +318,7 @@ class _RegisterPageState extends State<RegisterPage> {
                               dateOfBirth:
                                   DateTime.tryParse(_dobController.text),
                               gender: _genderController.text,
-                              address: _addressController.text,
+                              phone: _mobileController.text,
                             ));
                       },
                       style: ElevatedButton.styleFrom(

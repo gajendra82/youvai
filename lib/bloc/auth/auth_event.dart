@@ -13,7 +13,7 @@ class RegisterRequested extends AuthEvent {
   final String password;
   final DateTime? dateOfBirth;
   final String? gender;
-  final String? address;
+  final String? phone;
 
-  RegisterRequested({required this.name, required this.email, required this.password, this.dateOfBirth, this.gender, this.address});
+  RegisterRequested({required this.name, required this.email, required this.password, this.dateOfBirth, this.gender, this.phone});
 }

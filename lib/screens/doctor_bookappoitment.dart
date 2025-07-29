@@ -21,7 +21,7 @@ class DoctorAppointmentPage extends StatelessWidget {
         width: double.infinity,
         child: ElevatedButton(
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFF8F5FE8),
+            backgroundColor: Theme.of(context).primaryColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(25),
             ),
@@ -60,12 +60,12 @@ class DoctorAppointmentPage extends StatelessWidget {
             // Card at the top
             Container(
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient:  LinearGradient(
                   colors: [
-                    Color(0xFF9575CD), // Darker purple
-                    Color(0xFF9575CD), // Darker purple
-                    Color(0xFFB39DDB), // Soft purple
-                    Color.fromARGB(255, 213, 207, 224), // Soft purple
+                    Theme.of(context).primaryColor,
+                    Theme.of(context).primaryColor,
+                    Theme.of(context).colorScheme.secondary,
+                    Theme.of(context).colorScheme.secondary,
                   ],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
@@ -87,8 +87,8 @@ class DoctorAppointmentPage extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          "Dr. Leah Zane",
+                        Text(
+                          name,
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -96,8 +96,8 @@ class DoctorAppointmentPage extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 5),
-                        const Text(
-                          "Dermatology Specialist",
+                        Text(
+                          speciality,
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             color: Colors.white70,

@@ -62,13 +62,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   Future<void> _onRegisterRequested(
       RegisterRequested event, Emitter<AuthState> emit) async {
     print(
-        "Register requested with name: ${event.name}, email: ${event.email}, dateOfBirth: ${event.dateOfBirth}, gender: ${event.gender}, address: ${event.address}");
+        "Register requested with name: ${event.name}, email: ${event.email}, dateOfBirth: ${event.dateOfBirth}, gender: ${event.gender}, phone: ${event.phone}");
     var isvalidate = validateRegistrationFields(
       name: event.name,
       email: event.email,
       password: event.password,
-      confirmPassword: event
-          .password, // Assuming confirmPassword is same as password for simplicity
+      confirmPassword: event.password,
+      phone: event.phone ?? '',
       // dateOfBirth: event.dateOfBirth?.toIso8601String(),
       // gender: event.gender,
       // address: event.address,
@@ -91,7 +91,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'password': event.password,
           'dateOfBirth': event.dateOfBirth?.toIso8601String() ?? '',
           'gender': event.gender ?? '',
-          'address': event.address ?? '',
+          'phone': event.phone ?? '',
         },
       );
       print(response.body);
@@ -116,6 +116,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     required String email,
     required String password,
     required String confirmPassword,
+    required String phone,
     // required String dateOfBirth,
     // required String gender,
     // required String address,
@@ -123,7 +124,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (name.isEmpty ||
             email.isEmpty ||
             password.isEmpty ||
-            confirmPassword.isEmpty
+            confirmPassword.isEmpty ||
+            phone.isEmpty
         // dateOfBirth.isEmpty ||
         // gender.isEmpty ||
         // address.isEmpty
@@ -139,6 +141,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         'message': 'Passwords do not match.',
       };
     }
+
     // Add more validation as needed (e.g., email format)
     return {
       'isValid': true,

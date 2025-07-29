@@ -36,5 +36,32 @@
   <body>
     <script src="flutter_bootstrap.js" async></script>
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+    <script>
+      function openRazorpayCheckout(orderId, key, amount) {
+        var options = {
+          key: key,
+          amount: amount,
+          currency: "INR",
+          name: "Your Company",
+          description: "Test Payment",
+          handler: function (response) {
+            // Send success to Flutter
+            if (window.flutterPaymentSuccess) {
+              window.flutterPaymentSuccess(response.razorpay_payment_id);
+            }
+          },
+          prefill: {
+            name: "Test User",
+            email: "test@example.com",
+            contact: "9999999999",
+          },
+          theme: {
+            color: "#3399cc",
+          },
+        };
+        var rzp = new Razorpay(options);
+        rzp.open();
+      }
+    </script>
   </body>
 </html>

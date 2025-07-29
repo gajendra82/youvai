@@ -2,7 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:skin_assessment/screens/doctor_bookappoitment.dart';
 
 class DoctorCard extends StatelessWidget {
-  const DoctorCard({super.key});
+  final String title;
+  final String speciality;
+  final String totalReviews;
+  final String stars;
+  const DoctorCard({
+    required this.title,
+    required this.speciality,
+    required this.totalReviews,
+    required this.stars,
+    super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -47,8 +56,8 @@ class DoctorCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          const Text(
-            "Dr. Leah\nZane",
+          Text(
+            title,
             style: TextStyle(
               color: Colors.white,
               fontSize: 19,
@@ -57,8 +66,8 @@ class DoctorCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          const Text(
-            "Dermatology\nSpecialist",
+          Text(
+            speciality,
             style: TextStyle(
               color: Colors.white70,
               fontSize: 14,
@@ -70,8 +79,8 @@ class DoctorCard extends StatelessWidget {
             children: [
               const Icon(Icons.star, color: Colors.amber, size: 18),
               const SizedBox(width: 4),
-              const Text(
-                "5.0",
+               Text(
+                stars,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -79,8 +88,8 @@ class DoctorCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 3),
-              const Text(
-                "(1,952)",
+               Text(
+                "($totalReviews)",
                 style: TextStyle(
                   color: Colors.white60,
                   fontSize: 13,
@@ -104,7 +113,7 @@ class DoctorCard extends StatelessWidget {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const DoctorAppointmentPage(),
+                  builder: (context) =>  DoctorAppointmentPage(name: title, speciality: speciality),
                 ),
               );
             },

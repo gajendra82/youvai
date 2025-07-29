@@ -1,9 +1,11 @@
 import 'dart:convert';
+import 'dart:js' as js;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:razorpay_web/razorpay_web.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:skin_assessment/widgets/doctor_card.dart';
 import 'package:http/http.dart' as http;
 
@@ -25,10 +27,28 @@ class SkinConditionResultPage extends StatefulWidget {
 class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   late Razorpay _razorpay;
   bool _hasPaid = false;
+  String paymentStatus = "";
   @override
   void initState() {
     super.initState();
-    _razorpay = Razorpay(); // No event wiring for web!
+    checkSubscriptionStatus();
+    if (kIsWeb) {
+      // Define the JS callback that gets called after payment
+      js.context['flutterPaymentSuccess'] = (String paymentId) {
+        setState(() {
+          paymentStatus = "Payment Successful: $paymentId";
+          _hasPaid = true;
+        });
+        _handlePaymentSuccess(paymentId);
+      };
+      js.context['flutterPaymentError'] = (String paymentId) {
+        setState(() {
+          paymentStatus = "Payment Failed: $paymentId";
+        });
+        _handlePaymentError(paymentId);
+      };
+    }
+    // _razorpay = Razorpay(); // No event wiring for web!
   }
 
   @override
@@ -37,27 +57,36 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     _razorpay.clear();
   }
 
-  void _handlePaymentSuccess(response) async {
-    print("Payment successful: $response");
+  void checkSubscriptionStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isSubscribed = prefs.getBool('isSubscribe') ?? false;
+    setState(() {
+      _hasPaid = isSubscribed;
+    });
+  }
+
+  void _handlePaymentSuccess(String paymentId) async {
+    print("Payment successful: $paymentId");
     // Extract IDs if needed, response is Map<String, dynamic>
     final paymentData = {
-      "payment_id": response['razorpay_payment_id'] ?? "",
+      "payment_id": paymentId,
       "amount": 499.00,
       "currency": "INR",
       "status": "completed",
       "payment_method": "razorpay",
       "description": "Unlock Full Report",
       "metadata": {
-        "order_id": response['razorpay_order_id'] ?? "",
+        "order_id": paymentId ?? "",
         "customer_id": "", // Fill if available
       },
-      "transaction_reference": response['razorpay_signature'] ?? "",
+      "transaction_reference": paymentId ?? "",
       "processed_at": DateTime.now().toIso8601String(),
     };
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('_token') ?? '';
+      final isSubscribed = prefs.setBool('isSubscribe', true) ?? false;
       print(token);
 
       final uri = Uri.parse(
@@ -87,7 +116,45 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     );
   }
 
-  void _handlePaymentError() {
+  void _handlePaymentError(paymentId) async {
+    final paymentData = {
+      "payment_id": paymentId ?? "",
+      "amount": 499.00,
+      "currency": "INR",
+      "status": "Failed",
+      "payment_method": "razorpay",
+      "description": "Unlock Full Report",
+      "metadata": {
+        "order_id": paymentId ?? "",
+        "customer_id": "", // Fill if available
+      },
+      "transaction_reference": paymentId ?? "",
+      "processed_at": DateTime.now().toIso8601String(),
+    };
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+      print(token);
+
+      final uri = Uri.parse(
+          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store');
+      final res = await http.post(
+        uri,
+        body: jsonEncode(paymentData),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      if (res.statusCode == 201) {
+        print("Payment data stored successfully.");
+      } else {
+        print("Failed to store payment data: ${res.body}");
+      }
+    } catch (e) {
+      print("Error storing payment data: $e");
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
           content: Text("Payment failed or cancelled. Please try again.")),
@@ -95,6 +162,20 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   }
 
   void _startPayment() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isLoggedIn = prefs.getBool('isLogin') ?? false;
+    print("isLoggedIn: $isLoggedIn");
+    if (!isLoggedIn) {
+      await Navigator.pushNamed(context, AppRoutes.login);
+    }
+    final isSubscribed = prefs.getBool('isSubscribe') ?? false;
+    if (isSubscribed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("You already have access to the report.")),
+      );
+      return;
+    }
+
     var options = {
       'key': 'rzp_test_GD4tLv8EAG4UnR', // TODO: Replace with your Razorpay key!
       'amount': 49900, // amount in paise (499.00 INR)
@@ -112,10 +193,15 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       //   }
       // }, // Error/dismiss handler
     };
-    _razorpay.on('payment.error', _handlePaymentError);
-    _razorpay.on('payment.success', _handlePaymentSuccess);
-    // _razorpay.on('external.wallet', );
-    _razorpay.open(options);
+    // _razorpay.on('payment.error', _handlePaymentError);
+    // _razorpay.on('payment.success', _handlePaymentSuccess);
+    // // _razorpay.on('external.wallet', );
+    // _razorpay.open(options);
+    js.context.callMethod('openRazorpayCheckout', [
+      "rzp_test_GD4tLv8EAG4UnR", // Replace with your Razorpay key
+      "rzp_test_GD4tLv8EAG4UnR",
+      "49900",
+    ]);
   }
 
   List<Map<String, dynamic>> extractSkinSummaries(
@@ -161,7 +247,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                 RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(line);
             if (match != null) {
               final condition = match.group(1)!.trim();
-              if (!condition.toLowerCase().contains('skin redness')) {
+              if (condition.toLowerCase().contains('skin redness')) {
+                percentages.add(
+                    {'condition': "Pigmentation", 'percent': match.group(2)!});
+              } else {
                 percentages
                     .add({'condition': condition, 'percent': match.group(2)!});
               }
@@ -174,7 +263,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
               RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(line);
           if (match != null) {
             final condition = match.group(1)!.trim();
-            if (!condition.toLowerCase().contains('skin redness')) {
+            if (condition.toLowerCase().contains('skin redness')) {
+              percentages.add(
+                  {'condition': "Pigmentation", 'percent': match.group(2)!});
+            } else {
               percentages
                   .add({'condition': condition, 'percent': match.group(2)!});
             }
@@ -185,7 +277,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       String output = result['output'];
       String mainDiagnosis = '';
       final diagnosisRegex = RegExp(
-          r'Confirmed Diagnosis[:\s]*([\s\S]*?)(\n\n|$)',
+          r'Initial Diagnosis[:\s]*([\s\S]*?)(\n\n|$)',
           caseSensitive: false);
       final diagnosisMatch = diagnosisRegex.firstMatch(output);
       if (diagnosisMatch != null) {
@@ -1389,9 +1481,16 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                       physics: const BouncingScrollPhysics(),
                                       padding: const EdgeInsets.only(right: 16),
                                       scrollDirection: Axis.horizontal,
-                                      itemCount: 5,
+                                      itemCount: doctorList.length,
                                       itemBuilder: (context, index) {
-                                        return const DoctorCard(); // Replace with actual data if needed
+                                        final doctor = doctorList[index];
+                                        return DoctorCard(
+                                          title: doctor["name"],
+                                          // title: "Dr. Leah Zane", --- IGNORE ---
+                                          speciality: doctor["speciality"].toString(),
+                                          stars: doctor["reviewStars"].toString(),
+                                          totalReviews: doctor["totalReviews"].toString(),
+                                        );
                                       },
                                     ),
                                   ),
@@ -1406,4 +1505,28 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
             ),
     );
   }
+
+  final List<Map<String, dynamic>> doctorList = [
+    {
+      "name": "Dr. Shushant Shetty",
+      "speciality": "Dermatology Specialist",
+      "reviewStars": 5,
+      "totalReviews": "1,952",
+      "imageUrl": "https://randomuser.me/api/portraits/men/32.jpg",
+    },
+    {
+      "name": "Dr. Viral Desai",
+      "speciality": "Celebrity Cosmetic & Plastic Surgeon",
+      "reviewStars": 4.8,
+      "totalReviews": "1,200",
+      "imageUrl": "https://randomuser.me/api/portraits/women/44.jpg",
+    },
+    {
+      "name": "Dr.Neha ",
+      "speciality": " Dermatologist ",
+      "reviewStars": 4.9,
+      "totalReviews": "1,500",
+      "imageUrl": "https://randomuser.me/api/portraits/women/65.jpg",
+    },
+  ];
 }

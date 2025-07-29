@@ -219,7 +219,8 @@ class OnboardScreen extends StatelessWidget {
                           Expanded(
                             child: OutlinedButton(
                               onPressed: () {
-                                Navigator.pushNamed(context, AppRoutes.login);
+                                Navigator.pushNamed(context, AppRoutes.login,
+                                    arguments: {'fromRoute': '/home'});
                               },
                               style: OutlinedButton.styleFrom(
                                 shape: RoundedRectangleBorder(
@@ -244,38 +245,38 @@ class OnboardScreen extends StatelessWidget {
                         ],
                       ),
                       SizedBox(height: screenHeight * 0.02),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: () {
-                            // Handle Google Login
-                          },
-                          icon: Image.asset(
-                            'assets/google_logo.png',
-                            height: 22,
-                            width: 22,
-                          ),
-                          label: const Text(
-                            'Login with Google',
-                            style: TextStyle(
-                              color: Color(0xFF444444),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 16,
-                            ),
-                          ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 13),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            side: const BorderSide(
-                              color: Color(0xFFE2E2E2),
-                              width: 1.2,
-                            ),
-                            backgroundColor: Colors.white,
-                          ),
-                        ),
-                      ),
+                      // SizedBox(
+                      //   width: double.infinity,
+                      //   child: OutlinedButton.icon(
+                      //     onPressed: () {
+                      //       // Handle Google Login
+                      //     },
+                      //     icon: Image.asset(
+                      //       'assets/google_logo.png',
+                      //       height: 22,
+                      //       width: 22,
+                      //     ),
+                      //     label: const Text(
+                      //       'Login with Google',
+                      //       style: TextStyle(
+                      //         color: Color(0xFF444444),
+                      //         fontWeight: FontWeight.w600,
+                      //         fontSize: 16,
+                      //       ),
+                      //     ),
+                      //     style: OutlinedButton.styleFrom(
+                      //       padding: const EdgeInsets.symmetric(vertical: 13),
+                      //       shape: RoundedRectangleBorder(
+                      //         borderRadius: BorderRadius.circular(12),
+                      //       ),
+                      //       side: const BorderSide(
+                      //         color: Color(0xFFE2E2E2),
+                      //         width: 1.2,
+                      //       ),
+                      //       backgroundColor: Colors.white,
+                      //     ),
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),

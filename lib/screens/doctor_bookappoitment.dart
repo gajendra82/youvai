@@ -2,7 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:skin_assessment/widgets/expandeble_text.dart';
 
 class DoctorAppointmentPage extends StatelessWidget {
-  const DoctorAppointmentPage({super.key});
+  const DoctorAppointmentPage({
+    
+    super.key,
+    required this.name,
+    required this.speciality,
+    });
+
+  final String name;
+  final String speciality;
 
   @override
   Widget build(BuildContext context) {

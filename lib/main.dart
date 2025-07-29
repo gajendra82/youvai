@@ -19,7 +19,7 @@ class MyApp extends StatelessWidget {
         debugShowCheckedModeBanner: false,
         title: 'Skin Analysis',
         theme: AppTheme.lightTheme,
-        initialRoute: AppRoutes.start,
+        initialRoute: AppRoutes.onboard,
         routes: AppRoutes.getRoutes(),
       ),
     );

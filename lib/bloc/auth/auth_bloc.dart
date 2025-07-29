@@ -15,6 +15,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       LoginRequested event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
+      print("login");
       final response = await http.post(
         Uri.parse(
             'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login'),
@@ -26,9 +27,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print(response.body);
       print(response.statusCode);
 
-
       if (response.statusCode == 200) {
-
         final prefs = await SharedPreferences.getInstance();
         prefs.setBool('isLogin', true);
 
@@ -39,6 +38,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           print("User info received: ${responseData['data']}");
           prefs.setString('userInfo', json.encode(responseData['data']));
           prefs.setString('_token', responseData['data']['token'] ?? '');
+          prefs.setBool(
+              'isSubscribe', responseData['data']['isSubscribed'] ?? false);
 
           print("User info stored: ${responseData['data']['token']}");
         } else {

@@ -72,7 +72,14 @@ class _StartPageState extends State<StartPage> {
             right: isWeb ? 40 : 20,
             child: TextButton(
               onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.onboard);
+                if (isLogin) {
+                  // Navigate to profile or home
+                  // Navigator.pushNamed(context, AppRoutes.profile);
+                } else {
+                  // Navigate to login/registration
+                  Navigator.pushNamed(context, AppRoutes.login);
+                }
+                // Navigator.pushNamed(context, AppRoutes.onboard);
               },
               child: Text(
                 isLogin ? "Hello, $_username" : 'Login/Registration',

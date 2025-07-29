@@ -16,6 +16,18 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _rememberMe = false;
+  String fromRoute = '/'; // Default to splash/init
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final args =
+        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
+
+    if (args != null && args.containsKey('fromRoute')) {
+      fromRoute = args['fromRoute'];
+    }
+  }
 
   @override
   void dispose() {
@@ -32,10 +44,18 @@ class _LoginPageState extends State<LoginPage> {
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
-          if (state is AuthError) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text(state.error)),
+          if (state is AuthAuthenticated) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.message)));
+                print("User logged in successfully");
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.start,
+              (route) => false,
             );
+          } else if (state is AuthError) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.error)));
           }
         },
         builder: (context, state) => SafeArea(
@@ -159,25 +179,41 @@ class _LoginPageState extends State<LoginPage> {
                               // TODO: Add login logic
                               final username = _emailController.text.trim();
                               final password = _passwordController.text.trim();
-                              if (username.isNotEmpty &&
-                                  password.isNotEmpty &&
-                                  state is! AuthLoading) {
-                                 context
-                                    .read<AuthBloc>()
-                                    .add(LoginRequested(
+                              if (state is AuthLoading) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text("Logging in... Please wait."),
+                                  ),
+                                );
+                                return;
+                              }
+                              if (username.isNotEmpty && password.isNotEmpty) {
+                                context.read<AuthBloc>().add(LoginRequested(
                                       email: _emailController.text,
                                       password: _passwordController.text,
                                     ));
-                                state is AuthAuthenticated
-                                    ? Navigator.pushReplacementNamed(
-                                        context, AppRoutes.home)
-                                    : ScaffoldMessenger.of(context)
-                                        .showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                              "Login failed. Please try again."),
-                                        ),
-                                      );
+                                // if (state is AuthAuthenticated) {
+                                //   print("User logged in successfully");
+                                //   // if (fromRoute == '/skin_analysis') {
+                                //   //   // ✅ Just pop back
+                                //   //   Navigator.pop(context);
+                                //   // } else {
+                                //   // ✅ Navigate to home
+                                //   Navigator.pushNamedAndRemoveUntil(
+                                //     context,
+                                //     AppRoutes.home,
+                                //     (route) => false,
+                                //   );
+                                // }
+                                // }
+                                // else {
+                                //   ScaffoldMessenger.of(context).showSnackBar(
+                                //     const SnackBar(
+                                //       content: Text(
+                                //           "Login failed. Please try again."),
+                                //     ),
+                                //   );
+                                // }
                               } else {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(

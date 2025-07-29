@@ -52,7 +52,8 @@ class _RegisterPageState extends State<RegisterPage> {
           if (state is AuthAuthenticated) {
             ScaffoldMessenger.of(context)
                 .showSnackBar(SnackBar(content: Text(state.message)));
-            Navigator.pop(context); // go back to login
+            Navigator.pushNamedAndRemoveUntil(
+                context, '/login', (route) => false); // go back to login
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context)
                 .showSnackBar(SnackBar(content: Text(state.error)));

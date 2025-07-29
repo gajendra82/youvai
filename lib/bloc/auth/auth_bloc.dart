@@ -17,7 +17,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final response = await http.post(
         Uri.parse(
-            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login'),
+            'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login'),
         body: {
           'email': event.email,
           'password': event.password,
@@ -26,18 +26,23 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print(response.body);
 
       if (response.statusCode == 200) {
-        emit(AuthAuthenticated("Login successful!"));
-        // You can also parse the response body if needed
 
         final prefs = await SharedPreferences.getInstance();
         prefs.setBool('isLogin', true);
 
         // Optionally, store user info from response
         final responseData = json.decode(response.body);
+        emit(AuthAuthenticated("Login successful!"));
         if (responseData is Map && responseData.containsKey('data')) {
+          print("User info received: ${responseData['data']}");
           prefs.setString('userInfo', json.encode(responseData['data']));
+          prefs.setString('_token', responseData['data']['token'] ?? '');
+
+          print("User info stored: ${responseData['data']['token']}");
+        } else {
+          emit(AuthError('Invalid response format'));
+          return;
         }
-        
       } else {
         emit(AuthError('Login failed: ${response.body}'));
         return;
@@ -76,7 +81,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Replace with your actual API endpoint
       final response = await http.post(
         Uri.parse(
-            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register'),
+            'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register'),
         body: {
           'name': event.name,
           'email': event.email,

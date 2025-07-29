@@ -117,7 +117,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                                       const Text("Getting Results..."),
                                     ],
                                   )
-                                : const Text("View Percentage & Summary"),
+                                : const Text("View Attractiveness Index "),
                             onPressed: _uploading
                                 ? () {
                                     print("Already uploading, please wait...");
@@ -176,7 +176,9 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
                     child: Stack(
                       children: [
                         Positioned.fill(
+                          
                           child: Container(
+
                             color: Colors.black,
                             child: Image(
                               image: widget.inputImage,

@@ -1,9 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_assessment/widgets/doctor_card.dart';
+import 'package:http/http.dart' as http;
 
-class SkinConditionResultPage extends StatelessWidget {
+class SkinConditionResultPage extends StatefulWidget {
   final Map<String, dynamic> gradioResult;
   final Map<String, dynamic>? patchJson; // <-- Pass the first API JSON here
 
@@ -12,6 +15,105 @@ class SkinConditionResultPage extends StatelessWidget {
     required this.gradioResult,
     this.patchJson,
   }) : super(key: key);
+
+  @override
+  State<SkinConditionResultPage> createState() =>
+      _SkinConditionResultPageState();
+}
+
+class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
+  late Razorpay _razorpay;
+  bool _hasPaid = false;
+
+  initState() {
+    super.initState();
+    _razorpay = Razorpay();
+    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
+    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
+    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+  }
+
+  @override
+  void dispose() {
+    _razorpay.clear();
+    super.dispose();
+  }
+
+  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
+    print("Payment successful: ${response.paymentId}");
+    print("Payment details: ${response.data.toString()}");
+    // Example API call after payment success
+    // Future.microtask(() async {
+    final paymentData = {
+      "payment_id": response.paymentId,
+      "amount": 499.00,
+      "currency": "INR",
+      "status": "completed",
+      "payment_method": "razorpay",
+      "description": "Unlock Full Report",
+      "metadata": {
+        "order_id": response.orderId ?? "",
+        "customer_id": "", // Fill if available
+      },
+      "transaction_reference": response.signature ?? "",
+      "processed_at": DateTime.now().toIso8601String(),
+    };
+
+    try {
+      // Get token from SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+      print(token);
+
+      final uri = Uri.parse(
+          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store');
+      // Replace below with actual HTTP call
+      final res = await http.post(
+        uri,
+        body: jsonEncode(paymentData),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+      // Handle response as needed
+      if (res.statusCode == 201) {
+        print("Payment data stored successfully.");
+      } else {
+        print("Failed to store payment data: ${res.body}");
+      }
+    } catch (e) {
+      print("Error storing payment data: $e");
+    }
+    // });
+
+    // Handle successful payment, e.g., unlock details
+
+    setState(() {
+      _hasPaid = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Payment successful! Details unlocked.")));
+  }
+
+  void _handlePaymentError(PaymentFailureResponse response) {
+    ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Payment failed. Please try again.")));
+  }
+
+  void _handleExternalWallet(ExternalWalletResponse response) {}
+
+  void _startPayment() {
+    var options = {
+      'key': 'rzp_test_GD4tLv8EAG4UnR', // TODO: Replace with your Razorpay key!
+      'amount': 49900, // amount in paise (499.00 INR)
+      'name': 'Skin Analysis',
+      'description': 'Unlock Full Report',
+      'prefill': {'contact': '', 'email': ''},
+      // Add more as needed
+    };
+    _razorpay.open(options);
+  }
 
   List<Map<String, dynamic>> extractSkinSummaries(
       dynamic gradioResult, dynamic patchJson) {
@@ -27,7 +129,7 @@ class SkinConditionResultPage extends StatelessWidget {
       if (analysis.trim().startsWith('[')) {
         try {
           final decoded = json.decode(analysis);
-          print(decoded);
+          // print(decoded);
           if (decoded is List) {
             for (var item in decoded) {
               // Each item may be a string with multiple conditions separated by commas or newlines
@@ -37,7 +139,12 @@ class SkinConditionResultPage extends StatelessWidget {
                     RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(line);
                 if (match != null) {
                   final condition = match.group(1)!.trim();
-                  if (!condition.toLowerCase().contains('skin redness')) {
+                  if (condition.toLowerCase().contains('skin redness')) {
+                    percentages.add({
+                      'condition': "Pigmentation",
+                      'percent': match.group(2)!
+                    });
+                  } else {
                     percentages.add(
                         {'condition': condition, 'percent': match.group(2)!});
                   }
@@ -471,8 +578,9 @@ class SkinConditionResultPage extends StatelessWidget {
         compareColor = Colors.redAccent; // High is usually a concern
       } else if (currentValue < compareTo) {
         compareText = "Lower than average (${compareTo.toStringAsFixed(1)}%)";
-        compareColor =
-            Colors.green; // Lower can mean healthier or under control
+        // compareColor =
+        //     Colors.green; // Lower can mean healthier or under control
+        compareColor = Colors.blueGrey;
       } else {
         compareText = "Equal to average (${compareTo.toStringAsFixed(1)}%)";
         compareColor = Colors.blueGrey; // Neutral
@@ -582,9 +690,12 @@ class SkinConditionResultPage extends StatelessWidget {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: (color ?? Colors.grey).withOpacity(0.15),
+              backgroundColor:
+                  (color ?? Theme.of(context).colorScheme.secondary)
+                      .withOpacity(0.15),
               child: Icon(icon ?? Icons.info_outline,
-                  color: color ?? Colors.grey, size: 22),
+                  color: color ?? Theme.of(context).colorScheme.secondary,
+                  size: 22),
               radius: 20,
             ),
             const SizedBox(width: 10),
@@ -592,12 +703,14 @@ class SkinConditionResultPage extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(label,
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text(
+                    label,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   Text(
                     value,
                     style: TextStyle(
-                        color: color ?? Colors.grey,
+                        color: compareColor,
                         fontWeight: FontWeight.bold,
                         fontSize: 18),
                     overflow: TextOverflow.ellipsis,
@@ -618,7 +731,7 @@ class SkinConditionResultPage extends StatelessWidget {
                       compareText,
                       overflow: TextOverflow.visible,
                       style: TextStyle(
-                          color: compareColor,
+                          color: Colors.grey,
                           fontWeight: FontWeight.w500,
                           fontSize: 13),
                       maxLines: 1,
@@ -732,15 +845,17 @@ class SkinConditionResultPage extends StatelessWidget {
                 child: CircularProgressIndicator(
                   value: (score / 10).clamp(0.0, 1.0),
                   strokeWidth: 8,
-                  backgroundColor: Colors.grey.shade300,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.secondary.withOpacity(0.2),
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    score >= 8.5
-                        ? Colors.green
-                        : score >= 7.5
-                            ? Colors.lightGreen
-                            : score >= 6.5
-                                ? Colors.orange
-                                : Colors.red,
+                    // score >= 8.5
+                    //     ? Colors.green
+                    //     : score >= 7.5
+                    //         ? Colors.lightGreen
+                    //         : score >= 6.5
+                    //             ? Colors.orange
+                    //             : Colors.red,
+                    Theme.of(context).colorScheme.primary,
                   ),
                 ),
               ),
@@ -749,7 +864,7 @@ class SkinConditionResultPage extends StatelessWidget {
                 style: const TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 20,
-                  color: Colors.black87,
+                  color: Colors.black,
                 ),
               ),
               const Positioned(
@@ -758,7 +873,7 @@ class SkinConditionResultPage extends StatelessWidget {
                   "/ 10",
                   style: TextStyle(
                     fontSize: 12,
-                    color: Colors.black54,
+                    color: Colors.black,
                   ),
                 ),
               ),
@@ -771,7 +886,8 @@ class SkinConditionResultPage extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 2.0),
             child: Text(
               "$label Assessment Score",
-              style: const TextStyle(fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.black),
             ),
           ),
       ],
@@ -878,17 +994,24 @@ class SkinConditionResultPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final summaries = extractSkinSummaries(gradioResult, patchJson);
+    final summaries =
+        extractSkinSummaries(widget.gradioResult, widget.patchJson);
     print(summaries[0]['percentages']);
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Skin Analysis Results'),
+        title: const Text(
+          'Skin Analysis Results',
+          style: TextStyle(
+            fontFamily: 'SansSerif',
+          ),
+        ),
+        // backgroundColor: Theme.of(context).colorScheme.primary,
       ),
       body: summaries.isEmpty
           ? const Center(child: Text('No skin condition data found.'))
           : Container(
-            width:kIsWeb  ? 600:  double.infinity,
-            child: ListView.builder(
+              width: kIsWeb ? 600 : double.infinity,
+              child: ListView.builder(
                 padding: const EdgeInsets.only(bottom: 24),
                 itemCount: summaries.isEmpty ? 0 : 1,
                 itemBuilder: (context, i) {
@@ -900,9 +1023,10 @@ class SkinConditionResultPage extends StatelessWidget {
                   final scoreOutOf10 = summary['scoreOutOf10'] as double;
                   final attractivenessScore =
                       summary['attractivenessScore'] as double;
-                  final primaryCondition = summary['primaryCondition'] as String;
+                  final primaryCondition =
+                      summary['primaryCondition'] as String;
                   final fullOutput = summary['fullOutput'] as String;
-            
+
                   return Card(
                       margin: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 12),
@@ -932,7 +1056,8 @@ class SkinConditionResultPage extends StatelessWidget {
                                       p['condition'] ?? '',
                                       "${p['percent']}%",
                                       _getConditionIcon(p['condition'] ?? ''),
-                                      _getConditionColor(p['condition'] ?? ''),
+                                      // _getConditionColor(p['condition'] ?? ''),
+                                      Theme.of(context).colorScheme.primary,
                                       context,
                                       compareTo:
                                           getNormalPercentage(p['condition'])
@@ -942,75 +1067,87 @@ class SkinConditionResultPage extends StatelessWidget {
                               const SizedBox(height: 20),
                               Row(
                                 children: [
+                                  // Expanded(
+                                  //   child: Card(
+                                  //     shape: RoundedRectangleBorder(
+                                  //         borderRadius:
+                                  //             BorderRadius.circular(16)),
+                                  //     elevation: 3,
+                                  //     child: Container(
+                                  //       decoration: BoxDecoration(
+                                  //         gradient: LinearGradient(
+                                  //           colors: [
+                                  //             Theme.of(context)
+                                  //                 .colorScheme
+                                  //                 .primary,
+                                  //             Theme.of(context)
+                                  //                 .colorScheme
+                                  //                 .secondary,
+                                  //             Theme.of(context)
+                                  //                 .colorScheme
+                                  //                 .secondary,
+                                  //             Theme.of(context)
+                                  //                 .colorScheme
+                                  //                 .secondary,
+                                  //           ],
+                                  //           begin: Alignment.topLeft,
+                                  //           end: Alignment.bottomRight,
+                                  //         ),
+                                  //         borderRadius:
+                                  //             BorderRadius.circular(16),
+                                  //       ),
+                                  //       padding: const EdgeInsets.symmetric(
+                                  //           vertical: 18, horizontal: 8),
+                                  //       child: Column(
+                                  //         mainAxisSize: MainAxisSize.min,
+                                  //         children: [
+                                  //           buildAssessmentChart(scoreOutOf10,
+                                  //               label: primaryCondition),
+                                  //           const SizedBox(height: 8),
+                                  //         ],
+                                  //       ),
+                                  //     ),
+                                  //   ),
+                                  // ),
+                                  // const SizedBox(width: 16),
                                   Expanded(
                                     child: Card(
                                       shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16)),
-                                      elevation: 3,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .secondary,
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .secondary,
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .secondary,
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          borderRadius: BorderRadius.circular(16),
+                                        side: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
                                         ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 18, horizontal: 8),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            buildAssessmentChart(scoreOutOf10,
-                                                label: primaryCondition),
-                                            const SizedBox(height: 8),
-                                          ],
-                                        ),
+                                        borderRadius: BorderRadius.circular(16),
                                       ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Card(
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(16)),
                                       elevation: 3,
                                       child: Container(
                                         decoration: BoxDecoration(
                                           gradient: LinearGradient(
                                             colors: [
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .secondary,
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .secondary,
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .secondary,
-                                              Theme.of(context)
-                                                  .colorScheme
-                                                  .primary,
+                                              // Theme.of(context)
+                                              //     .colorScheme
+                                              //     .secondary,
+                                              // Theme.of(context)
+                                              //     .colorScheme
+                                              //     .secondary,
+                                              // Theme.of(context)
+                                              //     .colorScheme
+                                              //     .secondary,
+                                              // Theme.of(context)
+                                              //     .colorScheme
+                                              //     .primary,
+                                              // Theme.of(context)
+                                              //     .colorScheme
+                                              //     .,
+                                              Colors.white,
+                                              Colors.white,
                                             ],
                                             begin: Alignment.topLeft,
                                             end: Alignment.bottomRight,
                                           ),
-                                          borderRadius: BorderRadius.circular(16),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
                                         ),
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 18, horizontal: 8),
@@ -1028,7 +1165,7 @@ class SkinConditionResultPage extends StatelessWidget {
                                 ],
                               ),
                               const SizedBox(height: 10),
-            
+
                               // buildAttractivenessChart(attractivenessScore),
                               //     color: Colors.deepPurple),
                               // ),
@@ -1046,12 +1183,14 @@ class SkinConditionResultPage extends StatelessWidget {
                                     scrollDirection: Axis.horizontal,
                                     children: [
                                       Card(
-                                        margin: const EdgeInsets.only(right: 12),
+                                        margin:
+                                            const EdgeInsets.only(right: 12),
                                         shape: RoundedRectangleBorder(
                                             borderRadius:
                                                 BorderRadius.circular(12)),
                                         child: ClipRRect(
-                                          borderRadius: BorderRadius.circular(12),
+                                          borderRadius:
+                                              BorderRadius.circular(12),
                                           child: Image.network(
                                             imageUrl,
                                             width: 140,
@@ -1077,84 +1216,154 @@ class SkinConditionResultPage extends StatelessWidget {
                                 ),
                               const Divider(height: 24),
                               // ExpansionTiles for Q&A style extraction
-                              ExpansionTile(
-                                title: const Text("What's the diagnosis?",
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold)),
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(mainDiagnosis,
-                                        style: const TextStyle(fontSize: 15)),
-                                  ),
-                                ],
-                              ),
-                              // ExpansionTile(
-                              //   title: const Text("What medicines are recommended?",
-                              //       style: TextStyle(fontWeight: FontWeight.bold)),
-                              //   children: [
-                              //     Padding(
-                              //       padding: const EdgeInsets.all(8.0),
-                              //       child: Builder(
-                              //         builder: (context) {
-                              //           // Try to extract "Recommended Medicines" section
-                              //           final recRegex = RegExp(
-                              //               r'Recommended Medicines[:\s]*([\s\S]*?)(\n\n|$)',
-                              //               caseSensitive: false);
-                              //           final recMatch =
-                              //               recRegex.firstMatch(fullOutput);
-                              //           if (recMatch != null) {
-                              //             return Text(recMatch.group(1)!.trim(),
-                              //                 style: const TextStyle(fontSize: 15));
-                              //           }
-                              //           // Fallback: show all recommendations
-                              //           return Text(summary['recommendations'] ?? '',
-                              //               style: const TextStyle(fontSize: 15));
-                              //         },
-                              //       ),
-                              //     ),
-                              //   ],
-                              // ),
-                              ExpansionTile(
-                                title: const Text("What are the treatment notes?",
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold)),
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Builder(
-                                      builder: (context) {
-                                        // Try to extract "Treatment Notes" or similar section
-                                        final notesRegex = RegExp(
-                                            r'(Treatment Notes|Treatment|Advice|Notes)[:\s]*([\s\S]*?)(\n\n|$)',
-                                            caseSensitive: false);
-                                        final notesMatch =
-                                            notesRegex.firstMatch(fullOutput);
-                                        if (notesMatch != null) {
-                                          return Text(notesMatch.group(2)!.trim(),
-                                              style:
-                                                  const TextStyle(fontSize: 15));
-                                        }
-                                        // Fallback: show full output
-                                        return Text(fullOutput,
-                                            style: const TextStyle(fontSize: 15));
-                                      },
+                              !_hasPaid
+                                  ? Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black87,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black26,
+                                              blurRadius: 8,
+                                              offset: Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.lock,
+                                                color: Colors.white, size: 40),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              "Unlock Full Details",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              "Pay ₹499 to view diagnosis, treatment notes, and recommendations.",
+                                              style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 14,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            ElevatedButton.icon(
+                                              icon: const Icon(Icons.lock_open),
+                                              label: const Text(
+                                                  "Unlock Full Details (₹499)"),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    Colors.deepPurple,
+                                                foregroundColor: Colors.white,
+                                              ),
+                                              onPressed: _startPayment,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                  : Column(
+                                      children: [
+                                        ExpansionTile(
+                                          title: const Text(
+                                              "What's the diagnosis?",
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold)),
+                                          children: [
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(8.0),
+                                              child: Text(mainDiagnosis,
+                                                  style: const TextStyle(
+                                                      fontSize: 15)),
+                                            ),
+                                          ],
+                                        ),
+                                        // ExpansionTile(
+                                        //   title: const Text("What medicines are recommended?",
+                                        //       style: TextStyle(fontWeight: FontWeight.bold)),
+                                        //   children: [
+                                        //     Padding(
+                                        //       padding: const EdgeInsets.all(8.0),
+                                        //       child: Builder(
+                                        //         builder: (context) {
+                                        //           // Try to extract "Recommended Medicines" section
+                                        //           final recRegex = RegExp(
+                                        //               r'Recommended Medicines[:\s]*([\s\S]*?)(\n\n|$)',
+                                        //               caseSensitive: false);
+                                        //           final recMatch =
+                                        //               recRegex.firstMatch(fullOutput);
+                                        //           if (recMatch != null) {
+                                        //             return Text(recMatch.group(1)!.trim(),
+                                        //                 style: const TextStyle(fontSize: 15));
+                                        //           }
+                                        //           // Fallback: show all recommendations
+                                        //           return Text(summary['recommendations'] ?? '',
+                                        //               style: const TextStyle(fontSize: 15));
+                                        //         },
+                                        //       ),
+                                        //     ),
+                                        //   ],
+                                        // ),
+                                        ExpansionTile(
+                                          title: const Text(
+                                              "What are the treatment notes?",
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold)),
+                                          children: [
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(8.0),
+                                              child: Builder(
+                                                builder: (context) {
+                                                  // Try to extract "Treatment Notes" or similar section
+                                                  final notesRegex = RegExp(
+                                                      r'(Treatment Notes|Treatment|Advice|Notes)[:\s]*([\s\S]*?)(\n\n|$)',
+                                                      caseSensitive: false);
+                                                  final notesMatch = notesRegex
+                                                      .firstMatch(fullOutput);
+                                                  if (notesMatch != null) {
+                                                    return Text(
+                                                        notesMatch
+                                                            .group(2)!
+                                                            .trim(),
+                                                        style: const TextStyle(
+                                                            fontSize: 15));
+                                                  }
+                                                  // Fallback: show full output
+                                                  return Text(fullOutput,
+                                                      style: const TextStyle(
+                                                          fontSize: 15));
+                                                },
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                        ExpansionTile(
+                                          title: const Text("Show full details",
+                                              style: TextStyle(
+                                                  fontWeight: FontWeight.bold)),
+                                          children: [
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(8.0),
+                                              child: Text(fullOutput,
+                                                  style: const TextStyle(
+                                                      fontSize: 15)),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                ],
-                              ),
-                              ExpansionTile(
-                                title: const Text("Show full details",
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold)),
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.all(8.0),
-                                    child: Text(fullOutput,
-                                        style: const TextStyle(fontSize: 15)),
-                                  ),
-                                ],
-                              ),
                               Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
@@ -1168,7 +1377,7 @@ class SkinConditionResultPage extends StatelessWidget {
                                     ),
                                   ),
                                   const SizedBox(height: 10),
-            
+
                                   // 👇 Fixed horizontal ListView inside a SizedBox
                                   SizedBox(
                                     height:
@@ -1191,7 +1400,7 @@ class SkinConditionResultPage extends StatelessWidget {
                       ));
                 },
               ),
-          ),
+            ),
     );
   }
 }

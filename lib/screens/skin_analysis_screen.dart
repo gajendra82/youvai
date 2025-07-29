@@ -14,6 +14,13 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:path/path.dart';
 
+// Helper class to return bytes and size together
+class ZoomResult {
+  final Uint8List bytes;
+  final Size size;
+  ZoomResult(this.bytes, this.size);
+}
+
 class SkinAnalysisScreen extends StatefulWidget {
   final Uint8List? initialImageBytes;
   final Size? initialImageSize;
@@ -61,6 +68,18 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     super.initState();
     _initCameras();
 
+    _scanController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 1),
+    );
+    _scanAnimation = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _scanController, curve: Curves.linear),
+    )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _scanController.repeat();
+        }
+      });
+
     if (widget.initialImageBytes != null && widget.initialImageSize != null) {
       _blackBgFaceImage = widget.initialImageBytes;
       _originalImageSize = widget.initialImageSize;
@@ -74,6 +93,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         });
         _scanController.reset();
         _scanController.repeat();
+        // Always analyze the zoomed face image
         await _analyzeImage(null, _blackBgFaceImage!);
         _scanController.reset();
         setState(() {
@@ -81,18 +101,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         });
       });
     }
-
-    _scanController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 1),
-    );
-    _scanAnimation = Tween<double>(begin: 0, end: 1).animate(
-      CurvedAnimation(parent: _scanController, curve: Curves.linear),
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          _scanController.repeat();
-        }
-      });
   }
 
   @override
@@ -264,10 +272,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   });
                 },
                 onViewPercentageSummary: () async {
-                  // Place your upload code here
-                  print("View Percentage & Summary pressed");
-                  if (_lastImageFile != null || _lastImageBytes != null) {
-                    debugPrint("Uploading last image...");
+                  if (_lastImageFile != null && _lastImageBytes != null) {
                     try {
                       final uri = Uri.parse(
                           'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
@@ -279,11 +284,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                         http.MultipartFile.fromBytes(
                           'images[]',
                           _lastImageBytes!,
-                          filename: "image.jpg",
+                          filename: basename(_lastImageFile!.path),
                         ),
                       );
-                      print("Uploading last image...");
-
                       var streamedResponse = await request.send();
                       var response =
                           await http.Response.fromStream(streamedResponse);
@@ -292,15 +295,22 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                         return decoded;
                       }
                     } catch (e) {
-                      print('Error uploading image: $e');
                       return null;
                     }
                   }
-                  print("No image to upload");
                   return null;
                 },
               ),
             ),
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: IgnorePointer(
+              ignoring: true,
+              child: Container(height: 60, color: Colors.transparent),
+            ),
+          ),
         ],
       );
     }
@@ -311,101 +321,92 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   Widget _buildCameraOverlay(BuildContext context) {
-    final bool isWeb = kIsWeb;
     return FutureBuilder<void>(
       future: _initializeControllerFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             _cameraController != null) {
-          return Container(
-            alignment: Alignment.center,
-            // width: isWeb ? 600 : double.infinity,
-            // height: isWeb ? 600 : double.infinity,
-            child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Center(
-                    child: CameraPreview(_cameraController!),
-                  ),
-                  CustomPaint(
-                    painter: OverlayPainter(),
-                    child: Container(),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    top: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 42, horizontal: 24),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.85),
-                            Colors.black.withOpacity(0.85),
-                            Colors.black.withOpacity(0.85),
-                            Colors.black.withOpacity(0.0),
-                          ],
-                        ),
-                      ),
-                      child: const Text(
-                        'Set your face in the center of the circle',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                  Positioned(
-                    left: 0,
-                    right: 0,
-                    bottom: 0,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 42, horizontal: 24),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.bottomCenter,
-                          end: Alignment.topCenter,
-                          colors: [
-                            Colors.black.withOpacity(0.85),
-                            Colors.black.withOpacity(0.85),
-                            Colors.black.withOpacity(0.85),
-                            Colors.black.withOpacity(0.0),
-                          ],
-                        ),
-                      ),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            minimumSize: const Size.fromHeight(54),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            elevation: 0,
-                          ),
-                          onPressed: _captureAndAnalyze,
-                          child: const Text(
-                            'Capture & Analyze',
-                            style: TextStyle(
-                                fontSize: 18, fontWeight: FontWeight.w600),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
+          return Stack(
+            children: [
+              Center(
+                child: CameraPreview(_cameraController!),
               ),
-            ),
+              CustomPaint(
+                painter: OverlayPainter(),
+                child: Container(),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                  child: const Text(
+                    'Set your face in the center of the circle',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.85),
+                        Colors.black.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size.fromHeight(54),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: _captureAndAnalyze,
+                      child: const Text(
+                        'Capture & Analyze',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           );
         } else {
           return const Center(child: CircularProgressIndicator());
@@ -433,9 +434,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       {bool fromCamera = false}) async {
     Uint8List? bytes;
     Size? size;
-    setState(() {
-      _loading = true;
-    });
     if (kIsWeb) {
       bytes = await picked.readAsBytes();
       size = await _getImageSizeWeb(bytes);
@@ -466,126 +464,107 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _showScanning = false;
     });
 
+    // Always send to /zoom_face first, then use the result for analysis
+    ZoomResult? zoomResult;
     if (bytes != null) {
       if (kIsWeb) {
-        await _getBlackBgFaceFromBytes(bytes, picked.name);
+        zoomResult = await _getBlackBgFaceFromBytes(bytes, picked.name);
       } else {
-        await _getBlackBgFace(File(picked.path));
+        zoomResult = await _getBlackBgFace(File(picked.path));
       }
     }
 
-    setState(() {
-      _removingBg = true;
-      _showScanning = true;
-      _imageProvider =
-          _blackBgFaceImage != null ? MemoryImage(_blackBgFaceImage!) : null;
-    });
+    if (zoomResult != null) {
+      setState(() {
+        _blackBgFaceImage = zoomResult!.bytes;
+        _originalImageSize = zoomResult!.size;
+        _imageProvider = MemoryImage(zoomResult!.bytes);
+        _removingBg = true;
+        _showScanning = true;
+      });
 
-    _scanController.reset();
-    _scanController.repeat();
+      _scanController.reset();
+      _scanController.repeat();
 
-    if (_blackBgFaceImage != null) {
-      await _analyzeImage(picked, _blackBgFaceImage!);
+      // Always analyze the zoomed image
+      await _analyzeImage(picked, zoomResult.bytes);
+
+      _scanController.reset();
+      setState(() {
+        _showScanning = false;
+      });
     } else {
+      // fallback to original image if zoom/crop fails
       await _analyzeImage(picked, bytes);
-    }
-    _scanController.reset();
-    setState(() {
-      _showScanning = false;
-    });
-  }
-
-  Future<void> _getBlackBgFace(File imageFile) async {
-    try {
-      final uri = Uri.parse("http://192.168.1.42:5000/zoom_face");
-
-      final request = http.MultipartRequest("POST", uri);
-      request.files.add(await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-        contentType: MediaType('image', 'jpeg'), // or png based on your file
-      ));
-
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
-        final decodedImage = await decodeImageFromList(bytes);
-        setState(() {
-          _blackBgFaceImage = bytes;
-          _originalImageSize = Size(
-            decodedImage.width.toDouble(),
-            decodedImage.height.toDouble(),
-          );
-        });
-      } else {
-        debugPrint('❌ Error from face crop API: ${response.statusCode}');
-      }
-    } catch (e) {
-      debugPrint('⚠️ Failed to connect to face crop API: $e');
+      setState(() {
+        _showScanning = false;
+      });
     }
   }
 
-  Future<void> _getBlackBgFaceFromBytes(
+  // Returns ZoomResult (bytes and size)
+  Future<ZoomResult?> _getBlackBgFaceFromBytes(
       Uint8List imageBytes, String fileName) async {
     try {
-      final uri = Uri.parse("http://192.168.1.42:5000/zoom_face");
-
+      final uri =
+          Uri.parse("https://harshadsalunkhe1212-fast-api.hf.space/zoom_face");
       final request = http.MultipartRequest("POST", uri);
-
       request.files.add(
         http.MultipartFile.fromBytes(
           'image',
           imageBytes,
           filename: fileName,
-          contentType: MediaType('image', 'jpeg'), // or 'png' based on actual
+          contentType: MediaType('image', 'jpeg'),
         ),
       );
-
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
         final bytes = response.bodyBytes;
         final decodedImage = await decodeImageFromList(bytes);
-        setState(() {
-          _blackBgFaceImage = bytes;
-          _originalImageSize = Size(
-            decodedImage.width.toDouble(),
-            decodedImage.height.toDouble(),
-          );
-        });
+        return ZoomResult(
+          bytes,
+          Size(decodedImage.width.toDouble(), decodedImage.height.toDouble()),
+        );
+      } else {
+        debugPrint('❌ Error from face crop API: ${response}');
+        print("❌ Error from face crop API: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint('⚠️ Failed to connect to face crop API: $e');
+    }
+    return null;
+  }
+
+  Future<ZoomResult?> _getBlackBgFace(File imageFile) async {
+    try {
+      final uri =
+          Uri.parse("https://harshadsalunkhe1212-fast-api.hf.space/zoom_face");
+      final request = http.MultipartRequest("POST", uri);
+      request.files.add(await http.MultipartFile.fromPath(
+        'image',
+        imageFile.path,
+        contentType: MediaType('image', 'jpeg'),
+      ));
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final bytes = response.bodyBytes;
+        final decodedImage = await decodeImageFromList(bytes);
+        return ZoomResult(
+          bytes,
+          Size(decodedImage.width.toDouble(), decodedImage.height.toDouble()),
+        );
       } else {
         debugPrint('❌ Error from face crop API: ${response.statusCode}');
       }
     } catch (e) {
       debugPrint('⚠️ Failed to connect to face crop API: $e');
     }
+    return null;
   }
-
-  // Future<void> _getBlackBgFace(File imageFile) async {
-  //   try {
-  //     final uri = Uri.parse("http://192.168.1.20:5000/zoom_face");
-  //     final request = http.MultipartRequest("POST", uri);
-  //     request.files
-  //         .add(await http.MultipartFile.fromPath('image', imageFile.path));
-  //     final response = await request.send();
-  //     if (response.statusCode == 200) {
-  //       final bytes = await response.stream.toBytes();
-  //       final decodedImage = await decodeImageFromList(bytes);
-  //       setState(() {
-  //         _blackBgFaceImage = bytes;
-  //         _originalImageSize = Size(
-  //             decodedImage.width.toDouble(), decodedImage.height.toDouble());
-  //       });
-  //     } else {
-  //       debugPrint('❌ Error from face crop API: ${response.statusCode}');
-  //     }
-  //   } catch (e) {
-  //     debugPrint('⚠️ Failed to connect to face crop API: $e');
-  //   }
-  // }
 
   Future<Size> _getImageSizeMobileBytes(Uint8List bytes) async {
     final decodedImage = await decodeImageFromList(bytes);
@@ -601,7 +580,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     Map<String, dynamic>? ailabData;
 
     try {
-      final uri = Uri.parse("http://192.168.1.42:8000/predict");
+      final uri =
+          Uri.parse("https://harshadsalunkhe1212-fast-api.hf.space/predict");
       final filename = picked?.name ?? "image.jpg";
       final ext = filename.split('.').last.toLowerCase();
       final mimeType = ext == "png"
@@ -613,7 +593,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   : "image/jpeg";
 
       if (kIsWeb) {
-        // ✅ Flutter Web: Use http.post with base64 or multipart manually
         final request = http.MultipartRequest('POST', uri);
         request.files.add(
           http.MultipartFile.fromBytes(
@@ -636,7 +615,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
           }
         }
       } else {
-        // ✅ Mobile (Android/iOS): Use http.MultipartRequest().send()
         final req = http.MultipartRequest('POST', uri);
         req.files.add(http.MultipartFile.fromBytes(
           'image',
@@ -672,8 +650,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _scanningImageBytes = null;
     });
 
+    // For upload API, keep reference of the zoomed/cropped image
     if (!kIsWeb) {
-      _lastImageFile = File(picked!.path);
+      _lastImageFile = picked != null ? File(picked.path) : null;
+      _lastImageBytes = previewBytes;
+    } else {
+      _lastImageFile = picked != null ? File(picked.path) : null;
       _lastImageBytes = previewBytes;
     }
   }
@@ -682,9 +664,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 class OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
+    final ovalWidth = size.width * (kIsWeb ? 0.95 : 0.8);
+    final ovalHeight = size.height * (kIsWeb ? 0.85 : 0.65);
     final center = size.center(Offset.zero);
-    final ovalWidth = size.width * 0.75;
-    final ovalHeight = size.height * 0.50;
     final rect = Rect.fromCenter(
       center: center,
       width: ovalWidth,

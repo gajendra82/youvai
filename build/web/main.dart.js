@@ -104310,7 +104310,7 @@ p=4
 A.co("login")
 j=t.N
 s=7
-return A.E(A.b4R(A.eN("http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login",0,null),A.b(["email",a.a,"password",a.b],j,j),null),$async$vS)
+return A.E(A.b4R(A.eN("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login",0,null),A.b(["email",a.a,"password",a.b],j,j),null),$async$vS)
 case 7:n=d
 j=n
 A.co(A.ql(A.qe(j.e)).dk(0,j.w))
@@ -104377,7 +104377,7 @@ if(!a1.d)a1.a.$1(new A.jZ(f))
 s=1
 break}if(!a1.d)a1.a.$1(new A.mf())
 p=4
-i=A.eN("http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register",0,null)
+i=A.eN("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register",0,null)
 d=d==null?null:d.Nv()
 if(d==null)d=""
 h=t.N

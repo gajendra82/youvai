@@ -18,7 +18,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       print("login");
       final response = await http.post(
         Uri.parse(
-            'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login'),
+            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/login'),
         body: {
           'email': event.email,
           'password': event.password,
@@ -84,7 +84,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Replace with your actual API endpoint
       final response = await http.post(
         Uri.parse(
-            'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register'),
+            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/register'),
         body: {
           'name': event.name,
           'email': event.email,

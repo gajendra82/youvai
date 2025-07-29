@@ -13,6 +13,7 @@ import 'SkinConditionResultPage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:path/path.dart';
+import 'dart:html' as html;
 
 // Helper class to return bytes and size together
 class ZoomResult {
@@ -320,93 +321,203 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     );
   }
 
+  // Widget _buildCameraOverlay(BuildContext context) {
+  //   return FutureBuilder<void>(
+  //     future: _initializeControllerFuture,
+  //     builder: (context, snapshot) {
+  //       if (snapshot.connectionState == ConnectionState.done &&
+  //           _cameraController != null) {
+  //         return Container(
+  //           child: Stack(
+  //             children: [
+  //               // Center(
+  //               //   child: CameraPreview(_cameraController!),
+  //               // ),
+  //               Positioned.fill(
+  //                 child: CameraPreview(_cameraController!),
+  //               ),
+
+  //               CustomPaint(
+  //                 painter: OverlayPainter(),
+  //                 child: Container(),
+  //               ),
+  //               Positioned(
+  //                 left: 0,
+  //                 right: 0,
+  //                 top: 0,
+  //                 child: Container(
+  //                   padding:
+  //                       const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+  //                   decoration: BoxDecoration(
+  //                     gradient: LinearGradient(
+  //                       begin: Alignment.topCenter,
+  //                       end: Alignment.bottomCenter,
+  //                       colors: [
+  //                         Colors.black.withOpacity(0.85),
+  //                         Colors.black.withOpacity(0.85),
+  //                         Colors.black.withOpacity(0.85),
+  //                         Colors.black.withOpacity(0.0),
+  //                       ],
+  //                     ),
+  //                   ),
+  //                   child: const Text(
+  //                     'Set your face in the center of the circle',
+  //                     style: TextStyle(
+  //                       color: Colors.white,
+  //                       fontSize: 18,
+  //                       fontWeight: FontWeight.w600,
+  //                     ),
+  //                     textAlign: TextAlign.center,
+  //                   ),
+  //                 ),
+  //               ),
+  //               Positioned(
+  //                 left: 0,
+  //                 right: 0,
+  //                 bottom: 0,
+  //                 child: Container(
+  //                   padding:
+  //                       const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+  //                   decoration: BoxDecoration(
+  //                     gradient: LinearGradient(
+  //                       begin: Alignment.bottomCenter,
+  //                       end: Alignment.topCenter,
+  //                       colors: [
+  //                         Colors.black.withOpacity(0.85),
+  //                         Colors.black.withOpacity(0.85),
+  //                         Colors.black.withOpacity(0.85),
+  //                         Colors.black.withOpacity(0.0),
+  //                       ],
+  //                     ),
+  //                   ),
+  //                   child: SizedBox(
+  //                     width: double.infinity,
+  //                     child: ElevatedButton(
+  //                       style: ElevatedButton.styleFrom(
+  //                         backgroundColor: Colors.white,
+  //                         foregroundColor: Colors.black,
+  //                         minimumSize: const Size.fromHeight(54),
+  //                         shape: RoundedRectangleBorder(
+  //                           borderRadius: BorderRadius.circular(16),
+  //                         ),
+  //                         elevation: 0,
+  //                       ),
+  //                       onPressed: _captureAndAnalyze,
+  //                       child: const Text(
+  //                         'Capture & Analyze',
+  //                         style: TextStyle(
+  //                             fontSize: 18, fontWeight: FontWeight.w600),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ),
+  //               ),
+  //             ],
+  //           ),
+  //         );
+  //       } else {
+  //         return const Center(child: CircularProgressIndicator());
+  //       }
+  //     },
+  //   );
+  // }
+
   Widget _buildCameraOverlay(BuildContext context) {
     return FutureBuilder<void>(
       future: _initializeControllerFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             _cameraController != null) {
-          return Stack(
-            children: [
-              Center(
-                child: CameraPreview(_cameraController!),
-              ),
-              CustomPaint(
-                painter: OverlayPainter(),
-                child: Container(),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.0),
-                      ],
+          double cameraHeight = kIsWeb
+              ? html.window.innerHeight?.toDouble() ??
+                  MediaQuery.of(context).size.height
+              : MediaQuery.of(context).size.height;
+
+          return Container(
+            width: double.infinity,
+            height: cameraHeight,
+            child: Stack(
+              children: [
+                Positioned.fill(
+                  child: CameraPreview(_cameraController!),
+                ),
+                CustomPaint(
+                  painter: OverlayPainter(),
+                  child: Container(),
+                ),
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 42, horizontal: 24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.85),
+                          Colors.black.withOpacity(0.85),
+                          Colors.black.withOpacity(0.85),
+                          Colors.black.withOpacity(0.0),
+                        ],
+                      ),
                     ),
-                  ),
-                  child: const Text(
-                    'Set your face in the center of the circle',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+                    child: const Text(
+                      'Set your face in the center of the circle',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                      textAlign: TextAlign.center,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
-              ),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.bottomCenter,
-                      end: Alignment.topCenter,
-                      colors: [
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.85),
-                        Colors.black.withOpacity(0.0),
-                      ],
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 42, horizontal: 24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.bottomCenter,
+                        end: Alignment.topCenter,
+                        colors: [
+                          Colors.black.withOpacity(0.85),
+                          Colors.black.withOpacity(0.85),
+                          Colors.black.withOpacity(0.85),
+                          Colors.black.withOpacity(0.0),
+                        ],
+                      ),
                     ),
-                  ),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        minimumSize: const Size.fromHeight(54),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          minimumSize: const Size.fromHeight(54),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
                         ),
-                        elevation: 0,
-                      ),
-                      onPressed: _captureAndAnalyze,
-                      child: const Text(
-                        'Capture & Analyze',
-                        style: TextStyle(
-                            fontSize: 18, fontWeight: FontWeight.w600),
+                        onPressed: _captureAndAnalyze,
+                        child: const Text(
+                          'Capture & Analyze',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.w600),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         } else {
           return const Center(child: CircularProgressIndicator());

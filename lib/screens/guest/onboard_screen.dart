@@ -1,13 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 
-class OnboardScreen extends StatelessWidget {
+class OnboardScreen extends StatefulWidget {
   const OnboardScreen({Key? key}) : super(key: key);
 
+  @override
+  State<OnboardScreen> createState() => _OnboardScreenState();
+}
+
+class _OnboardScreenState extends State<OnboardScreen> {
   // You should place your asset image path here or use NetworkImage if needed.
-  // For demonstration, a placeholder is used.
   final String illustrationAsset = 'assets/images/skincare_illustration.png';
+  // This is a placeholder for the illustration asset.
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    checkLoginStatus();
+  }
+
+  checkLoginStatus() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    bool isLogin = prefs.getBool('isLogin') ?? false;
+    if (isLogin) {
+      Navigator.pushReplacementNamed(context, AppRoutes.home);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {

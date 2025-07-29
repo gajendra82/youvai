@@ -256,14 +256,6 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
-  fluttertoast:
-    dependency: transitive
-    description:
-      name: fluttertoast
-      sha256: "25e51620424d92d3db3832464774a6143b5053f15e382d8ffbfd40b6e795dcf1"
-      url: "https://pub.dev"
-    source: hosted
-    version: "8.2.12"
   google_fonts:
     dependency: "direct main"
     description:
@@ -448,6 +440,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.0"
+  package_info_plus:
+    dependency: transitive
+    description:
+      name: package_info_plus
+      sha256: "7e76fad405b3e4016cd39d08f455a4eb5199723cf594cd1b8916d47140d93017"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.2.0"
+  package_info_plus_platform_interface:
+    dependency: transitive
+    description:
+      name: package_info_plus_platform_interface
+      sha256: "9bc8ba46813a4cc42c66ab781470711781940780fd8beddd0c3da62506d3a6c6"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.1"
   path:
     dependency: transitive
     description:
@@ -544,14 +552,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.5"
-  razorpay_flutter:
+  razorpay_web:
     dependency: "direct main"
     description:
-      name: razorpay_flutter
-      sha256: "7d86b2a2ba2c3a71366bbfb65664236ba4b12fd6aeaed4c13dfc5c998786b2d6"
+      name: razorpay_web
+      sha256: b6ffa7d7b5da7d62208c11e2e49c86eeae13760b56029eeda8daf2a11e7b7527
       url: "https://pub.dev"
     source: hosted
-    version: "1.4.0"
+    version: "3.0.0"
   shared_preferences:
     dependency: "direct main"
     description:
@@ -677,6 +685,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  universal_platform:
+    dependency: transitive
+    description:
+      name: universal_platform
+      sha256: "64e16458a0ea9b99260ceb5467a214c1f298d647c659af1bff6d3bf82536b1ec"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.1.0"
   vector_math:
     dependency: transitive
     description:
@@ -701,6 +717,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.1.1"
+  win32:
+    dependency: transitive
+    description:
+      name: win32
+      sha256: "329edf97fdd893e0f1e3b9e88d6a0e627128cc17cc316a8d67fda8f1451178ba"
+      url: "https://pub.dev"
+    source: hosted
+    version: "5.13.0"
   xdg_directories:
     dependency: transitive
     description:
@@ -726,5 +750,5 @@ packages:
     source: hosted
     version: "3.1.3"
 sdks:
-  dart: ">=3.7.0-0 <4.0.0"
+  dart: ">=3.7.0 <4.0.0"
   flutter: ">=3.27.0"

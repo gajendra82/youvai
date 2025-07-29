@@ -24,6 +24,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         },
       );
       print(response.body);
+      print(response.statusCode);
+
 
       if (response.statusCode == 200) {
 
@@ -31,8 +33,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         prefs.setBool('isLogin', true);
 
         // Optionally, store user info from response
-        final responseData = json.decode(response.body);
         emit(AuthAuthenticated("Login successful!"));
+        final responseData = json.decode(response.body);
         if (responseData is Map && responseData.containsKey('data')) {
           print("User info received: ${responseData['data']}");
           prefs.setString('userInfo', json.encode(responseData['data']));

@@ -1,7 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:razorpay_flutter/razorpay_flutter.dart';
+import 'package:razorpay_web/razorpay_web.dart';
+
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_assessment/widgets/doctor_card.dart';
 import 'package:http/http.dart' as http;
@@ -24,50 +25,43 @@ class SkinConditionResultPage extends StatefulWidget {
 class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   late Razorpay _razorpay;
   bool _hasPaid = false;
-
-  initState() {
+  @override
+  void initState() {
     super.initState();
-    _razorpay = Razorpay();
-    _razorpay.on(Razorpay.EVENT_PAYMENT_SUCCESS, _handlePaymentSuccess);
-    _razorpay.on(Razorpay.EVENT_PAYMENT_ERROR, _handlePaymentError);
-    _razorpay.on(Razorpay.EVENT_EXTERNAL_WALLET, _handleExternalWallet);
+    _razorpay = Razorpay(); // No event wiring for web!
   }
 
   @override
   void dispose() {
+    super.dispose(); // No need to clear for web
     _razorpay.clear();
-    super.dispose();
   }
 
-  void _handlePaymentSuccess(PaymentSuccessResponse response) async {
-    print("Payment successful: ${response.paymentId}");
-    print("Payment details: ${response.data.toString()}");
-    // Example API call after payment success
-    // Future.microtask(() async {
+  void _handlePaymentSuccess(response) async {
+    print("Payment successful: $response");
+    // Extract IDs if needed, response is Map<String, dynamic>
     final paymentData = {
-      "payment_id": response.paymentId,
+      "payment_id": response['razorpay_payment_id'] ?? "",
       "amount": 499.00,
       "currency": "INR",
       "status": "completed",
       "payment_method": "razorpay",
       "description": "Unlock Full Report",
       "metadata": {
-        "order_id": response.orderId ?? "",
+        "order_id": response['razorpay_order_id'] ?? "",
         "customer_id": "", // Fill if available
       },
-      "transaction_reference": response.signature ?? "",
+      "transaction_reference": response['razorpay_signature'] ?? "",
       "processed_at": DateTime.now().toIso8601String(),
     };
 
     try {
-      // Get token from SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('_token') ?? '';
       print(token);
 
       final uri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store');
-      // Replace below with actual HTTP call
       final res = await http.post(
         uri,
         body: jsonEncode(paymentData),
@@ -76,7 +70,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           'Authorization': 'Bearer $token',
         },
       );
-      // Handle response as needed
       if (res.statusCode == 201) {
         print("Payment data stored successfully.");
       } else {
@@ -85,33 +78,43 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     } catch (e) {
       print("Error storing payment data: $e");
     }
-    // });
-
-    // Handle successful payment, e.g., unlock details
 
     setState(() {
       _hasPaid = true;
     });
     ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Payment successful! Details unlocked.")));
+      const SnackBar(content: Text("Payment successful! Details unlocked.")),
+    );
   }
 
-  void _handlePaymentError(PaymentFailureResponse response) {
+  void _handlePaymentError() {
     ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Payment failed. Please try again.")));
+      const SnackBar(
+          content: Text("Payment failed or cancelled. Please try again.")),
+    );
   }
 
-  void _handleExternalWallet(ExternalWalletResponse response) {}
-
-  void _startPayment() {
+  void _startPayment() async {
     var options = {
       'key': 'rzp_test_GD4tLv8EAG4UnR', // TODO: Replace with your Razorpay key!
       'amount': 49900, // amount in paise (499.00 INR)
       'name': 'Skin Analysis',
       'description': 'Unlock Full Report',
       'prefill': {'contact': '', 'email': ''},
-      // Add more as needed
+      // 'handler': (response) {
+      //   print('Payment Success: $response');
+      //   // Success logic here
+      // }, // Success handler
+      // 'modal': {
+      //   'ondismiss': () {
+      //     print('Payment Modal Closed');
+      //     // Error/cancel logic here
+      //   }
+      // }, // Error/dismiss handler
     };
+    _razorpay.on('payment.error', _handlePaymentError);
+    _razorpay.on('payment.success', _handlePaymentSuccess);
+    // _razorpay.on('external.wallet', );
     _razorpay.open(options);
   }
 

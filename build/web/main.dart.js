@@ -101686,7 +101686,7 @@ if(o===!0){p.c.ak(t.Pu).f.kM(B.UV)
 s=1
 break}o=t.N
 A.b(["key","rzp_test_GD4tLv8EAG4UnR","amount",49900,"name","Skin Analysis","description","Unlock Full Report","prefill",A.b(["contact","","email",""],o,o)],o,t.K)
-$.b6Z().By("openRazorpayCheckout",["rzp_live_jBXpBOtKrydrbs","rzp_live_jBXpBOtKrydrbs","100"])
+$.b6Z().By("openRazorpayCheckout",["rzp_live_jBXpBOtKrydrbs","rzp_live_jBXpBOtKrydrbs","49900"])
 case 1:return A.M(q,r)}})
 return A.N($async$vx,r)},
 as9(a,b){var s,r,q=J.aG(a,"data"),p=q==null?null:J.aG(q,"outpUt")

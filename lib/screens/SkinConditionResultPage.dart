@@ -980,7 +980,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           Padding(
             padding: const EdgeInsets.only(bottom: 2.0),
             child: Text(
-              "$label Assessment Score",
+              "$label Index Score",
               style: const TextStyle(
                   fontWeight: FontWeight.bold, color: Colors.black),
             ),
@@ -1160,6 +1160,40 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                 },
                               ),
                               const SizedBox(height: 20),
+
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.yellow.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.yellow.shade700,
+                                        width: 1),
+                                  ),
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.info_outline,
+                                          color: Colors.orange, size: 22),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          "This is an AI-generated analysis. Please consult a dermatologist for professional advice.",
+                                          style: const TextStyle(
+                                            color: Colors.black87,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
                               Row(
                                 children: [
                                   // Expanded(
@@ -1251,7 +1285,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                           children: [
                                             buildAssessmentChart(
                                                 attractivenessScore,
-                                                label: "Attractive"),
+                                                label: "Attractiveness"),
                                           ],
                                         ),
                                       ),
@@ -1487,9 +1521,12 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                         return DoctorCard(
                                           title: doctor["name"],
                                           // title: "Dr. Leah Zane", --- IGNORE ---
-                                          speciality: doctor["speciality"].toString(),
-                                          stars: doctor["reviewStars"].toString(),
-                                          totalReviews: doctor["totalReviews"].toString(),
+                                          speciality:
+                                              doctor["speciality"].toString(),
+                                          stars:
+                                              doctor["reviewStars"].toString(),
+                                          totalReviews:
+                                              doctor["totalReviews"].toString(),
                                         );
                                       },
                                     ),

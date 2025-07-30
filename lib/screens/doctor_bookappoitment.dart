@@ -167,7 +167,7 @@ class DoctorAppointmentPage extends StatelessWidget {
             const SizedBox(height: 8),
             ExpandableRichText(
                 fullText:
-                    "Dr. Leah Zane is a 38-year-old female dermatologist with over 10 years of clinical experience in the field. She holds a medical degree from a prestigious university and completed her specialization in derm..."),
+                    "Experienced dermatologist with many years of clinical practice, holding a medical degree and specialized training in dermatology. Skilled in diagnosing and treating a wide range of skin conditions, committed to providing high-quality patient care.",),
 
             const SizedBox(height: 24),
 

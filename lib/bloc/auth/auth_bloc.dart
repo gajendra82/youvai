@@ -9,6 +9,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitial()) {
     on<LoginRequested>(_onLoginRequested);
     on<RegisterRequested>(_onRegisterRequested);
+    on<GoogleLoginRequested>(_googleLogin);
+    on<SendOtpRequested>(sendOtp);
+    on<VerifyLoginMobile>(mobileLogin);
   }
 
   Future<void> _onLoginRequested(
@@ -65,7 +68,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         "Register requested with name: ${event.name}, email: ${event.email}, dateOfBirth: ${event.dateOfBirth}, gender: ${event.gender}, phone: ${event.phone}");
     var isvalidate = validateRegistrationFields(
       name: event.name,
-      email: event.email,
+      // email: event.email,
       password: event.password,
       confirmPassword: event.password,
       phone: event.phone ?? '',
@@ -99,6 +102,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       if (response.statusCode == 201) {
         // Registration successful
         emit(AuthAuthenticated("Registration successful!"));
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setBool('isLogin', true);
+
+        final responseData = json.decode(response.body);
+
+        if (responseData is Map && responseData.containsKey('data')) {
+          print("User info received: ${responseData['data']}");
+          prefs.setString('userInfo', json.encode(responseData['data']));
+          prefs.setString('_token', responseData['data']['token'] ?? '');
+          prefs.setBool(
+              'isSubscribe', responseData['data']['isSubscribed'] ?? false);
+          print("User info stored: ${responseData['data']['token']}");
+        } else {
+          emit(AuthError('Invalid response format'));
+          return;
+        }
       } else {
         emit(AuthError('Registration failed: ${response.body}'));
         return;
@@ -110,10 +129,114 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // Simulate successful registration
   }
 
+  Future<void> sendOtp(
+      SendOtpRequested event,
+      Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/send-otp'),
+        body: {
+          'mobile': event.phone,
+        },
+      );
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        emit(AuthMessage("OTP sent successfully!"));
+      } else {
+        emit(AuthError('Failed to send OTP: ${response.body}'));
+      }
+    } catch (e) {
+      emit(AuthError('Failed to send OTP: $e'));
+    }
+  }
+
+  Future<void> mobileLogin(VerifyLoginMobile event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/mobile-login'),
+        body: {
+          'phone': event.phone,
+          'otp': event.otp,
+          'mobile': event.phone,
+          'name': event.name,
+          'email': event.email,
+          // 'password': event.password,
+        },
+      );
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setBool('isLogin', true);
+
+        final responseData = json.decode(response.body);
+        if (responseData is Map && responseData.containsKey('data')) {
+          prefs.setString('userInfo', json.encode(responseData['data']));
+          prefs.setString('_token', responseData['data']['token'] ?? '');
+          prefs.setBool(
+              'isSubscribe', responseData['data']['isSubscribed'] ?? false);
+          emit(AuthAuthenticated("Mobile verification successful!"));
+        } else {
+          emit(AuthError('Invalid response format'));
+        }
+      } else {
+        emit(AuthError('Mobile verification failed: ${response.body}'));
+      }
+    } catch (e) {
+      emit(AuthError('Mobile verification failed: $e'));
+    }
+  }
+
+  Future<void> _googleLogin(GoogleLoginRequested googleLoginRequested,
+      Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      final response = await http.post(
+        Uri.parse(
+            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/google-login'),
+        body: {
+          'google_id': googleLoginRequested.googleToken,
+          'email': googleLoginRequested.email,
+          'name': googleLoginRequested.displayName,
+          'uid': googleLoginRequested.uid,
+          'image': googleLoginRequested.photoURL,
+          'phone': googleLoginRequested.phoneNumber,
+        },
+      );
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final prefs = await SharedPreferences.getInstance();
+        prefs.setBool('isLogin', true);
+
+        final responseData = json.decode(response.body);
+        if (responseData is Map && responseData.containsKey('data')) {
+          prefs.setString('userInfo', json.encode(responseData['data']));
+          prefs.setString('_token', responseData['data']['token'] ?? '');
+          prefs.setBool(
+              'isSubscribe', responseData['data']['isSubscribed'] ?? false);
+          emit(AuthAuthenticated("Google login successful!"));
+        } else {
+          emit(AuthError('Invalid response format'));
+        }
+      } else {
+        emit(AuthError('Google login failed: ${response.body}'));
+      }
+    } catch (e) {
+      emit(AuthError('Google login failed: $e'));
+    }
+  }
+
   /// Returns a tuple of (isValid, message)
   Map<String, dynamic> validateRegistrationFields({
     required String name,
-    required String email,
+    String? email,
     required String password,
     required String confirmPassword,
     required String phone,
@@ -122,7 +245,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // required String address,
   }) {
     if (name.isEmpty ||
-            email.isEmpty ||
+            
             password.isEmpty ||
             confirmPassword.isEmpty ||
             phone.isEmpty

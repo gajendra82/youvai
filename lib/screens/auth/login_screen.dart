@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pinput/pinput.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
@@ -13,7 +14,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _mobileController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   bool _rememberMe = false;
   String fromRoute = '/'; // Default to splash/init
@@ -31,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   void dispose() {
-    _emailController.dispose();
+    _mobileController.dispose();
     _passwordController.dispose();
     super.dispose();
   }
@@ -47,7 +48,7 @@ class _LoginPageState extends State<LoginPage> {
           if (state is AuthAuthenticated) {
             ScaffoldMessenger.of(context)
                 .showSnackBar(SnackBar(content: Text(state.message)));
-                print("User logged in successfully");
+            print("User logged in successfully");
             Navigator.pushNamedAndRemoveUntil(
               context,
               AppRoutes.start,
@@ -93,12 +94,12 @@ class _LoginPageState extends State<LoginPage> {
                         const SizedBox(height: 60),
                         // Email
                         TextField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
+                          controller: _mobileController,
+                          keyboardType: TextInputType.phone,
                           decoration: InputDecoration(
                             prefixIcon:
-                                Icon(Icons.email_outlined, color: primaryColor),
-                            hintText: "Email",
+                                Icon(Icons.phone_android, color: primaryColor),
+                            hintText: "Phone Number",
                             filled: true,
                             fillColor: const Color(0xFFF6F6F6),
                             border: OutlineInputBorder(
@@ -111,24 +112,24 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                         const SizedBox(height: 16),
                         // Password
-                        TextField(
-                          controller: _passwordController,
-                          obscureText: true,
-                          decoration: InputDecoration(
-                            prefixIcon: Icon(Icons.lock_outline_rounded,
-                                color: primaryColor),
-                            hintText: "Password",
-                            filled: true,
-                            fillColor: const Color(0xFFF6F6F6),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              borderSide: BorderSide.none,
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(
-                                vertical: 18, horizontal: 0),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
+                        // TextField(
+                        //   controller: _passwordController,
+                        //   obscureText: true,
+                        //   decoration: InputDecoration(
+                        //     prefixIcon: Icon(Icons.lock_outline_rounded,
+                        //         color: primaryColor),
+                        //     hintText: "Password",
+                        //     filled: true,
+                        //     fillColor: const Color(0xFFF6F6F6),
+                        //     border: OutlineInputBorder(
+                        //       borderRadius: BorderRadius.circular(10),
+                        //       borderSide: BorderSide.none,
+                        //     ),
+                        //     contentPadding: const EdgeInsets.symmetric(
+                        //         vertical: 18, horizontal: 0),
+                        //   ),
+                        // ),
+                        // const SizedBox(height: 10),
                         Row(
                           children: [
                             Checkbox(
@@ -177,8 +178,8 @@ class _LoginPageState extends State<LoginPage> {
                           child: ElevatedButton(
                             onPressed: () async {
                               // TODO: Add login logic
-                              final username = _emailController.text.trim();
-                              final password = _passwordController.text.trim();
+                              final mobilel = _mobileController.text.trim();
+                              // final password = _passwordController.text.trim();
                               if (state is AuthLoading) {
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -187,11 +188,22 @@ class _LoginPageState extends State<LoginPage> {
                                 );
                                 return;
                               }
-                              if (username.isNotEmpty && password.isNotEmpty) {
-                                context.read<AuthBloc>().add(LoginRequested(
-                                      email: _emailController.text,
-                                      password: _passwordController.text,
-                                    ));
+                              if (mobilel.isNotEmpty) {
+                                context.read<AuthBloc>().add(
+                                      SendOtpRequested(
+                                          phone: _mobileController.text),
+                                    );
+                                showOtpPopup(context, (otp) {
+                                  context
+                                      .read<AuthBloc>()
+                                      .add(VerifyLoginMobile(
+                                        name: "",
+                                        email: "",
+                                        phone: _mobileController.text,
+                                        password: "",
+                                        otp: otp,
+                                      ));
+                                });
                                 // if (state is AuthAuthenticated) {
                                 //   print("User logged in successfully");
                                 //   // if (fromRoute == '/skin_analysis') {
@@ -295,7 +307,7 @@ class _LoginPageState extends State<LoginPage> {
                     //     ),
                     //   ),
                     // ),
-                    
+
                     const SizedBox(height: 18),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -331,6 +343,50 @@ class _LoginPageState extends State<LoginPage> {
           ),
         ),
       ),
+    );
+  }
+
+  void showOtpPopup(
+      BuildContext context, void Function(String otp) onOtpSubmit) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        String enteredOtp = "";
+
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text('Enter OTP'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Pinput(
+                length: 6,
+                onChanged: (value) => enteredOtp = value,
+                onCompleted: (value) => enteredOtp = value,
+                defaultPinTheme: PinTheme(
+                  width: 50,
+                  height: 60,
+                  textStyle: const TextStyle(fontSize: 20, color: Colors.black),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  onOtpSubmit(enteredOtp);
+                },
+                child: const Text('Verify'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

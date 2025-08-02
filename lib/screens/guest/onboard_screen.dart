@@ -1,6 +1,11 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:lottie/lottie.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
+import 'package:skin_assessment/bloc/auth/auth_event.dart';
+import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 
 class OnboardScreen extends StatefulWidget {
@@ -14,6 +19,7 @@ class _OnboardScreenState extends State<OnboardScreen> {
   // You should place your asset image path here or use NetworkImage if needed.
   final String illustrationAsset = 'assets/images/skincare_illustration.png';
   // This is a placeholder for the illustration asset.
+
   @override
   void initState() {
     // TODO: implement initState
@@ -61,7 +67,7 @@ class _OnboardScreenState extends State<OnboardScreen> {
                           Padding(
                             padding: EdgeInsets.symmetric(
                                 horizontal: screenWidth * 0.08),
-                            child: Column(
+                            child: const Column(
                               children: const [
                                 SizedBox(height: 32),
                                 Text(
@@ -100,8 +106,8 @@ class _OnboardScreenState extends State<OnboardScreen> {
                           Padding(
                             padding: EdgeInsets.symmetric(
                                 horizontal: screenWidth * 0.08),
-                            child: Column(
-                              children: const [
+                            child: const Column(
+                              children: [
                                 SizedBox(height: 32),
                                 Text(
                                   'Skin Analysis',
@@ -139,8 +145,8 @@ class _OnboardScreenState extends State<OnboardScreen> {
                           Padding(
                             padding: EdgeInsets.symmetric(
                                 horizontal: screenWidth * 0.08),
-                            child: Column(
-                              children: const [
+                            child: const Column(
+                              children: [
                                 SizedBox(height: 32),
                                 Text(
                                   'AI Dermatologist',
@@ -268,8 +274,26 @@ class _OnboardScreenState extends State<OnboardScreen> {
                       // SizedBox(
                       //   width: double.infinity,
                       //   child: OutlinedButton.icon(
-                      //     onPressed: () {
+                      //     onPressed: () async {
                       //       // Handle Google Login
+                      //       try {
+                      //         final GoogleAuthProvider googleProvider =
+                      //             GoogleAuthProvider();
+                      //         await FirebaseAuth.instance
+                      //             .signInWithPopup(googleProvider);
+                      //         print(FirebaseAuth.instance.currentUser?.email);
+                      //         print(FirebaseAuth
+                      //             .instance.currentUser?.displayName);
+                      //         print(FirebaseAuth.instance.currentUser?.uid);
+                      //         print(
+                      //             FirebaseAuth.instance.currentUser?.photoURL);
+                      //         print(
+                      //             FirebaseAuth.instance.currentUser?.photoURL);
+                      //         print(
+                      //             "Signed in: ${FirebaseAuth.instance.currentUser?.displayName}");
+                      //       } catch (e) {
+                      //         print("Error signing in on web: $e");
+                      //       }
                       //     },
                       //     icon: Image.asset(
                       //       'assets/google_logo.png',
@@ -297,6 +321,28 @@ class _OnboardScreenState extends State<OnboardScreen> {
                       //     ),
                       //   ),
                       // ),
+                      BlocProvider(
+                        create: (_) => AuthBloc(),
+                        child: BlocListener<AuthBloc, AuthState>(
+                          listener: (context, state) {
+                            if (state is AuthAuthenticated) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                    content: Text(
+                                        '${state.message}')),
+                              );
+                              Navigator.pushReplacementNamed(
+                                  context, AppRoutes.start);
+                              // Or: Navigator.push(...);
+                            } else if (state is AuthError) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(state.error)),
+                              );
+                            }
+                          },
+                          child: GoogleSignInButton(),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -305,6 +351,89 @@ class _OnboardScreenState extends State<OnboardScreen> {
           },
         ),
       ),
+    );
+  }
+}
+
+class GoogleSignInButton extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        return SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: state is AuthLoading
+                ? null
+                : () async {
+                    // context.read<AuthBloc>().add(GoogleLoginRequested());
+                    try {
+                      final GoogleAuthProvider googleProvider =
+                          GoogleAuthProvider();
+                      await FirebaseAuth.instance
+                          .signInWithPopup(googleProvider);
+                      print(FirebaseAuth.instance.currentUser?.email);
+                      print(FirebaseAuth.instance.currentUser?.displayName);
+                      print(FirebaseAuth.instance.currentUser?.uid);
+                      print(FirebaseAuth.instance.currentUser?.photoURL);
+                      print(FirebaseAuth.instance.currentUser?.photoURL);
+                      print(
+                          "Signed in: ${FirebaseAuth.instance.currentUser?.displayName}");
+                      context.read<AuthBloc>().add(
+                            GoogleLoginRequested(
+                              googleToken:
+                                  FirebaseAuth.instance.currentUser?.uid ?? '',
+                              email: FirebaseAuth.instance.currentUser?.email ??
+                                  '',
+                              displayName: FirebaseAuth
+                                      .instance.currentUser?.displayName ??
+                                  '',
+                              uid: FirebaseAuth.instance.currentUser?.uid ?? '',
+                              photoURL:
+                                  FirebaseAuth.instance.currentUser?.photoURL ??
+                                      '',
+                              phoneNumber: FirebaseAuth
+                                      .instance.currentUser?.phoneNumber ??
+                                  '',
+                            ),
+                          );
+                    } catch (e) {
+                      print("Error signing in on web: $e");
+                    }
+                  },
+            icon: state is AuthLoading
+                ? const SizedBox(
+                    height: 22,
+                    width: 22,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : Image.asset(
+                    'assets/google_logo.png',
+                    height: 22,
+                    width: 22,
+                  ),
+            label: Text(
+              state is AuthLoading ? "Signing in..." : "Login with Google",
+              style: const TextStyle(
+                color: Color(0xFF444444),
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              side: const BorderSide(
+                color: Color(0xFFE2E2E2),
+                width: 1.2,
+              ),
+              backgroundColor: Colors.white,
+            ),
+          ),
+        );
+      },
     );
   }
 }

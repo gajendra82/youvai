@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:pinput/pinput.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
@@ -25,7 +26,8 @@ class _RegisterPageState extends State<RegisterPage> {
   final TextEditingController _genderController = TextEditingController();
   final TextEditingController _dobController = TextEditingController();
   final TextEditingController _mobileController = TextEditingController();
-
+  bool _isPasswordVisible = false;
+  bool _isMobileVerified = false;
   // For image picker placeholder
   // Implement your own image pick logic
   String? _profileImagePath;
@@ -53,10 +55,14 @@ class _RegisterPageState extends State<RegisterPage> {
             ScaffoldMessenger.of(context)
                 .showSnackBar(SnackBar(content: Text(state.message)));
             Navigator.pushNamedAndRemoveUntil(
-                context, '/login', (route) => false); // go back to login
+                context, '/start', (route) => false); // go back to login
           } else if (state is AuthError) {
             ScaffoldMessenger.of(context)
                 .showSnackBar(SnackBar(content: Text(state.error)));
+          }
+          if (state is AuthMessage) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: Text(state.message)));
           }
         },
         builder: (context, state) => SafeArea(
@@ -90,7 +96,8 @@ class _RegisterPageState extends State<RegisterPage> {
                     child: GestureDetector(
                       onTap: () async {
                         final ImagePicker _picker = ImagePicker();
-                        final XFile? image = await _picker.pickImage(source: ImageSource.gallery);
+                        final XFile? image = await _picker.pickImage(
+                            source: ImageSource.gallery);
                         if (image != null) {
                           setState(() {
                             _profileImagePath = image.path;
@@ -109,23 +116,23 @@ class _RegisterPageState extends State<RegisterPage> {
                           ),
                         ),
                         child: Center(
-                          child:
-                          //  _profileImagePath == null
-                          //     ? 
-                              Icon(
-                                  Icons.person_add_alt_1_rounded,
-                                  size: 48,
-                                  color: Colors.green,
-                                )
-                              // : ClipOval(
-                                //   child: Image.file(
-                                //     File(_profileImagePath!),
-                                //     width: 110,
-                                //     height: 110,
-                                //     fit: BoxFit.cover,
-                                //   ),
-                                // ),
-                        ),
+                            child:
+                                //  _profileImagePath == null
+                                //     ?
+                                Icon(
+                          Icons.person_add_alt_1_rounded,
+                          size: 48,
+                          color: Colors.green,
+                        )
+                            // : ClipOval(
+                            //   child: Image.file(
+                            //     File(_profileImagePath!),
+                            //     width: 110,
+                            //     height: 110,
+                            //     fit: BoxFit.cover,
+                            //   ),
+                            // ),
+                            ),
                       ),
                     ),
                   ),
@@ -179,7 +186,7 @@ class _RegisterPageState extends State<RegisterPage> {
                   //     ),
                   //   ),
                   // ),
-                  
+
                   const SizedBox(height: 28),
                   // Username
                   TextField(
@@ -187,7 +194,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     decoration: InputDecoration(
                       prefixIcon: Icon(Icons.person_outline_rounded,
                           color: purpleColor),
-                      hintText: "Username",
+                      hintText: "Username *",
                       filled: true,
                       fillColor: const Color(0xFFF6F6F6),
                       border: OutlineInputBorder(
@@ -224,7 +231,7 @@ class _RegisterPageState extends State<RegisterPage> {
                     keyboardType: TextInputType.phone,
                     decoration: InputDecoration(
                       prefixIcon: Icon(Icons.phone_android, color: purpleColor),
-                      hintText: "Mobile Number",
+                      hintText: "Mobile Number *",
                       filled: true,
                       fillColor: const Color(0xFFF6F6F6),
                       border: OutlineInputBorder(
@@ -235,45 +242,60 @@ class _RegisterPageState extends State<RegisterPage> {
                           vertical: 18, horizontal: 0),
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  // Password
-                  TextField(
-                    controller: _passwordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      prefixIcon:
-                          Icon(Icons.lock_outline_rounded, color: purpleColor),
-                      hintText: "Password",
-                      filled: true,
-                      fillColor: const Color(0xFFF6F6F6),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 0),
-                    ),
-                  ),
+
+                  // const SizedBox(height: 16),
+                  // // Password
+                  // TextField(
+                  //   controller: _passwordController,
+                  //   obscureText: !_isPasswordVisible,
+                  //   decoration: InputDecoration(
+                  //     prefixIcon:
+                  //         Icon(Icons.lock_outline_rounded, color: purpleColor),
+                  //     hintText: "Password *",
+                  //     filled: true,
+                  //     fillColor: const Color(0xFFF6F6F6),
+                  //     border: OutlineInputBorder(
+                  //       borderRadius: BorderRadius.circular(10),
+                  //       borderSide: BorderSide.none,
+                  //     ),
+                  //     contentPadding: const EdgeInsets.symmetric(
+                  //         vertical: 18, horizontal: 0),
+                  //     suffixIcon: IconButton(
+                  //       icon: Icon(
+                  //         _isPasswordVisible
+                  //             ? Icons.visibility
+                  //             : Icons.visibility_off,
+                  //         color: purpleColor,
+                  //       ),
+                  //       onPressed: () {
+                  //         setState(() {
+                  //           _isPasswordVisible = !_isPasswordVisible;
+                  //         });
+                  //       },
+                  //     ),
+                  //   ),
+                  // ),
+
                   const SizedBox(height: 16),
                   // Confirm Password
-                  TextField(
-                    controller: _confirmPasswordController,
-                    obscureText: true,
-                    decoration: InputDecoration(
-                      prefixIcon:
-                          Icon(Icons.lock_outline_rounded, color: purpleColor),
-                      hintText: "Confirm password",
-                      filled: true,
-                      fillColor: const Color(0xFFF6F6F6),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 0),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
+                  // TextField(
+                  //   controller: _confirmPasswordController,
+                  //   obscureText: true,
+                  //   decoration: InputDecoration(
+                  //     prefixIcon:
+                  //         Icon(Icons.lock_outline_rounded, color: purpleColor),
+                  //     hintText: "Confirm password",
+                  //     filled: true,
+                  //     fillColor: const Color(0xFFF6F6F6),
+                  //     border: OutlineInputBorder(
+                  //       borderRadius: BorderRadius.circular(10),
+                  //       borderSide: BorderSide.none,
+                  //     ),
+                  //     contentPadding: const EdgeInsets.symmetric(
+                  //         vertical: 18, horizontal: 0),
+                  //   ),
+                  // ),
+                  // const SizedBox(height: 16),
                   // Date of Birth
                   // TextField(
                   //   controller: _dobController,
@@ -309,17 +331,42 @@ class _RegisterPageState extends State<RegisterPage> {
                     height: 48,
                     child: ElevatedButton(
                       onPressed: () {
-                        print("Register button pressed");
                         if (state is AuthLoading) return;
-                        context.read<AuthBloc>().add(RegisterRequested(
-                              name: _usernameController.text,
-                              email: _emailController.text,
-                              password: _passwordController.text,
-                              dateOfBirth:
-                                  DateTime.tryParse(_dobController.text),
-                              gender: _genderController.text,
-                              phone: _mobileController.text,
-                            ));
+                        // Validate the form fields
+                        if (_usernameController.text.isEmpty ||
+                            _mobileController.text.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text("Please fill all required fields"),
+                            ),
+                          );
+                          return;
+                        }
+                        // If mobile number is not verified, show OTP popup
+                        context.read<AuthBloc>().add(
+                              SendOtpRequested(phone: _mobileController.text),
+                            );
+                        showOtpPopup(context, (otp) {
+                          context.read<AuthBloc>().add(VerifyLoginMobile(
+                                name: _usernameController.text,
+                                email: _emailController.text,
+                                phone: _mobileController.text,
+                                password: _passwordController.text,
+                                otp: otp,
+                              ));
+                        });
+                        // if (!_isMobileVerified) return;
+                        // print("Register button pressed");
+                        // if (state is AuthLoading) return;
+                        // context.read<AuthBloc>().add(RegisterRequested(
+                        //       name: _usernameController.text,
+                        //       email: _emailController.text,
+                        //       password: _passwordController.text,
+                        //       dateOfBirth:
+                        //           DateTime.tryParse(_dobController.text),
+                        //       gender: _genderController.text,
+                        //       phone: _mobileController.text,
+                        //     ));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Theme.of(context).primaryColor,
@@ -382,4 +429,50 @@ class _RegisterPageState extends State<RegisterPage> {
       ),
     );
   }
+
+  void showOtpPopup(
+      BuildContext context, void Function(String otp) onOtpSubmit) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        String enteredOtp = "";
+
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          title: const Text('Enter OTP'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Pinput(
+                length: 6,
+                onChanged: (value) => enteredOtp = value,
+                onCompleted: (value) => enteredOtp = value,
+                defaultPinTheme: PinTheme(
+                  width: 50,
+                  height: 60,
+                  textStyle: const TextStyle(fontSize: 20, color: Colors.black),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: Colors.grey),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  onOtpSubmit(enteredOtp);
+                },
+                child: const Text('Verify'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+
 }

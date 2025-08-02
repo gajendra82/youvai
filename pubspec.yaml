@@ -44,6 +44,9 @@ dependencies:
   shared_preferences: ^2.5.3
   google_fonts: ^6.2.1
   razorpay_web: ^3.0.0
+  firebase_auth: ^6.0.0
+  firebase_core: ^4.0.0
+  pinput: ^5.0.1
 
 dev_dependencies:
   flutter_test:

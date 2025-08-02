@@ -1,4 +1,4 @@
-package com.example.skin_assessment
+package com.globalspace.youvai
 
 import io.flutter.embedding.android.FlutterActivity
 

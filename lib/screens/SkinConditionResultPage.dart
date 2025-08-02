@@ -198,7 +198,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     // // _razorpay.on('external.wallet', );
     // _razorpay.open(options);
     js.context.callMethod('openRazorpayCheckout', [
-      "rzp_live_jBXpBOtKrydrbs", // Replace with your Razorpay key
+      "rzp_live_jBXpBOtKrydrbs", 
       "rzp_live_jBXpBOtKrydrbs",
       "49900",
     ]);
@@ -1252,7 +1252,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                       elevation: 3,
                                       child: Container(
                                         decoration: BoxDecoration(
-                                          gradient: LinearGradient(
+                                          gradient:  LinearGradient(
                                             colors: [
                                               // Theme.of(context)
                                               //     .colorScheme

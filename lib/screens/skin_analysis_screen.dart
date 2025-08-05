@@ -9,11 +9,12 @@ import 'package:image/image.dart' as img;
 import 'package:skin_assessment/screens/scan_face_screen.dart';
 import '../widgets/skin_analysis_view.dart';
 import '../models/skin_analysis_model.dart';
-import 'SkinConditionResultPage.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:path/path.dart';
 import 'dart:html' as html;
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 
 // Helper class to return bytes and size together
 class ZoomResult {
@@ -275,15 +276,32 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                 onViewPercentageSummary: () async {
                   if (_lastImageFile != null && _lastImageBytes != null) {
                     try {
+                      // final uri = Uri.parse(
+                      //     'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
                       final uri = Uri.parse(
-                          'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
+                          'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
                       var request = http.MultipartRequest('POST', uri);
-                      request.fields['doctor_id'] = "70690";
-                      request.fields['patient_id'] = "42";
-                      request.fields['patient_number'] = "8600285374";
+                      // Generate guest_id if not present and store in SharedPreferences
+
+                      SharedPreferences prefs =
+                          await SharedPreferences.getInstance();
+                      String? guestId = prefs.getString('guest_id');
+                      String? token = prefs.getString('_token');
+
+                      if (token != null) {
+                        request.headers['Authorization'] = 'Bearer $token';
+                      } else if (guestId == null) {
+                        guestId =
+                            'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
+                        await prefs.setString('guest_id', guestId);
+                        request.fields['guest_id'] = guestId;
+                      }
+                      // request.fields['doctor_id'] = "70690";
+                      // request.fields['patient_id'] = "42";
+                      // request.fields['patient_number'] = "8600285374";
                       request.files.add(
                         http.MultipartFile.fromBytes(
-                          'images[]',
+                          'file',
                           _lastImageBytes!,
                           filename: basename(_lastImageFile!.path),
                         ),
@@ -292,7 +310,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                       var response =
                           await http.Response.fromStream(streamedResponse);
                       if (response.statusCode == 200) {
+                        print(response.body);
                         final decoded = json.decode(response.body);
+
                         return decoded;
                       }
                     } catch (e) {
@@ -489,7 +509,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                         colors: [
                           Colors.black.withOpacity(0.85),
                           Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.85),
+                          Colors.black.withOpacity(0.0),
                           Colors.black.withOpacity(0.0),
                         ],
                       ),
@@ -784,13 +804,19 @@ class OverlayPainter extends CustomPainter {
       height: ovalHeight,
     );
 
-    final overlayPaint = Paint()..color = Colors.black.withOpacity(0.6);
+    // Draw transparent outside the oval, and slightly black transparent overlay
+    final overlayPaint = Paint()..color = Colors.black.withOpacity(0.35);
     final overlayPath = Path()..addRect(Offset.zero & size);
     final ovalPath = Path()..addOval(rect);
     final maskPath =
         Path.combine(PathOperation.difference, overlayPath, ovalPath);
     canvas.drawPath(maskPath, overlayPaint);
 
+    // Draw transparent inside the oval
+    final clearPaint = Paint()..blendMode = BlendMode.clear;
+    canvas.drawOval(rect, clearPaint);
+
+    // Draw dashed white border for the oval
     final dashPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke

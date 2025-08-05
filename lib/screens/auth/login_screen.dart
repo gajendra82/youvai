@@ -4,6 +4,7 @@ import 'package:pinput/pinput.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
+import 'package:skin_assessment/screens/guest/onboard_screen.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 
 class LoginPage extends StatefulWidget {
@@ -275,39 +276,57 @@ class _LoginPageState extends State<LoginPage> {
                         ],
                       ),
                     ),
-                    // SizedBox(
-                    //   width: double.infinity,
-                    //   child: OutlinedButton.icon(
-                    //     onPressed: () {
-                    //       // TODO: Add Google login logic
-                    //     },
-                    //     icon: Image.asset(
-                    //       'assets/google_logo.png',
-                    //       height: 22,
-                    //       width: 22,
-                    //     ),
-                    //     label: const Text(
-                    //       'Login with Google',
-                    //       style: TextStyle(
-                    //         color: Color(0xFF444444),
-                    //         fontWeight: FontWeight.w600,
-                    //         fontSize: 16,
-                    //       ),
-                    //     ),
-                    //     style: OutlinedButton.styleFrom(
-                    //       padding: const EdgeInsets.symmetric(vertical: 13),
-                    //       shape: RoundedRectangleBorder(
-                    //         borderRadius: BorderRadius.circular(12),
-                    //       ),
-                    //       side: const BorderSide(
-                    //         color: Color(0xFFE2E2E2),
-                    //         width: 1.2,
-                    //       ),
-                    //       backgroundColor: Colors.white,
-                    //     ),
-                    //   ),
-                    // ),
-
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () {
+                          BlocProvider(
+                            create: (_) => AuthBloc(),
+                            child: BlocListener<AuthBloc, AuthState>(
+                              listener: (context, state) {
+                                if (state is AuthAuthenticated) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('${state.message}')),
+                                  );
+                                  Navigator.pushReplacementNamed(
+                                      context, AppRoutes.start);
+                                  // Or: Navigator.push(...);
+                                } else if (state is AuthError) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text(state.error)),
+                                  );
+                                }
+                              },
+                              child: GoogleSignInButton(),
+                            ),
+                          );
+                        },
+                        icon: Image.asset(
+                          'assets/google_logo.png',
+                          height: 22,
+                          width: 22,
+                        ),
+                        label: const Text(
+                          'Login with Google',
+                          style: TextStyle(
+                            color: Color(0xFF444444),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 16,
+                          ),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 13),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          side: const BorderSide(
+                            color: Color(0xFFE2E2E2),
+                            width: 1.2,
+                          ),
+                          backgroundColor: Colors.white,
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: 18),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

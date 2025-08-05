@@ -360,7 +360,7 @@ class GoogleSignInButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(
       builder: (context, state) {
-        return SizedBox(
+      return SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
             onPressed: state is AuthLoading

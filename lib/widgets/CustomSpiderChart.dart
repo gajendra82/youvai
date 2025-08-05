@@ -26,6 +26,7 @@ class CustomSpiderChart extends StatelessWidget {
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
         ),
+        SizedBox(height: 10),
         SizedBox(
           width: chartRadius * 2,
           height: chartRadius * 2,
@@ -39,6 +40,8 @@ class CustomSpiderChart extends StatelessWidget {
             child: Container(),
           ),
         ),
+        SizedBox(height: 10),
+
         Padding(
           padding: const EdgeInsets.only(top: 6.0, left: 6.0),
           child: Row(

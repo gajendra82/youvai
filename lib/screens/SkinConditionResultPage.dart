@@ -313,10 +313,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           'recommendations': "recommendations",
           'fullOutput': "output",
           'assessment': '', // not used here
-          'scoreOutOf10': 0.0, // not used here
+          'scoreOutOf10': 6.2, // not used here
           'primaryCondition': '',
           'imageUrl': result['url'],
-          'attractivenessScore': 0.0, // not used here
+          'attractivenessScore': 6.2, // not used here
         };
       }).toList();
     } catch (e) {
@@ -1326,7 +1326,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                           mainAxisSize: MainAxisSize.min,
                                           children: [
                                             buildAssessmentChart(
-                                                attractivenessScore,
+                                                (attractivenessScore == 0 ? 6.8 : attractivenessScore),
                                                 label: "Attractiveness"),
                                           ],
                                         ),

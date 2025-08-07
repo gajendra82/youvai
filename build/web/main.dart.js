@@ -104247,7 +104247,7 @@ s=p}while(true)switch(s){case 0:b=n.a
 s=b.CW!=null&&b.cx!=null?3:4
 break
 case 3:p=6
-m=A.e8("http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin",0,null)
+m=A.e8("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin",0,null)
 l=A.b6S("POST",m)
 s=9
 return A.B(A.iZ(),$async$$0)

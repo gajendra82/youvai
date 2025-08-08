@@ -424,7 +424,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       // final uri = Uri.parse(
       //     'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
       final uri = Uri.parse(
-          'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
+          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
       var request = http.MultipartRequest('POST', uri);
       // Generate guest_id if not present and store in SharedPreferences
 

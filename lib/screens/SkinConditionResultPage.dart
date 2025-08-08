@@ -28,6 +28,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   bool _hasPaid = false;
   String paymentStatus = "";
 
+  // Coupon logic
+  TextEditingController _couponController = TextEditingController();
+  bool _couponApplied = false;
+  bool _couponChecking = false;
+  String _couponError = "";
+  String _appliedCoupon = "";
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +60,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   void dispose() {
     super.dispose();
     _razorpay.clear();
+    _couponController.dispose();
   }
 
   void checkSubscriptionStatus() async {
@@ -157,6 +165,19 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       return;
     }
 
+    // If coupon is applied, skip payment and unlock directly
+    if (_couponApplied) {
+      // Save subscription
+      prefs.setBool('isSubscribe', true);
+      setState(() {
+        _hasPaid = true;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Coupon applied! Details unlocked.")),
+      );
+      return;
+    }
+
     var options = {
       'key': 'rzp_test_GD4tLv8EAG4UnR',
       'amount': 49900,
@@ -191,6 +212,73 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     ]);
   }
 
+  // Coupon validation API call
+  Future<void> _applyCoupon() async {
+    final code = _couponController.text.trim();
+    if (code.isEmpty) {
+      setState(() {
+        _couponError = "Please enter a coupon code.";
+      });
+      return;
+    }
+    setState(() {
+      _couponChecking = true;
+      _couponError = "";
+    });
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+      final response = await http.post(
+        Uri.parse(
+            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/coupon/verify'),
+        body: jsonEncode({"coupon_code": code}),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      //  if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+
+      // Check message for success (or customize as needed)
+      if (body['message'] == "Coupon verified successfully") {
+        setState(() {
+          _couponApplied = true;
+          _appliedCoupon = code;
+          _couponError = "";
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Coupon applied! Payment skipped.")),
+        );
+      } else {
+        setState(() {
+          _couponError = body['message'] ?? "Invalid coupon.";
+          _couponApplied = false;
+          _appliedCoupon = "";
+        });
+      }
+      // } else {
+      //   setState(() {
+      //     _couponError = "Invalid coupon or network error.";
+      //     _couponApplied = false;
+      //     _appliedCoupon = "";
+      //   });
+      // }
+    } catch (e) {
+      setState(() {
+        _couponError = "Error validating coupon.";
+        _couponApplied = false;
+        _appliedCoupon = "";
+      });
+    } finally {
+      setState(() {
+        _couponChecking = false;
+      });
+    }
+  }
+
   List<Map<String, dynamic>> extractSkinSummaries(dynamic gradioResult) {
     try {
       final List<dynamic> outputs = List.from(gradioResult['data']);
@@ -210,7 +298,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
               for (var item in decoded) {
                 final lines = item.toString().split(RegExp(r'[,\n]'));
                 for (var line in lines) {
-                  // Replace "Skin Redness" with "Pigmentation"
                   final fixedLine =
                       line.replaceAll("Skin Redness", "Pigmentation");
                   final match = RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%')
@@ -220,7 +307,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                     if (condition.toLowerCase() == 'skin redness') {
                       condition = "Pigmentation";
                     }
-                    // Ensure only one entry per condition (remove duplicates)
                     if (!seenConditions.contains(condition.toLowerCase())) {
                       percentages.add(
                           {'condition': condition, 'percent': match.group(2)!});
@@ -267,7 +353,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           }
         }
 
-        // Calculate attractiveness index score
         double attractivenessScore = calculateAttractivenessScore(percentages);
 
         return {
@@ -375,6 +460,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     return Colors.grey;
   }
 
+// ... keep all your imports and code as is above ...
+
   @override
   Widget build(BuildContext context) {
     final summaries = extractSkinSummaries(widget.gradioResult);
@@ -425,6 +512,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                     "eye pouch": 20.0,
                     "nasolabial fold": 20.0,
                   };
+
                   return Card(
                       margin: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 12),
@@ -588,11 +676,12 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                           ),
                                         ),
                                       ),
-                                      // Add more cards for other images if available in your data
                                     ],
                                   ),
                                 ),
                               const Divider(height: 24),
+
+                              // Payment or unlocked section (coupon UI moved inside payment box)
                               !_hasPaid
                                   ? Center(
                                       child: Container(
@@ -611,6 +700,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                         ),
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             Icon(Icons.lock,
                                                 color: Colors.white, size: 40),
@@ -623,9 +714,119 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                 fontSize: 18,
                                               ),
                                             ),
-                                            const SizedBox(height: 8),
+                                            const SizedBox(height: 20),
+                                            // Coupon UI inside payment box
                                             Text(
-                                              "Pay ₹499 to view diagnosis, treatment notes, and recommendations.",
+                                              "Have a coupon?",
+                                              style: TextStyle(
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                                color:
+                                                    Colors.deepPurple.shade200,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Row(
+                                              children: [
+                                                Expanded(
+                                                  child: TextField(
+                                                    controller:
+                                                        _couponController,
+                                                    enabled: !_couponApplied,
+                                                    style: TextStyle(
+                                                        color: Colors.white),
+                                                    decoration: InputDecoration(
+                                                      hintText:
+                                                          "Enter coupon code",
+                                                      hintStyle: TextStyle(
+                                                          color:
+                                                              Colors.white54),
+                                                      filled: true,
+                                                      fillColor: Colors.black,
+                                                      border:
+                                                          OutlineInputBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        borderSide: BorderSide(
+                                                            color: Colors
+                                                                .deepPurple
+                                                                .shade200),
+                                                      ),
+                                                      focusedBorder:
+                                                          OutlineInputBorder(
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(8),
+                                                        borderSide: BorderSide(
+                                                            color: Colors
+                                                                .deepPurple),
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ),
+                                                const SizedBox(width: 10),
+                                                ElevatedButton(
+                                                  onPressed: _couponApplied ||
+                                                          _couponChecking
+                                                      ? null
+                                                      : _applyCoupon,
+                                                  child: _couponChecking
+                                                      ? const SizedBox(
+                                                          width: 16,
+                                                          height: 16,
+                                                          child:
+                                                              CircularProgressIndicator(
+                                                            strokeWidth: 2,
+                                                            color: Colors.white,
+                                                          ),
+                                                        )
+                                                      : Text(_couponApplied
+                                                          ? "Applied"
+                                                          : "Apply"),
+                                                  style:
+                                                      ElevatedButton.styleFrom(
+                                                    backgroundColor:
+                                                        _couponApplied
+                                                            ? Colors.green
+                                                            : Colors.deepPurple,
+                                                    foregroundColor:
+                                                        Colors.white,
+                                                    minimumSize: Size(90, 48),
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                            if (_couponError.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 6.0),
+                                                child: Text(
+                                                  _couponError,
+                                                  style: TextStyle(
+                                                    color: Colors.red,
+                                                    fontWeight: FontWeight.w400,
+                                                  ),
+                                                ),
+                                              ),
+                                            if (_couponApplied &&
+                                                _appliedCoupon.isNotEmpty)
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    top: 6.0),
+                                                child: Text(
+                                                  "Coupon \"$_appliedCoupon\" applied!",
+                                                  style: TextStyle(
+                                                    color: Colors.green,
+                                                    fontWeight: FontWeight.w500,
+                                                  ),
+                                                ),
+                                              ),
+                                            const SizedBox(height: 16),
+                                            Text(
+                                              _couponApplied
+                                                  ? "Your coupon is applied! Click below to unlock your report."
+                                                  : "Reveal your skin’s secrets with our in-depth analysis — just ₹499",
                                               style: TextStyle(
                                                 color: Colors.white70,
                                                 fontSize: 14,
@@ -634,9 +835,12 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                             ),
                                             const SizedBox(height: 16),
                                             ElevatedButton.icon(
-                                              icon: const Icon(Icons.lock_open),
-                                              label: const Text(
-                                                  "Unlock Full Details (₹499)"),
+                                              icon: Icon(_couponApplied
+                                                  ? Icons.check
+                                                  : Icons.lock_open),
+                                              label: Text(_couponApplied
+                                                  ? "Unlock with Coupon"
+                                                  : "Unlock Full Details (₹499)"),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor:
                                                     Colors.deepPurple,
@@ -707,42 +911,42 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                         ],
                                       ),
                                     ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    "Recommended Doctor's",
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-                                  SizedBox(
-                                    height: 300,
-                                    child: ListView.builder(
-                                      physics: const BouncingScrollPhysics(),
-                                      padding: const EdgeInsets.only(right: 16),
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: doctorList.length,
-                                      itemBuilder: (context, index) {
-                                        final doctor = doctorList[index];
-                                        return DoctorCard(
-                                          title: doctor["name"],
-                                          speciality:
-                                              doctor["speciality"].toString(),
-                                          stars:
-                                              doctor["reviewStars"].toString(),
-                                          totalReviews:
-                                              doctor["totalReviews"].toString(),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              )
+                              // Column(
+                              //   crossAxisAlignment: CrossAxisAlignment.start,
+                              //   children: [
+                              //     const SizedBox(height: 10),
+                              //     const Text(
+                              //       "Recommended Doctor's",
+                              //       style: TextStyle(
+                              //         fontSize: 18,
+                              //         fontWeight: FontWeight.bold,
+                              //         color: Colors.black,
+                              //       ),
+                              //     ),
+                              //     const SizedBox(height: 10),
+                              //     SizedBox(
+                              //       height: 300,
+                              //       child: ListView.builder(
+                              //         physics: const BouncingScrollPhysics(),
+                              //         padding: const EdgeInsets.only(right: 16),
+                              //         scrollDirection: Axis.horizontal,
+                              //         itemCount: doctorList.length,
+                              //         itemBuilder: (context, index) {
+                              //           final doctor = doctorList[index];
+                              //           return DoctorCard(
+                              //             title: doctor["name"],
+                              //             speciality:
+                              //                 doctor["speciality"].toString(),
+                              //             stars:
+                              //                 doctor["reviewStars"].toString(),
+                              //             totalReviews:
+                              //                 doctor["totalReviews"].toString(),
+                              //           );
+                              //         },
+                              //       ),
+                              //     ),
+                              //   ],
+                              // )
                             ],
                           ),
                         ),
@@ -752,6 +956,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
             ),
     );
   }
+// ... keep the rest of your code as is ...
 
   Widget buildAssessmentChart(double score, {String? label}) {
     return Column(

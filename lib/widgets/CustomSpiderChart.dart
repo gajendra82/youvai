@@ -20,7 +20,7 @@ class CustomSpiderChart extends StatelessWidget {
     return Column(
       children: [
         const Padding(
-          padding: EdgeInsets.only(bottom: 6.0, left: 6.0),
+          padding: EdgeInsets.only(bottom: 12.0, left: 6.0),
           child: Text(
             "Spider Chart of Condition Percentages",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),

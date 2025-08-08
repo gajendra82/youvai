@@ -7,16 +7,20 @@ import 'package:skin_assessment/utils/app_routes.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(
-    options: FirebaseOptions(
-      apiKey: "AIzaSyAlg92sDvJb8xmuMt8yA9MtjbWrHMWV1oY",
-      authDomain: "youvai-56995.firebaseapp.com",
-      projectId: "project-377693730311",
-      storageBucket: "youvai-56995.firebasestorage.app",
-      messagingSenderId: "377693730311",
-      appId: "1:377693730311:web:24dfc047db461c18c3dca2",
-    ),
-  );
+  try {
+    await Firebase.initializeApp(
+      options: FirebaseOptions(
+        apiKey: "AIzaSyAlg92sDvJb8xmuMt8yA9MtjbWrHMWV1oY",
+        authDomain: "youvai-56995.firebaseapp.com",
+        projectId: "project-377693730311",
+        storageBucket: "youvai-56995.firebasestorage.app",
+        messagingSenderId: "377693730311",
+        appId: "1:377693730311:web:24dfc047db461c18c3dca2",
+      ),
+    );
+  } catch (e) {
+    print("Firebase initialization error: $e");
+  }
   runApp(const MyApp());
 }
 

@@ -103890,7 +103890,7 @@ var $async$oP=A.D(function(a7,a8){if(a7===1){o.push(a8)
 s=p}while(true)switch(s){case 0:a2={}
 a2.a=null
 p=4
-m=A.ex("http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin",0,null)
+m=A.ex("https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin",0,null)
 l=A.bpI("POST",m)
 s=7
 return A.B(A.iW(),$async$oP)

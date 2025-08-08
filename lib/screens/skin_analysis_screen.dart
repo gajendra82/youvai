@@ -46,10 +46,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   XFile? _capturedImage;
 
   ImageProvider? _imageProvider;
-  Map<String, dynamic>? _analysisJson;
-  Map<String, dynamic>? _gradioResult;
-  Uint8List? _webImageBytes;
-  String? _webImageName;
   Size? _originalImageSize;
   bool _loading = false;
   String? _error;
@@ -61,9 +57,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   late Animation<double> _scanAnimation;
   Uint8List? _scanningImageBytes;
 
-  Uint8List? _blackBgFaceImage;
+  Uint8List? _faceImageBytes;
   bool _removingBg = false;
   bool _showScanning = false;
+
+  // This will hold the response from your single API call
+  Map<String, dynamic>? _skinAnalysisResult;
 
   @override
   void initState() {
@@ -83,7 +82,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       });
 
     if (widget.initialImageBytes != null && widget.initialImageSize != null) {
-      _blackBgFaceImage = widget.initialImageBytes;
+      _faceImageBytes = widget.initialImageBytes;
       _originalImageSize = widget.initialImageSize;
       _imageProvider = MemoryImage(widget.initialImageBytes!);
 
@@ -91,12 +90,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         setState(() {
           _removingBg = false;
           _showScanning = true;
-          _loading = false;
+          _loading = true;
         });
         _scanController.reset();
         _scanController.repeat();
-        // Always analyze the zoomed face image
-        await _analyzeImage(null, _blackBgFaceImage!);
+        await _analyzeImageDirectAPI(
+            null, _faceImageBytes!, _originalImageSize!);
         _scanController.reset();
         setState(() {
           _showScanning = false;
@@ -214,9 +213,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                       const CircularProgressIndicator(color: Colors.white),
                       SizedBox(height: 18),
                       Text(
-                        (_removingBg == false)
-                            ? "Processing..."
-                            : "Almost done...",
+                        "Processing...",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,
@@ -242,97 +239,17 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         ),
       );
     }
-    if (_blackBgFaceImage != null && _originalImageSize != null) {
-      return Stack(
-        children: [
-          Positioned.fill(
-            child: Image.memory(_blackBgFaceImage!, fit: BoxFit.contain),
-          ),
-          if (_showScanning)
-            Positioned.fill(
-              child: AnimatedBuilder(
-                animation: _scanController,
-                builder: (context, child) {
-                  return CustomPaint(
-                    painter: ScanningLinePainter(_scanAnimation.value),
-                    size: MediaQuery.of(context).size,
-                  );
-                },
-              ),
-            ),
-          if (_analysisJson != null)
-            Positioned.fill(
-              child: SkinAnalysisView(
-                analysisJson: _analysisJson!,
-                inputImage: MemoryImage(_blackBgFaceImage!),
-                originalImageSize: _originalImageSize!,
-                selectedType: _selectedIssueType,
-                gradioResult: _gradioResult,
-                onGradioResult: (result) {
-                  setState(() {
-                    _gradioResult = result;
-                  });
-                },
-                onViewPercentageSummary: () async {
-                  if (_lastImageFile != null && _lastImageBytes != null) {
-                    try {
-                      // final uri = Uri.parse(
-                      //     'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
-                      final uri = Uri.parse(
-                          'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
-                      var request = http.MultipartRequest('POST', uri);
-                      // Generate guest_id if not present and store in SharedPreferences
-
-                      SharedPreferences prefs =
-                          await SharedPreferences.getInstance();
-                      String? guestId = prefs.getString('guest_id');
-                      String? token = prefs.getString('_token');
-
-                      if (token != null) {
-                        request.headers['Authorization'] = 'Bearer $token';
-                      } else if (guestId == null) {
-                        guestId =
-                            'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
-                        await prefs.setString('guest_id', guestId);
-                        request.fields['guest_id'] = guestId;
-                      }
-                      // request.fields['doctor_id'] = "70690";
-                      // request.fields['patient_id'] = "42";
-                      // request.fields['patient_number'] = "8600285374";
-                      request.files.add(
-                        http.MultipartFile.fromBytes(
-                          'file',
-                          _lastImageBytes!,
-                          filename: basename(_lastImageFile!.path),
-                        ),
-                      );
-                      var streamedResponse = await request.send();
-                      var response =
-                          await http.Response.fromStream(streamedResponse);
-                      if (response.statusCode == 200) {
-                        print(response.body);
-                        final decoded = json.decode(response.body);
-
-                        return decoded;
-                      }
-                    } catch (e) {
-                      return null;
-                    }
-                  }
-                  return null;
-                },
-              ),
-            ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 0,
-            child: IgnorePointer(
-              ignoring: true,
-              child: Container(height: 60, color: Colors.transparent),
-            ),
-          ),
-        ],
+    if (_faceImageBytes != null &&
+        _originalImageSize != null &&
+        _skinAnalysisResult != null) {
+      // Show only the result from your main API, no predict/zoom_face calls
+      return SkinAnalysisView(
+        analysisJson: _skinAnalysisResult!,
+        inputImage: MemoryImage(_faceImageBytes!),
+        originalImageSize: _originalImageSize!,
+        selectedType: _selectedIssueType,
+        // Remove gradioResult and onGradioResult, and any predict/zoom_face logic
+        // Pass only your main analysisJson
       );
     }
     return ScanFaceScreen(
@@ -340,107 +257,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       onGalleryPressed: _pickImage,
     );
   }
-
-  // Widget _buildCameraOverlay(BuildContext context) {
-  //   return FutureBuilder<void>(
-  //     future: _initializeControllerFuture,
-  //     builder: (context, snapshot) {
-  //       if (snapshot.connectionState == ConnectionState.done &&
-  //           _cameraController != null) {
-  //         return Container(
-  //           child: Stack(
-  //             children: [
-  //               // Center(
-  //               //   child: CameraPreview(_cameraController!),
-  //               // ),
-  //               Positioned.fill(
-  //                 child: CameraPreview(_cameraController!),
-  //               ),
-
-  //               CustomPaint(
-  //                 painter: OverlayPainter(),
-  //                 child: Container(),
-  //               ),
-  //               Positioned(
-  //                 left: 0,
-  //                 right: 0,
-  //                 top: 0,
-  //                 child: Container(
-  //                   padding:
-  //                       const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
-  //                   decoration: BoxDecoration(
-  //                     gradient: LinearGradient(
-  //                       begin: Alignment.topCenter,
-  //                       end: Alignment.bottomCenter,
-  //                       colors: [
-  //                         Colors.black.withOpacity(0.85),
-  //                         Colors.black.withOpacity(0.85),
-  //                         Colors.black.withOpacity(0.85),
-  //                         Colors.black.withOpacity(0.0),
-  //                       ],
-  //                     ),
-  //                   ),
-  //                   child: const Text(
-  //                     'Set your face in the center of the circle',
-  //                     style: TextStyle(
-  //                       color: Colors.white,
-  //                       fontSize: 18,
-  //                       fontWeight: FontWeight.w600,
-  //                     ),
-  //                     textAlign: TextAlign.center,
-  //                   ),
-  //                 ),
-  //               ),
-  //               Positioned(
-  //                 left: 0,
-  //                 right: 0,
-  //                 bottom: 0,
-  //                 child: Container(
-  //                   padding:
-  //                       const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
-  //                   decoration: BoxDecoration(
-  //                     gradient: LinearGradient(
-  //                       begin: Alignment.bottomCenter,
-  //                       end: Alignment.topCenter,
-  //                       colors: [
-  //                         Colors.black.withOpacity(0.85),
-  //                         Colors.black.withOpacity(0.85),
-  //                         Colors.black.withOpacity(0.85),
-  //                         Colors.black.withOpacity(0.0),
-  //                       ],
-  //                     ),
-  //                   ),
-  //                   child: SizedBox(
-  //                     width: double.infinity,
-  //                     child: ElevatedButton(
-  //                       style: ElevatedButton.styleFrom(
-  //                         backgroundColor: Colors.white,
-  //                         foregroundColor: Colors.black,
-  //                         minimumSize: const Size.fromHeight(54),
-  //                         shape: RoundedRectangleBorder(
-  //                           borderRadius: BorderRadius.circular(16),
-  //                         ),
-  //                         elevation: 0,
-  //                       ),
-  //                       onPressed: _captureAndAnalyze,
-  //                       child: const Text(
-  //                         'Capture & Analyze',
-  //                         style: TextStyle(
-  //                             fontSize: 18, fontWeight: FontWeight.w600),
-  //                       ),
-  //                     ),
-  //                   ),
-  //                 ),
-  //               ),
-  //             ],
-  //           ),
-  //         );
-  //       } else {
-  //         return const Center(child: CircularProgressIndicator());
-  //       }
-  //     },
-  //   );
-  // }
 
   Widget _buildCameraOverlay(BuildContext context) {
     return FutureBuilder<void>(
@@ -586,115 +402,88 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     setState(() {
       _scanningImageBytes = bytes;
       _originalImageSize = size;
-      _analysisJson = null;
-      _gradioResult = null;
       _loading = true;
       _imageProvider = null;
-      _blackBgFaceImage = null;
+      _faceImageBytes = bytes;
       _removingBg = false;
       _showScanning = false;
     });
 
-    // Always send to /zoom_face first, then use the result for analysis
-    ZoomResult? zoomResult;
-    if (bytes != null) {
-      if (kIsWeb) {
-        zoomResult = await _getBlackBgFaceFromBytes(bytes, picked.name);
-      } else {
-        zoomResult = await _getBlackBgFace(File(picked.path));
-      }
-    }
+    await _analyzeImageDirectAPI(picked, bytes!, size!);
 
-    if (zoomResult != null) {
-      setState(() {
-        _blackBgFaceImage = zoomResult!.bytes;
-        _originalImageSize = zoomResult!.size;
-        _imageProvider = MemoryImage(zoomResult!.bytes);
-        _removingBg = true;
-        _showScanning = true;
-      });
-
-      _scanController.reset();
-      _scanController.repeat();
-
-      // Always analyze the zoomed image
-      await _analyzeImage(picked, zoomResult.bytes);
-
-      _scanController.reset();
-      setState(() {
-        _showScanning = false;
-      });
-    } else {
-      // fallback to original image if zoom/crop fails
-      await _analyzeImage(picked, bytes);
-      setState(() {
-        _showScanning = false;
-      });
-    }
+    setState(() {
+      _showScanning = false;
+    });
   }
 
-  // Returns ZoomResult (bytes and size)
-  Future<ZoomResult?> _getBlackBgFaceFromBytes(
-      Uint8List imageBytes, String fileName) async {
+  Future<void> _analyzeImageDirectAPI(
+      XFile? picked, Uint8List previewBytes, Size imageSize) async {
+    Map<String, dynamic>? resultJson;
+
     try {
-      final uri =
-          Uri.parse("https://harshadsalunkhe1212-fast-api.hf.space/zoom_face");
-      final request = http.MultipartRequest("POST", uri);
+      // final uri = Uri.parse(
+      //     'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
+      final uri = Uri.parse(
+          'http://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
+      var request = http.MultipartRequest('POST', uri);
+      // Generate guest_id if not present and store in SharedPreferences
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? guestId = prefs.getString('guest_id');
+      String? token = prefs.getString('_token');
+
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      } else if (guestId == null) {
+        guestId =
+            'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
+        await prefs.setString('guest_id', guestId);
+        request.fields['guest_id'] = guestId;
+      }
+      // request.fields['doctor_id'] = "70690";
+      // request.fields['patient_id'] = "42";
+      // request.fields['patient_number'] = "8600285374";
       request.files.add(
         http.MultipartFile.fromBytes(
-          'image',
-          imageBytes,
-          filename: fileName,
-          contentType: MediaType('image', 'jpeg'),
+          'file',
+          previewBytes!,
+          filename: basename(picked!.path),
         ),
       );
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
       if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
-        final decodedImage = await decodeImageFromList(bytes);
-        return ZoomResult(
-          bytes,
-          Size(decodedImage.width.toDouble(), decodedImage.height.toDouble()),
-        );
-      } else {
-        debugPrint('❌ Error from face crop API: ${response}');
-        print("❌ Error from face crop API: ${response.statusCode}");
+        print(response.body);
+        final decoded = json.decode(response.body);
+
+        resultJson = decoded;
+        if (resultJson == null) {
+          print("No valid data found");
+          return decoded;
+        }
       }
     } catch (e) {
-      debugPrint('⚠️ Failed to connect to face crop API: $e');
+      print("Error occurred: $e");
+      return null;
     }
-    return null;
-  }
 
-  Future<ZoomResult?> _getBlackBgFace(File imageFile) async {
-    try {
-      final uri =
-          Uri.parse("https://harshadsalunkhe1212-fast-api.hf.space/zoom_face");
-      final request = http.MultipartRequest("POST", uri);
-      request.files.add(await http.MultipartFile.fromPath(
-        'image',
-        imageFile.path,
-        contentType: MediaType('image', 'jpeg'),
-      ));
-      final streamedResponse = await request.send();
-      final response = await http.Response.fromStream(streamedResponse);
-
-      if (response.statusCode == 200) {
-        final bytes = response.bodyBytes;
-        final decodedImage = await decodeImageFromList(bytes);
-        return ZoomResult(
-          bytes,
-          Size(decodedImage.width.toDouble(), decodedImage.height.toDouble()),
-        );
+    setState(() {
+      _skinAnalysisResult = resultJson;
+      _loading = false;
+      _error = (_skinAnalysisResult == null)
+          ? "API failed or returned no detections. Try again."
+          : null;
+      _imageProvider = MemoryImage(previewBytes);
+      _scanningImageBytes = null;
+      _faceImageBytes = previewBytes;
+      _originalImageSize = imageSize;
+      _lastImageBytes = previewBytes;
+      if (!kIsWeb) {
+        _lastImageFile = picked != null ? File(picked.path) : null;
       } else {
-        debugPrint('❌ Error from face crop API: ${response.statusCode}');
+        _lastImageFile = null;
       }
-    } catch (e) {
-      debugPrint('⚠️ Failed to connect to face crop API: $e');
-    }
-    return null;
+    });
   }
 
   Future<Size> _getImageSizeMobileBytes(Uint8List bytes) async {
@@ -705,90 +494,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   Future<Size> _getImageSizeWeb(Uint8List bytes) async {
     final decodedImage = await decodeImageFromList(bytes);
     return Size(decodedImage.width.toDouble(), decodedImage.height.toDouble());
-  }
-
-  Future<void> _analyzeImage(XFile? picked, Uint8List previewBytes) async {
-    Map<String, dynamic>? ailabData;
-
-    try {
-      final uri =
-          Uri.parse("https://harshadsalunkhe1212-fast-api.hf.space/predict");
-      final filename = picked?.name ?? "image.jpg";
-      final ext = filename.split('.').last.toLowerCase();
-      final mimeType = ext == "png"
-          ? "image/png"
-          : ext == "webp"
-              ? "image/webp"
-              : ext == "gif"
-                  ? "image/gif"
-                  : "image/jpeg";
-
-      if (kIsWeb) {
-        final request = http.MultipartRequest('POST', uri);
-        request.files.add(
-          http.MultipartFile.fromBytes(
-            'image',
-            previewBytes,
-            filename: filename,
-            contentType: MediaType.parse(mimeType),
-          ),
-        );
-
-        final response = await request.send();
-        final resp = await http.Response.fromStream(response);
-
-        if (resp.statusCode == 200) {
-          final decoded = json.decode(resp.body);
-          if (decoded is Map<String, dynamic>) {
-            ailabData = decoded;
-          } else if (decoded is List) {
-            ailabData = {'results': decoded};
-          }
-        }
-      } else {
-        final req = http.MultipartRequest('POST', uri);
-        req.files.add(http.MultipartFile.fromBytes(
-          'image',
-          previewBytes,
-          filename: filename,
-          contentType: MediaType.parse(mimeType),
-        ));
-
-        final streamedResp = await req.send();
-        final resp = await http.Response.fromStream(streamedResp);
-
-        if (resp.statusCode == 200) {
-          final decoded = json.decode(resp.body);
-          if (decoded is Map<String, dynamic>) {
-            ailabData = decoded;
-          } else if (decoded is List) {
-            ailabData = {'results': decoded};
-          }
-        }
-      }
-    } catch (e, st) {
-      print('API exception: $e\n$st');
-      ailabData = null;
-    }
-
-    setState(() {
-      _analysisJson = ailabData;
-      _loading = false;
-      _error = (_analysisJson == null)
-          ? "Both APIs failed or returned no detections. Try again."
-          : null;
-      _imageProvider = MemoryImage(previewBytes);
-      _scanningImageBytes = null;
-    });
-
-    // For upload API, keep reference of the zoomed/cropped image
-    if (!kIsWeb) {
-      _lastImageFile = picked != null ? File(picked.path) : null;
-      _lastImageBytes = previewBytes;
-    } else {
-      _lastImageFile = picked != null ? File(picked.path) : null;
-      _lastImageBytes = previewBytes;
-    }
   }
 }
 

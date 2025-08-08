@@ -28,8 +28,8 @@ class CustomSpiderChart extends StatelessWidget {
         ),
         SizedBox(height: 10),
         SizedBox(
-          width: chartRadius * 2,
-          height: chartRadius * 2,
+          width: chartRadius * 2 + 60, // Extra width for labels outside
+          height: chartRadius * 2 + 60, // Extra height for labels outside
           child: CustomPaint(
             painter: SpiderChartPainter(
               data: data,
@@ -41,7 +41,6 @@ class CustomSpiderChart extends StatelessWidget {
           ),
         ),
         SizedBox(height: 10),
-
         Padding(
           padding: const EdgeInsets.only(top: 6.0, left: 6.0),
           child: Row(
@@ -103,6 +102,7 @@ class SpiderChartPainter extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = t == tickCount ? 2.5 : 1.0;
       canvas.drawPath(webPath, webPaint);
+
       // Tick labels (show only top center for clarity)
       if (axisCount > 0 && t > 0) {
         final double topAngle = -pi / 2;
@@ -163,7 +163,6 @@ class SpiderChartPainter extends CustomPainter {
         spiderPath.lineTo(pt.dx, pt.dy);
       }
     }
-    // Do not close the path (no full circle)
     final Paint spiderPaint = Paint()
       ..color = Colors.lightBlueAccent.withOpacity(0.19)
       ..style = PaintingStyle.stroke
@@ -217,17 +216,27 @@ class SpiderChartPainter extends CustomPainter {
       )..layout();
       tp.paint(canvas, pt + Offset(-tp.width / 2, -22));
 
-      // Axis label (as in example: outside polygon, colored)
-      final double labelDist = chartRadius + 16;
+      // Axis label - place further out, with more margin and no overlap
+      final double labelDist = chartRadius + 30;
       final Offset labelPt = Offset(
         center.dx + labelDist * cos(angle),
         center.dy + labelDist * sin(angle),
       );
-      final Paint labelBgPaint = Paint()
-        ..color = isConcern ? Colors.red : Colors.green
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.5;
-      // Draw rounded rectangle for label background
+
+      // Calculate label alignment based on angle for better distribution
+      Alignment align;
+      if (angle >= -pi / 2 - 0.2 && angle <= -pi / 2 + 0.2) {
+        align = Alignment.topCenter;
+      } else if (angle > -pi / 2 && angle < pi / 2) {
+        align = Alignment.centerRight;
+      } else if (angle > pi / 2 || angle < -pi / 2) {
+        align = Alignment.centerLeft;
+      } else if ((angle - pi).abs() < 0.2) {
+        align = Alignment.bottomCenter;
+      } else {
+        align = Alignment.center;
+      }
+
       final labelText = label;
       final labelTp = TextPainter(
         text: TextSpan(
@@ -243,18 +252,23 @@ class SpiderChartPainter extends CustomPainter {
         ),
         textDirection: TextDirection.ltr,
       )..layout();
-      final rect = Rect.fromCenter(
-        center: labelPt + Offset(0, labelTp.height / 2),
-        width: labelTp.width + 16,
-        height: labelTp.height + 8,
-      );
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(rect, const Radius.circular(12)),
-        labelBgPaint,
-      );
+      // Use Offset based on alignment
+      Offset labelOffset;
+      if (align == Alignment.topCenter) {
+        labelOffset = Offset(-labelTp.width / 2, -labelTp.height - 8);
+      } else if (align == Alignment.bottomCenter) {
+        labelOffset = Offset(-labelTp.width / 2, 8);
+      } else if (align == Alignment.centerRight) {
+        labelOffset = Offset(4, -labelTp.height / 2);
+      } else if (align == Alignment.centerLeft) {
+        labelOffset = Offset(-labelTp.width - 4, -labelTp.height / 2);
+      } else {
+        labelOffset = Offset(-labelTp.width / 2, -labelTp.height / 2);
+      }
+
       labelTp.paint(
         canvas,
-        labelPt + Offset(-labelTp.width / 2, 4 - labelTp.height / 2),
+        labelPt + labelOffset,
       );
     }
   }

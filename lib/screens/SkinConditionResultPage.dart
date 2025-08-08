@@ -12,12 +12,10 @@ import 'package:http/http.dart' as http;
 
 class SkinConditionResultPage extends StatefulWidget {
   final Map<String, dynamic> gradioResult;
-  final Map<String, dynamic>? patchJson; // <-- Pass the first API JSON here
 
   SkinConditionResultPage({
     Key? key,
     required this.gradioResult,
-    this.patchJson,
   }) : super(key: key);
 
   @override
@@ -29,12 +27,12 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   late Razorpay _razorpay;
   bool _hasPaid = false;
   String paymentStatus = "";
+
   @override
   void initState() {
     super.initState();
     checkSubscriptionStatus();
     if (kIsWeb) {
-      // Define the JS callback that gets called after payment
       js.context['flutterPaymentSuccess'] = (String paymentId) {
         setState(() {
           paymentStatus = "Payment Successful: $paymentId";
@@ -49,12 +47,11 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         _handlePaymentError(paymentId);
       };
     }
-    // _razorpay = Razorpay(); // No event wiring for web!
   }
 
   @override
   void dispose() {
-    super.dispose(); // No need to clear for web
+    super.dispose();
     _razorpay.clear();
   }
 
@@ -67,8 +64,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   }
 
   void _handlePaymentSuccess(String paymentId) async {
-    print("Payment successful: $paymentId");
-    // Extract IDs if needed, response is Map<String, dynamic>
     final paymentData = {
       "payment_id": paymentId,
       "amount": 499.00,
@@ -78,7 +73,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       "description": "Unlock Full Report",
       "metadata": {
         "order_id": paymentId ?? "",
-        "customer_id": "", // Fill if available
+        "customer_id": "",
       },
       "transaction_reference": paymentId ?? "",
       "processed_at": DateTime.now().toIso8601String(),
@@ -87,9 +82,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('_token') ?? '';
-      final isSubscribed = prefs.setBool('isSubscribe', true) ?? false;
-      print(token);
-
+      prefs.setBool('isSubscribe', true);
       final uri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store');
       final res = await http.post(
@@ -100,11 +93,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           'Authorization': 'Bearer $token',
         },
       );
-      if (res.statusCode == 201) {
-        print("Payment data stored successfully.");
-      } else {
-        print("Failed to store payment data: ${res.body}");
-      }
     } catch (e) {
       print("Error storing payment data: $e");
     }
@@ -127,7 +115,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       "description": "Unlock Full Report",
       "metadata": {
         "order_id": paymentId ?? "",
-        "customer_id": "", // Fill if available
+        "customer_id": "",
       },
       "transaction_reference": paymentId ?? "",
       "processed_at": DateTime.now().toIso8601String(),
@@ -136,11 +124,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('_token') ?? '';
-      print(token);
-
       final uri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store');
-      final res = await http.post(
+      await http.post(
         uri,
         body: jsonEncode(paymentData),
         headers: {
@@ -148,11 +134,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           'Authorization': 'Bearer $token',
         },
       );
-      if (res.statusCode == 201) {
-        print("Payment data stored successfully.");
-      } else {
-        print("Failed to store payment data: ${res.body}");
-      }
     } catch (e) {
       print("Error storing payment data: $e");
     }
@@ -165,7 +146,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   void _startPayment() async {
     final prefs = await SharedPreferences.getInstance();
     final isLoggedIn = prefs.getBool('isLogin') ?? false;
-    print("isLoggedIn: $isLoggedIn");
     if (!isLoggedIn) {
       await Navigator.pushNamed(context, AppRoutes.login);
     }
@@ -178,28 +158,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     }
 
     var options = {
-      'key': 'rzp_test_GD4tLv8EAG4UnR', // TODO: Replace with your Razorpay key!
-      'amount': 49900, // amount in paise (499.00 INR)
+      'key': 'rzp_test_GD4tLv8EAG4UnR',
+      'amount': 49900,
       'name': 'Skin Analysis',
       'description': 'Unlock Full Report',
       'prefill': {'contact': '', 'email': ''},
-      // 'handler': (response) {
-      //   print('Payment Success: $response');
-      //   // Success logic here
-      // }, // Success handler
-      // 'modal': {
-      //   'ondismiss': () {
-      //     print('Payment Modal Closed');
-      //     // Error/cancel logic here
-      //   }
-      // }, // Error/dismiss handler
     };
-    // _razorpay.on('payment.error', _handlePaymentError);
-    // _razorpay.on('payment.success', _handlePaymentSuccess);
-    // // _razorpay.on('external.wallet', );
-    // _razorpay.open(options);
-    // Get user info from SharedPreferences
-    // Retrieve user info from 'userInfo' if available, else fallback to individual keys
+
     String name = '';
     String email = '';
     String number = '';
@@ -216,12 +181,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       number = prefs.getString('number') ?? '';
     }
 
-    // Pass user info to JS function
     js.context.callMethod('openRazorpayCheckout', [
-      "rzp_live_jBXpBOtKrydrbs", 
       "rzp_live_jBXpBOtKrydrbs",
-      // "rzp_test_GD4tLv8EAG4UnR",
-      // "rzp_test_GD4tLv8EAG4UnR",
+      "rzp_live_jBXpBOtKrydrbs",
       "49900",
       name,
       email,
@@ -229,22 +191,18 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     ]);
   }
 
-  List<Map<String, dynamic>> extractSkinSummaries(
-      dynamic gradioResult, dynamic patchJson) {
+  List<Map<String, dynamic>> extractSkinSummaries(dynamic gradioResult) {
     try {
-      print("Gradio Result page: $gradioResult");
       final List<dynamic> outputs = List.from(gradioResult['data']);
-      print("Outputs: $outputs");
       if (outputs.isEmpty) {
-        print("No skin condition data found.");
         return [];
       }
-      // patchJson is ignored here for simplicity, add your patchStats logic if needed
       return outputs
           .where((o) => o['analysis'] != null)
           .map<Map<String, dynamic>>((result) {
         String analysis = jsonEncode(result['analysis']);
         List<Map<String, String>> percentages = [];
+        Set<String> seenConditions = {};
         if (analysis.trim().startsWith('[')) {
           try {
             final decoded = json.decode(analysis);
@@ -252,71 +210,76 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
               for (var item in decoded) {
                 final lines = item.toString().split(RegExp(r'[,\n]'));
                 for (var line in lines) {
-                  final match =
-                      RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(line);
+                  // Replace "Skin Redness" with "Pigmentation"
+                  final fixedLine =
+                      line.replaceAll("Skin Redness", "Pigmentation");
+                  final match = RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%')
+                      .firstMatch(fixedLine);
                   if (match != null) {
-                    final condition = match.group(1)!.trim();
-                    percentages.add(
-                        {'condition': condition, 'percent': match.group(2)!});
+                    var condition = match.group(1)!.trim();
+                    if (condition.toLowerCase() == 'skin redness') {
+                      condition = "Pigmentation";
+                    }
+                    // Ensure only one entry per condition (remove duplicates)
+                    if (!seenConditions.contains(condition.toLowerCase())) {
+                      percentages.add(
+                          {'condition': condition, 'percent': match.group(2)!});
+                      seenConditions.add(condition.toLowerCase());
+                    }
                   }
                 }
               }
             }
           } catch (e) {
             for (var line in analysis.split('\n')) {
+              final fixedLine = line.replaceAll("Skin Redness", "Pigmentation");
               final match =
-                  RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(line);
+                  RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(fixedLine);
               if (match != null) {
-                final condition = match.group(1)!.trim();
-                percentages
-                    .add({'condition': condition, 'percent': match.group(2)!});
+                var condition = match.group(1)!.trim();
+                if (condition.toLowerCase() == 'skin redness') {
+                  condition = "Pigmentation";
+                }
+                if (!seenConditions.contains(condition.toLowerCase())) {
+                  percentages.add(
+                      {'condition': condition, 'percent': match.group(2)!});
+                  seenConditions.add(condition.toLowerCase());
+                }
               }
             }
           }
         } else {
           for (var line in analysis.split('\n')) {
+            final fixedLine = line.replaceAll("Skin Redness", "Pigmentation");
             final match =
-                RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(line);
+                RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(fixedLine);
             if (match != null) {
-              final condition = match.group(1)!.trim();
-              percentages
-                  .add({'condition': condition, 'percent': match.group(2)!});
+              var condition = match.group(1)!.trim();
+              if (condition.toLowerCase() == 'skin redness') {
+                condition = "Pigmentation";
+              }
+              if (!seenConditions.contains(condition.toLowerCase())) {
+                percentages
+                    .add({'condition': condition, 'percent': match.group(2)!});
+                seenConditions.add(condition.toLowerCase());
+              }
             }
           }
         }
 
-        // String output = result['output'];
-        // String mainDiagnosis = '';
-        // final diagnosisRegex = RegExp(
-        //     r'Initial Diagnosis[:\s]*([\s\S]*?)(\n\n|$)',
-        //     caseSensitive: false);
-        // final diagnosisMatch = diagnosisRegex.firstMatch(output);
-        // if (diagnosisMatch != null) {
-        //   mainDiagnosis = diagnosisMatch.group(1)!.trim();
-        // } else {
-        //   mainDiagnosis = output.split('\n').first.trim();
-        // }
-
-        // String recommendations = '';
-        // final recRegex =
-        //     RegExp(r'Recommended Medicines[:\s]*([\s\S]*)', caseSensitive: false);
-        // final recMatch = recRegex.firstMatch(output);
-        // if (recMatch != null) {
-        //   recommendations = recMatch.group(1)!.trim();
-        // } else {
-        //   recommendations = output.trim();
-        // }
+        // Calculate attractiveness index score
+        double attractivenessScore = calculateAttractivenessScore(percentages);
 
         return {
           'percentages': percentages,
           'mainDiagnosis': "mainDiagnosis",
           'recommendations': "recommendations",
           'fullOutput': "output",
-          'assessment': '', // not used here
-          'scoreOutOf10': 0.0, // not used here
+          'assessment': '',
+          'scoreOutOf10': 0.0,
           'primaryCondition': '',
           'imageUrl': result['url'],
-          'attractivenessScore': 0.0, // not used here
+          'attractivenessScore': attractivenessScore,
         };
       }).toList();
     } catch (e) {
@@ -325,55 +288,59 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     }
   }
 
-  /// Extract counts/statistics from the first (patch) JSON
-  Map<String, dynamic> extractPatchStats(dynamic patchJson) {
-    if (patchJson == null || patchJson['result'] == null) return {};
-    final r = patchJson['result'];
-    final Map<String, int> patchCounts = {};
-
-    // Example: count for acne, brown_spot etc, using count field or rectangles
-    for (final k in [
-      'acne',
-      'brown_spot',
-      'closed_comedones',
-      'acne_mark',
-      'acne_nodule',
-      'acne_pustule',
-      'mole',
-    ]) {
-      if (r[k] != null) {
-        if (r[k]['count'] != null) {
-          patchCounts[k] = int.tryParse(r[k]['count'].toString()) ?? 0;
-        } else if (r[k]['rectangle'] != null &&
-            r[k]['rectangle'] is List &&
-            r[k]['rectangle'].isNotEmpty) {
-          patchCounts[k] = (r[k]['rectangle'] as List).length;
-        }
+  /// Calculate attractiveness score from percentages (clamped min 6.0, max 10.0)
+  double calculateAttractivenessScore(List<Map<String, String>> percentages) {
+    double score = 8.0;
+    double normalPercent = 0.0;
+    double negativePercent = 0.0;
+    final negativeConditions = [
+      "acne",
+      "wrinkle",
+      "dark spot",
+      "blackhead",
+      "pores",
+      "eye bag",
+      "brown spot",
+      "mole",
+      "comedone",
+      "dark circle",
+      "Pigmentation",
+      "eye pouch",
+      "nasolabial fold"
+    ];
+    for (final entry in percentages) {
+      final cond = entry['condition']?.toLowerCase() ?? "";
+      final percent = double.tryParse(entry['percent'] ?? "0") ?? 0;
+      if (cond.contains("normal")) {
+        normalPercent += percent;
+      } else if (negativeConditions.any((c) => cond.contains(c))) {
+        negativePercent += percent;
       }
     }
-    // Wrinkle counts as sum of all wrinkle_count fields
-    if (r['wrinkle_count'] != null && r['wrinkle_count'] is Map) {
-      int wrinkleSum = 0;
-      r['wrinkle_count']
-          .forEach((k, v) => wrinkleSum += int.tryParse(v.toString()) ?? 0);
-      patchCounts['wrinkle'] = wrinkleSum;
-    }
-    // Dark Circle
-    if (r['dark_circle'] != null && r['dark_circle']['value'] != null) {
-      patchCounts['dark_circle'] =
-          int.tryParse(r['dark_circle']['value'].toString()) ?? 0;
-    }
-    // Eye Pouch
-    if (r['eye_pouch'] != null && r['eye_pouch']['value'] != null) {
-      patchCounts['eye_pouch'] =
-          int.tryParse(r['eye_pouch']['value'].toString()) ?? 0;
-    }
-    // Add more as needed for your logic.
-
-    return patchCounts;
+    score += (normalPercent / 100) * 2.0;
+    score -= (negativePercent / 100) * 2.5;
+    if (score < 6.0) score = 6.0;
+    if (score > 10.0) score = 10.0;
+    return double.parse(score.toStringAsFixed(2));
   }
 
-  // Map condition names to icons and colors
+  int getNormalPercentage(String condition) {
+    final cond = condition.toLowerCase();
+    if (cond.contains('normal')) return 100;
+    if (cond.contains('wrinkle')) return 25;
+    if (cond.contains('acne')) return 15;
+    if (cond.contains('blackhead')) return 20;
+    if (cond.contains('dark spot')) return 15;
+    if (cond.contains('pores')) return 25;
+    if (cond.contains('eye bag')) return 20;
+    if (cond.contains('brown spot')) return 15;
+    if (cond.contains('mole')) return 30;
+    if (cond.contains('comedone')) return 20;
+    if (cond.contains('dark circle')) return 20;
+    if (cond.contains('Pigmentation')) return 20;
+    return 30;
+  }
+
   IconData _getConditionIcon(String condition) {
     final cond = condition.toLowerCase();
     if (cond.contains('normal')) return Icons.check_circle;
@@ -387,7 +354,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     if (cond.contains('mole')) return Icons.adjust;
     if (cond.contains('comedone')) return Icons.bubble_chart;
     if (cond.contains('dark circle')) return Icons.remove_red_eye;
-    if (cond.contains('skin redness')) return Icons.warning;
+    if (cond.contains('Pigmentation')) return Icons.warning;
     return Icons.info_outline;
   }
 
@@ -404,28 +371,444 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     if (cond.contains('mole')) return Colors.black;
     if (cond.contains('comedone')) return Colors.purple;
     if (cond.contains('dark circle')) return Colors.blue;
-    if (cond.contains('skin redness')) return Colors.pinkAccent;
+    if (cond.contains('Pigmentation')) return Colors.pinkAccent;
     return Colors.grey;
   }
 
-  int getNormalPercentage(String condition) {
-    final cond = condition.toLowerCase();
+  @override
+  Widget build(BuildContext context) {
+    final summaries = extractSkinSummaries(widget.gradioResult);
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text(
+          'Skin Analysis Results',
+          style: TextStyle(
+            fontFamily: 'SansSerif',
+          ),
+        ),
+      ),
+      body: summaries.isEmpty
+          ? const Center(child: Text('No skin condition data found.'))
+          : Container(
+              width: kIsWeb ? 600 : double.infinity,
+              child: ListView.builder(
+                padding: const EdgeInsets.only(bottom: 24),
+                itemCount: summaries.isEmpty ? 0 : 1,
+                itemBuilder: (context, i) {
+                  final summary = summaries[i];
+                  final percentages = summary['percentages'] as List<dynamic>;
+                  final imageUrl = summary['imageUrl'] as String?;
+                  final attractivenessScore =
+                      summary['attractivenessScore'] as double;
 
-    if (cond.contains('normal')) return 100;
-    if (cond.contains('wrinkle')) return 25;
-    if (cond.contains('acne')) return 15;
-    if (cond.contains('blackhead')) return 20;
-    if (cond.contains('dark spot')) return 15;
-    if (cond.contains('pores')) return 25;
-    if (cond.contains('eye bag')) return 20;
-    if (cond.contains('brown spot')) return 15;
-    if (cond.contains('mole'))
-      return 30; // Moles aren't usually by %, but this is acceptable
-    if (cond.contains('comedone')) return 20;
-    if (cond.contains('dark circle')) return 20;
-    if (cond.contains('skin redness')) return 20;
+                  final chartData = percentages
+                      .map((p) => {
+                            "condition": p['condition'],
+                            "percent":
+                                double.tryParse(p['percent'] ?? "0") ?? 0.0
+                          })
+                      .toList();
 
-    return 30; // Default threshold for unknown or uncategorized conditions
+                  final averageMap = {
+                    "normal": 100.0,
+                    "wrinkle": 25.0,
+                    "acne": 15.0,
+                    "blackhead": 20.0,
+                    "dark spot": 15.0,
+                    "pores": 25.0,
+                    "eye bag": 20.0,
+                    "brown spot": 15.0,
+                    "mole": 30.0,
+                    "comedone": 20.0,
+                    "dark circle": 20.0,
+                    "Pigmentation": 20.0,
+                    "eye pouch": 20.0,
+                    "nasolabial fold": 20.0,
+                  };
+                  return Card(
+                      margin: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 12),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              GridView.builder(
+                                shrinkWrap: true,
+                                gridDelegate:
+                                    SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  childAspectRatio:
+                                      MediaQuery.of(context).size.width < 400
+                                          ? 1.3
+                                          : 2.4,
+                                  crossAxisSpacing: 14,
+                                  mainAxisSpacing: 14,
+                                ),
+                                itemCount: percentages.length,
+                                itemBuilder: (context, idx) {
+                                  final p = percentages[idx];
+                                  return _summaryStat(
+                                      p['condition'] ?? '',
+                                      "${p['percent']}%",
+                                      _getConditionIcon(p['condition'] ?? ''),
+                                      Theme.of(context).colorScheme.primary,
+                                      context,
+                                      compareTo:
+                                          getNormalPercentage(p['condition'])
+                                              .toDouble());
+                                },
+                              ),
+                              const SizedBox(height: 20),
+                              CustomSpiderChart(
+                                data: chartData,
+                                averageMap: averageMap,
+                                chartRadius: 120.0,
+                                tickCount: 5,
+                              ),
+                              const SizedBox(height: 24),
+                              Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 8.0),
+                                child: Container(
+                                  width: double.infinity,
+                                  decoration: BoxDecoration(
+                                    color: Colors.yellow.shade100,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                        color: Colors.yellow.shade700,
+                                        width: 1),
+                                  ),
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.info_outline,
+                                          color: Colors.orange, size: 22),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          "This is an AI-generated analysis. Please consult a dermatologist for professional advice.",
+                                          style: const TextStyle(
+                                            color: Colors.black87,
+                                            fontWeight: FontWeight.w500,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Card(
+                                      shape: RoundedRectangleBorder(
+                                        side: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      elevation: 3,
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              Colors.white,
+                                              Colors.white,
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 18, horizontal: 8),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            buildAssessmentChart(
+                                                attractivenessScore,
+                                                label: "Attractiveness"),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Text("From Recently Uploaded Image",
+                                  style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black)),
+                              const SizedBox(height: 10),
+                              if (imageUrl != null && imageUrl.isNotEmpty)
+                                SizedBox(
+                                  height: 110,
+                                  child: ListView(
+                                    scrollDirection: Axis.horizontal,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          _showImageDialog(context, imageUrl);
+                                        },
+                                        child: Card(
+                                          margin:
+                                              const EdgeInsets.only(right: 12),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(12)),
+                                          child: ClipRRect(
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                            child: Image.network(
+                                              imageUrl,
+                                              width: 140,
+                                              height: 100,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error,
+                                                      stackTrace) =>
+                                                  Container(
+                                                width: 140,
+                                                height: 100,
+                                                color: Colors.grey.shade200,
+                                                child: const Icon(
+                                                    Icons.broken_image,
+                                                    size: 40,
+                                                    color: Colors.grey),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                      // Add more cards for other images if available in your data
+                                    ],
+                                  ),
+                                ),
+                              const Divider(height: 24),
+                              !_hasPaid
+                                  ? Center(
+                                      child: Container(
+                                        padding: const EdgeInsets.all(20),
+                                        decoration: BoxDecoration(
+                                          color: Colors.black87,
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.black26,
+                                              blurRadius: 8,
+                                              offset: Offset(0, 4),
+                                            ),
+                                          ],
+                                        ),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(Icons.lock,
+                                                color: Colors.white, size: 40),
+                                            const SizedBox(height: 12),
+                                            Text(
+                                              "Unlock Full Details",
+                                              style: TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 18,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              "Pay ₹499 to view diagnosis, treatment notes, and recommendations.",
+                                              style: TextStyle(
+                                                color: Colors.white70,
+                                                fontSize: 14,
+                                              ),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            const SizedBox(height: 16),
+                                            ElevatedButton.icon(
+                                              icon: const Icon(Icons.lock_open),
+                                              label: const Text(
+                                                  "Unlock Full Details (₹499)"),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor:
+                                                    Colors.deepPurple,
+                                                foregroundColor: Colors.white,
+                                              ),
+                                              onPressed: _startPayment,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                  : Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: Colors.deepPurple,
+                                          width: 2,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                        color: Colors.white,
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.deepPurple
+                                                .withOpacity(0.08),
+                                            blurRadius: 8,
+                                            offset: Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                                vertical: 12.0),
+                                            child: Column(
+                                              children: [
+                                                Icon(Icons.emoji_events,
+                                                    color: Colors.amber,
+                                                    size: 60),
+                                                const SizedBox(height: 12),
+                                                Text(
+                                                  "Congratulations!",
+                                                  style: TextStyle(
+                                                    fontSize: 22,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: Colors.deepPurple,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  "You've unlocked your full skin analysis.",
+                                                  style: TextStyle(
+                                                    fontSize: 16,
+                                                    color: Colors.black87,
+                                                  ),
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Text(
+                                                  "Your image has been sent to our experts. You will receive a detailed PDF report within 24 hours via email, or you can login to Youvai to view and download your full report.",
+                                                  style: TextStyle(
+                                                    fontSize: 14,
+                                                    color: Colors.black54,
+                                                  ),
+                                                  textAlign: TextAlign.center,
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const SizedBox(height: 10),
+                                  const Text(
+                                    "Recommended Doctor's",
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  SizedBox(
+                                    height: 300,
+                                    child: ListView.builder(
+                                      physics: const BouncingScrollPhysics(),
+                                      padding: const EdgeInsets.only(right: 16),
+                                      scrollDirection: Axis.horizontal,
+                                      itemCount: doctorList.length,
+                                      itemBuilder: (context, index) {
+                                        final doctor = doctorList[index];
+                                        return DoctorCard(
+                                          title: doctor["name"],
+                                          speciality:
+                                              doctor["speciality"].toString(),
+                                          stars:
+                                              doctor["reviewStars"].toString(),
+                                          totalReviews:
+                                              doctor["totalReviews"].toString(),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                        ),
+                      ));
+                },
+              ),
+            ),
+    );
+  }
+
+  Widget buildAssessmentChart(double score, {String? label}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          height: 80,
+          width: 80,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              SizedBox(
+                height: 80,
+                width: 80,
+                child: CircularProgressIndicator(
+                  value: (score / 10).clamp(0.0, 1.0),
+                  strokeWidth: 8,
+                  backgroundColor:
+                      Theme.of(context).colorScheme.secondary.withOpacity(0.2),
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ),
+              Text(
+                "${score.toStringAsFixed(2)}",
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  color: Colors.black,
+                ),
+              ),
+              const Positioned(
+                bottom: 10,
+                child: Text(
+                  "/ 10",
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(height: 15),
+        if (label != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 2.0),
+            child: Text(
+              "$label Index Score",
+              style: const TextStyle(
+                  fontWeight: FontWeight.bold, color: Colors.black),
+            ),
+          ),
+      ],
+    );
   }
 
   String _getConditionStatus(String condition, double percent) {
@@ -489,6 +872,24 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         "high": "Above 25% – Moderate to severe acne, consult a dermatologist",
         "statusThresholds": {"under": 10, "normal": 25}
       },
+    },
+    "pigmentation": {
+      "type": "Pigmentation",
+      "meaning":
+          "A condition where certain areas of the skin become darker than the surrounding skin due to excess melanin production.",
+      "cause":
+          "Sun exposure, hormonal changes, skin inflammation, aging, or certain medications.",
+      "suggestion":
+          "Use sunscreen daily (SPF 30+), avoid direct sunlight, consider brightening agents like vitamin C or niacinamide, and seek dermatological treatments if severe.",
+      "ageInfo": {
+        "typicalAge": "20–50 years",
+        "averageRange": "5–20%",
+        "under": "Below 5% – Even-toned skin, minimal pigmentation signs",
+        "normal": "5–20% – Mild pigmentation, common in adults",
+        "high":
+            "Above 20% – Moderate to severe pigmentation, may require professional treatment",
+        "statusThresholds": {"under": 5, "normal": 20}
+      }
     },
     "blackheads": {
       "type": "Blackheads",
@@ -621,8 +1022,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         "statusThresholds": {"under": 10, "normal": 25}
       },
     },
-    "skin redness": {
-      "type": "Skin Redness",
+    "Pigmentation": {
+      "type": "Pigmentation",
       "meaning":
           "Inflammation or irritation leading to visibly red or blotchy skin, sometimes with burning or itching.",
       "cause":
@@ -672,7 +1073,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   Widget _summaryStat(String label, String value, IconData? icon, Color? color,
       BuildContext context,
       {String? status, double? compareTo}) {
-    // Parse the value as double for comparison
     double currentValue = double.tryParse(value.replaceAll('%', '')) ?? 0.0;
     String? compareText;
     Color? compareColor;
@@ -680,21 +1080,18 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     if (compareTo != null) {
       if (currentValue > compareTo) {
         compareText = "Higher than average (${compareTo.toStringAsFixed(1)}%)";
-        compareColor = Colors.redAccent; // High is usually a concern
+        compareColor = Colors.redAccent;
       } else if (currentValue < compareTo) {
         compareText = "Lower than average (${compareTo.toStringAsFixed(1)}%)";
-        // compareColor =
-        //     Colors.green; // Lower can mean healthier or under control
         compareColor = Colors.blueGrey;
       } else {
         compareText = "Equal to average (${compareTo.toStringAsFixed(1)}%)";
-        compareColor = Colors.blueGrey; // Neutral
+        compareColor = Colors.blueGrey;
       }
     }
 
     return InkWell(
       onTap: () {
-        print("clcikc");
         final info = conditionInfo[label.toLowerCase()];
         if (info != null) {
           showModalBottomSheet(
@@ -703,76 +1100,79 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
               borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
             ),
             builder: (context) {
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label,
-                        style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          const TextSpan(
-                            text: "Meaning: ",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(
-                            text: "${info['meaning']}",
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          TextSpan(
-                              text: "Inital Cause: ",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          TextSpan(text: "${info['cause']}"),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          TextSpan(
-                              text: "Suggestions: ",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          TextSpan(text: "${info['suggestion']}"),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (info['ageInfo'] != null && info['ageInfo'] is Map) ...[
+              return SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(label,
+                          style: const TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold)),
                       const SizedBox(height: 8),
-                      Text(
-                        "Age Information:",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      RichText(
+                        text: TextSpan(
+                          style: DefaultTextStyle.of(context).style,
+                          children: [
+                            const TextSpan(
+                              text: "Meaning: ",
+                              style: TextStyle(fontWeight: FontWeight.bold),
+                            ),
+                            TextSpan(
+                              text: "${info['meaning']}",
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(height: 4),
-                      if ((info['ageInfo'] as Map?)?['typicalAge'] != null)
+                      const SizedBox(height: 8),
+                      RichText(
+                        text: TextSpan(
+                          style: DefaultTextStyle.of(context).style,
+                          children: [
+                            TextSpan(
+                                text: "Inital Cause: ",
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            TextSpan(text: "${info['cause']}"),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      RichText(
+                        text: TextSpan(
+                          style: DefaultTextStyle.of(context).style,
+                          children: [
+                            TextSpan(
+                                text: "Suggestions: ",
+                                style: TextStyle(fontWeight: FontWeight.bold)),
+                            TextSpan(text: "${info['suggestion']}"),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      if (info['ageInfo'] != null &&
+                          info['ageInfo'] is Map) ...[
+                        const SizedBox(height: 8),
                         Text(
-                            "Typical Age: ${(info['ageInfo'] as Map)['typicalAge']}"),
-                      if ((info['ageInfo'] as Map?)?['averageRange'] != null)
-                        Text(
-                            "Average Range: ${(info['ageInfo'] as Map)['averageRange']}"),
-                      if ((info['ageInfo'] as Map?)?['under'] != null)
-                        Text("Under: ${(info['ageInfo'] as Map)['under']}"),
-                      if ((info['ageInfo'] as Map?)?['normal'] != null)
-                        Text("Normal: ${(info['ageInfo'] as Map)['normal']}"),
-                      if ((info['ageInfo'] as Map?)?['high'] != null)
-                        Text("High: ${(info['ageInfo'] as Map)['high']}"),
+                          "Age Information:",
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 4),
+                        if ((info['ageInfo'] as Map?)?['typicalAge'] != null)
+                          Text(
+                              "Typical Age: ${(info['ageInfo'] as Map)['typicalAge']}"),
+                        if ((info['ageInfo'] as Map?)?['averageRange'] != null)
+                          Text(
+                              "Average Range: ${(info['ageInfo'] as Map)['averageRange']}"),
+                        if ((info['ageInfo'] as Map?)?['under'] != null)
+                          Text("Under: ${(info['ageInfo'] as Map)['under']}"),
+                        if ((info['ageInfo'] as Map?)?['normal'] != null)
+                          Text("Normal: ${(info['ageInfo'] as Map)['normal']}"),
+                        if ((info['ageInfo'] as Map?)?['high'] != null)
+                          Text("High: ${(info['ageInfo'] as Map)['high']}"),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               );
             },
@@ -780,7 +1180,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         }
       },
       child: Container(
-        // padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(13),
@@ -850,708 +1249,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     );
   }
 
-  Map<String, dynamic> getAssessment(List<Map<String, String>> percentages) {
-    if (percentages.isEmpty) {
-      return {
-        'assessment': "Insufficient data for assessment.",
-        'scoreOutOf10': 0.0,
-        'primaryCondition': ""
-      };
-    }
-    Map<String, String>? highest = percentages.reduce((a, b) =>
-        double.tryParse(a['percent'] ?? "0")! >
-                double.tryParse(b['percent'] ?? "0")!
-            ? a
-            : b);
-    double value = double.tryParse(highest['percent'] ?? "0") ?? 0.0;
-    String condition = highest['condition'] ?? "";
-
-    String risk;
-    if (value >= 70) {
-      risk = "High";
-    } else if (value >= 40) {
-      risk = "Moderate";
-    } else if (value >= 20) {
-      risk = "Mild";
-    } else {
-      risk = "Minimal";
-    }
-    double score = (value / 10).clamp(0.0, 10.0);
-    return {
-      'assessment':
-          "Primary Concern: $condition ($value%)\nAssessment: $risk risk for this condition.",
-      'scoreOutOf10': score,
-      'primaryCondition': condition,
-    };
-  }
-
-  /// Combine both JSONs for more accurate attractiveness score.
-  double calculateCombinedAttractivenessScore(
-      List<Map<String, String>> percentages, Map<String, dynamic> patchStats) {
-    double normal = 0;
-    double negative = 0;
-    final negativeConditions = [
-      "dry",
-      "acne",
-      "wrinkles",
-      "dark spots",
-      "blackheads",
-      "pores",
-      "eye bags",
-      "dark circle",
-      "mole",
-      "brown spot",
-      "comedone",
-      "eye pouch",
-      "nasolabial fold"
-    ];
-    for (var entry in percentages) {
-      final cond = entry['condition']?.toLowerCase() ?? "";
-      final val = double.tryParse(entry['percent'] ?? "0") ?? 0;
-      if (cond.contains("normal")) {
-        normal += val;
-      } else if (negativeConditions.any((c) => cond.contains(c))) {
-        negative += val;
-      }
-    }
-
-    // Patch count penalties
-    double patchPenalty = 0.0;
-    for (final k in patchStats.keys) {
-      final v = patchStats[k];
-      if (v is int && v > 0) {
-        if (['acne', 'brown_spot', 'closed_comedones', 'mole'].contains(k)) {
-          patchPenalty += v * 0.18;
-        } else if (['wrinkle', 'dark_circle', 'eye_pouch'].contains(k)) {
-          patchPenalty += v * 0.12;
-        }
-      }
-    }
-
-    // Score: start from 8, add positive, subtract negative and patch penalty
-    double score =
-        8.0 + (normal / 100) * 2.0 - (negative / 100) * 2.0 - patchPenalty;
-    return score.clamp(6.01, 10.0);
-  }
-
-  Widget buildAssessmentChart(double score, {String? label}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(
-          height: 80,
-          width: 80,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              SizedBox(
-                height: 80,
-                width: 80,
-                child: CircularProgressIndicator(
-                  value: (score / 10).clamp(0.0, 1.0),
-                  strokeWidth: 8,
-                  backgroundColor:
-                      Theme.of(context).colorScheme.secondary.withOpacity(0.2),
-                  valueColor: AlwaysStoppedAnimation<Color>(
-                    // score >= 8.5
-                    //     ? Colors.green
-                    //     : score >= 7.5
-                    //         ? Colors.lightGreen
-                    //         : score >= 6.5
-                    //             ? Colors.orange
-                    //             : Colors.red,
-                    Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-              ),
-              Text(
-                "${score.toStringAsFixed(2)}",
-                style: const TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 20,
-                  color: Colors.black,
-                ),
-              ),
-              const Positioned(
-                bottom: 10,
-                child: Text(
-                  "/ 10",
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.black,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SizedBox(height: 15),
-        if (label != null)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 2.0),
-            child: Text(
-              "$label Index Score",
-              style: const TextStyle(
-                  fontWeight: FontWeight.bold, color: Colors.black),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget buildAttractivenessChart(double score) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 2.0),
-          child: Text(
-            "Attractiveness Score",
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-        ),
-        SizedBox(
-          height: 28,
-          child: Stack(
-            children: [
-              Container(
-                height: 20,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-              ),
-              FractionallySizedBox(
-                widthFactor: (score / 10).clamp(0.0, 1.0),
-                child: Container(
-                  height: 20,
-                  decoration: BoxDecoration(
-                    color: score >= 8.5
-                        ? Colors.green
-                        : score >= 7.5
-                            ? Colors.lightGreen
-                            : score >= 6.5
-                                ? Colors.orange
-                                : Colors.red,
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-              ),
-              Positioned.fill(
-                child: Center(
-                  child: Text(
-                    "${score.toStringAsFixed(2)} / 10",
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold, color: Colors.black87),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget buildIndividualPercentagesChart(
-      List<Map<String, String>> percentages) {
-    if (percentages.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Condition Percentages",
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        const SizedBox(height: 8),
-        ...percentages.map((p) {
-          final cond = p['condition'];
-          final val = double.tryParse(p['percent'] ?? "0") ?? 0.0;
-          return Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2.0),
-            child: Row(
-              children: [
-                Expanded(
-                  flex: 4,
-                  child: Text(cond!,
-                      style: const TextStyle(fontWeight: FontWeight.w500)),
-                ),
-                Expanded(
-                  flex: 6,
-                  child: LinearProgressIndicator(
-                    value: (val / 100).clamp(0.0, 1.0),
-                    backgroundColor: Colors.grey.shade300,
-                    color: Colors.blue,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text('${val.toStringAsFixed(1)}%'),
-              ],
-            ),
-          );
-        }),
-        const SizedBox(height: 10),
-      ],
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final summaries =
-        extractSkinSummaries(widget.gradioResult, widget.patchJson);
-    print(summaries[0]['percentages']);
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(
-          'Skin Analysis Results',
-          style: TextStyle(
-            fontFamily: 'SansSerif',
-          ),
-        ),
-        // backgroundColor: Theme.of(context).colorScheme.primary,
-      ),
-      body: summaries.isEmpty
-          ? const Center(child: Text('No skin condition data found.'))
-          : Container(
-              width: kIsWeb ? 600 : double.infinity,
-              child: ListView.builder(
-                padding: const EdgeInsets.only(bottom: 24),
-                itemCount: summaries.isEmpty ? 0 : 1,
-                itemBuilder: (context, i) {
-                  final summary = summaries[i];
-                  final percentages = summary['percentages'] as List<dynamic>;
-                  final imageUrl = summary['imageUrl'] as String?;
-                  final mainDiagnosis = summary['mainDiagnosis'] as String;
-                  final assessment = summary['assessment'] as String;
-                  final scoreOutOf10 = summary['scoreOutOf10'] as double;
-                  final attractivenessScore =
-                      summary['attractivenessScore'] as double;
-                  final primaryCondition =
-                      summary['primaryCondition'] as String;
-                  final fullOutput = summary['fullOutput'] as String;
-
-                  final chartData = percentages
-                      .map((p) => {
-                            "condition": p['condition'],
-                            "percent":
-                                double.tryParse(p['percent'] ?? "0") ?? 0.0
-                          })
-                      .toList();
-
-                  final averageMap = {
-                    "normal": 100.0,
-                    "wrinkle": 25.0,
-                    "acne": 15.0,
-                    "blackhead": 20.0,
-                    "dark spot": 15.0,
-                    "pores": 25.0,
-                    "eye bag": 20.0,
-                    "brown spot": 15.0,
-                    "mole": 30.0,
-                    "comedone": 20.0,
-                    "dark circle": 20.0,
-                    "skin redness": 20.0,
-                    "eye pouch": 20.0,
-                    "nasolabial fold": 20.0,
-                    "pigmentation": 20.0,
-                  };
-                  return Card(
-                      margin: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              GridView.builder(
-                                shrinkWrap: true,
-                                // physics: const NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2, // Two cards per row
-                                  childAspectRatio:
-                                      MediaQuery.of(context).size.width < 400
-                                          ? 1.3
-                                          : 2.4, // More square on mobile
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                ),
-                                itemCount: percentages.length,
-                                itemBuilder: (context, idx) {
-                                  final p = percentages[idx];
-                                  return _summaryStat(
-                                      p['condition'] ?? '',
-                                      "${p['percent']}%",
-                                      _getConditionIcon(p['condition'] ?? ''),
-                                      // _getConditionColor(p['condition'] ?? ''),
-                                      Theme.of(context).colorScheme.primary,
-                                      context,
-                                      compareTo:
-                                          getNormalPercentage(p['condition'])
-                                              .toDouble());
-                                },
-                              ),
-                              const SizedBox(height: 20),
-                              CustomSpiderChart(
-                                data: chartData,
-                                averageMap: averageMap,
-                                chartRadius: 120.0,
-                                tickCount: 5,
-                              ),
-                              const SizedBox(height: 24),
-
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8.0),
-                                child: Container(
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.yellow.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                        color: Colors.yellow.shade700,
-                                        width: 1),
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.info_outline,
-                                          color: Colors.orange, size: 22),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          "This is an AI-generated analysis. Please consult a dermatologist for professional advice.",
-                                          style: const TextStyle(
-                                            color: Colors.black87,
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                              Row(
-                                children: [
-                                  // Expanded(
-                                  //   child: Card(
-                                  //     shape: RoundedRectangleBorder(
-                                  //         borderRadius:
-                                  //             BorderRadius.circular(16)),
-                                  //     elevation: 3,
-                                  //     child: Container(
-                                  //       decoration: BoxDecoration(
-                                  //         gradient: LinearGradient(
-                                  //           colors: [
-                                  //             Theme.of(context)
-                                  //                 .colorScheme
-                                  //                 .primary,
-                                  //             Theme.of(context)
-                                  //                 .colorScheme
-                                  //                 .secondary,
-                                  //             Theme.of(context)
-                                  //                 .colorScheme
-                                  //                 .secondary,
-                                  //             Theme.of(context)
-                                  //                 .colorScheme
-                                  //                 .secondary,
-                                  //           ],
-                                  //           begin: Alignment.topLeft,
-                                  //           end: Alignment.bottomRight,
-                                  //         ),
-                                  //         borderRadius:
-                                  //             BorderRadius.circular(16),
-                                  //       ),
-                                  //       padding: const EdgeInsets.symmetric(
-                                  //           vertical: 18, horizontal: 8),
-                                  //       child: Column(
-                                  //         mainAxisSize: MainAxisSize.min,
-                                  //         children: [
-                                  //           buildAssessmentChart(scoreOutOf10,
-                                  //               label: primaryCondition),
-                                  //           const SizedBox(height: 8),
-                                  //         ],
-                                  //       ),
-                                  //     ),
-                                  //   ),
-                                  // ),
-                                  // const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Card(
-                                      shape: RoundedRectangleBorder(
-                                        side: BorderSide(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      elevation: 3,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              // Theme.of(context)
-                                              //     .colorScheme
-                                              //     .secondary,
-                                              // Theme.of(context)
-                                              //     .colorScheme
-                                              //     .secondary,
-                                              // Theme.of(context)
-                                              //     .colorScheme
-                                              //     .secondary,
-                                              // Theme.of(context)
-                                              //     .colorScheme
-                                              //     .primary,
-                                              // Theme.of(context)
-                                              //     .colorScheme
-                                              //     .,
-                                              Colors.white,
-                                              Colors.white,
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 18, horizontal: 8),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            buildAssessmentChart(
-                                                attractivenessScore,
-                                                label: "Attractiveness"),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 10),
-
-                              // buildAttractivenessChart(attractivenessScore),
-                              //     color: Colors.deepPurple),
-                              // ),
-                              const SizedBox(height: 10),
-                              Text("From Recently Uploaded Image",
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black)),
-                              const SizedBox(height: 10),
-                              if (imageUrl != null && imageUrl.isNotEmpty)
-                                SizedBox(
-                                  height: 110,
-                                  child: ListView(
-                                    scrollDirection: Axis.horizontal,
-                                    children: [
-                                      Card(
-                                        margin:
-                                            const EdgeInsets.only(right: 12),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(12)),
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(12),
-                                          child: Image.network(
-                                            imageUrl,
-                                            width: 140,
-                                            height: 100,
-                                            fit: BoxFit.cover,
-                                            errorBuilder:
-                                                (context, error, stackTrace) =>
-                                                    Container(
-                                              width: 140,
-                                              height: 100,
-                                              color: Colors.grey.shade200,
-                                              child: const Icon(
-                                                  Icons.broken_image,
-                                                  size: 40,
-                                                  color: Colors.grey),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                      // Add more cards for other images if available in your data
-                                    ],
-                                  ),
-                                ),
-                              const Divider(height: 24),
-                              // ExpansionTiles for Q&A style extraction
-                              !_hasPaid
-                                  ? Center(
-                                      child: Container(
-                                        padding: const EdgeInsets.all(20),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black87,
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black26,
-                                              blurRadius: 8,
-                                              offset: Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.lock,
-                                                color: Colors.white, size: 40),
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              "Unlock Full Details",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 18,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Text(
-                                              "Pay ₹499 to view diagnosis, treatment notes, and recommendations.",
-                                              style: TextStyle(
-                                                color: Colors.white70,
-                                                fontSize: 14,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                            const SizedBox(height: 16),
-                                            ElevatedButton.icon(
-                                              icon: const Icon(Icons.lock_open),
-                                              label: const Text(
-                                                  "Unlock Full Details (₹499)"),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    Colors.deepPurple,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                              onPressed: _startPayment,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    )
-                                  : Container(
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: Colors
-                                              .deepPurple, // You can change color as needed
-                                          width: 2,
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                        color: Colors.white,
-                                        boxShadow: [
-                                          BoxShadow(
-                                            color: Colors.deepPurple
-                                                .withOpacity(0.08),
-                                            blurRadius: 8,
-                                            offset: Offset(0, 2),
-                                          ),
-                                        ],
-                                      ),
-                                      child: Column(
-                                        children: [
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 12.0),
-                                            child: Column(
-                                              children: [
-                                                Icon(Icons.emoji_events,
-                                                    color: Colors.amber,
-                                                    size: 60),
-                                                const SizedBox(height: 12),
-                                                Text(
-                                                  "Congratulations!",
-                                                  style: TextStyle(
-                                                    fontSize: 22,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.deepPurple,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  "You've unlocked your full skin analysis.",
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    color: Colors.black87,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  "Your image has been sent to our experts. You will receive a detailed PDF report within 24 hours via email, or you can login to Youvai to view and download your full report.",
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.black54,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  const SizedBox(height: 10),
-                                  const Text(
-                                    "Recommended Doctor's",
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 10),
-
-                                  // 👇 Fixed horizontal ListView inside a SizedBox
-                                  SizedBox(
-                                    height:
-                                        300, // Adjust based on your DoctorCard height
-                                    child: ListView.builder(
-                                      physics: const BouncingScrollPhysics(),
-                                      padding: const EdgeInsets.only(right: 16),
-                                      scrollDirection: Axis.horizontal,
-                                      itemCount: doctorList.length,
-                                      itemBuilder: (context, index) {
-                                        final doctor = doctorList[index];
-                                        return DoctorCard(
-                                          title: doctor["name"],
-                                          // title: "Dr. Leah Zane", --- IGNORE ---
-                                          speciality:
-                                              doctor["speciality"].toString(),
-                                          stars:
-                                              doctor["reviewStars"].toString(),
-                                          totalReviews:
-                                              doctor["totalReviews"].toString(),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                ],
-                              )
-                            ],
-                          ),
-                        ),
-                      ));
-                },
-              ),
-            ),
-    );
-  }
-
   final List<Map<String, dynamic>> doctorList = [
     {
       "name": "Dr. Shushant Shetty",
@@ -1575,4 +1272,33 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       "imageUrl": "https://randomuser.me/api/portraits/women/65.jpg",
     },
   ];
+
+  void _showImageDialog(BuildContext context, String imageUrl) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        backgroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        child: InteractiveViewer(
+          panEnabled: true,
+          minScale: 1,
+          maxScale: 4,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.network(
+              imageUrl,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 320,
+                height: 320,
+                color: Colors.grey.shade200,
+                child: const Icon(Icons.broken_image, size: 80),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }

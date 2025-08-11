@@ -12,6 +12,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<GoogleLoginRequested>(_googleLogin);
     on<SendOtpRequested>(sendOtp);
     on<VerifyLoginMobile>(mobileLogin);
+    on<LogoutRequested>(logout);
   }
 
   Future<void> _onLoginRequested(
@@ -130,8 +131,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   Future<void> sendOtp(
-      SendOtpRequested event,
-      Emitter<AuthState> emit,
+    SendOtpRequested event,
+    Emitter<AuthState> emit,
   ) async {
     emit(AuthLoading());
     try {
@@ -154,7 +155,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  Future<void> mobileLogin(VerifyLoginMobile event, Emitter<AuthState> emit) async {
+  Future<void> mobileLogin(
+      VerifyLoginMobile event, Emitter<AuthState> emit) async {
     emit(AuthLoading());
     try {
       final response = await http.post(
@@ -233,7 +235,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
   }
 
-  /// Returns a tuple of (isValid, message)
+  
   Map<String, dynamic> validateRegistrationFields({
     required String name,
     String? email,
@@ -245,7 +247,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     // required String address,
   }) {
     if (name.isEmpty ||
-            
             password.isEmpty ||
             confirmPassword.isEmpty ||
             phone.isEmpty
@@ -271,4 +272,29 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       'message': 'Validation successful.',
     };
   }
+
+  Future<void> logout(LogoutRequested event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      print("Logging out...");
+      await http.post(
+        Uri.parse(
+            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/logout'),
+        headers: {
+          'Authorization':
+              'Bearer ${((await SharedPreferences.getInstance()).getString('_token') ?? '')}',
+        },
+      );
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('isLogin');
+      await prefs.remove('userInfo');
+      await prefs.remove('_token');
+      await prefs.remove('isSubscribe');
+      emit(AuthLogout());
+    } catch (e) {
+      emit(AuthError('Logout failed: $e'));
+    }
+  }
+
+
 }

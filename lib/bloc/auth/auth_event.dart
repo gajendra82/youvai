@@ -63,3 +63,4 @@ class VerifyLoginMobile extends AuthEvent {
       required this.password,
       required this.otp});
 }
+class LogoutRequested extends AuthEvent {}

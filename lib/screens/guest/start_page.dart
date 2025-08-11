@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
+import 'package:skin_assessment/bloc/auth/auth_event.dart';
+import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -64,123 +68,166 @@ class _StartPageState extends State<StartPage> {
 
     return Scaffold(
       backgroundColor: Colors.white,
-      body: Stack(
-        children: [
-          // Top right Login button
-          Positioned(
-            top: isWeb ? 24 : 40,
-            right: isWeb ? 40 : 20,
-            child: TextButton(
-              onPressed: () {
-                if (isLogin) {
-                  // Navigate to profile or home
-                  // Navigator.pushNamed(context, AppRoutes.profile);
-                } else {
-                  // Navigate to login/registration
-                  Navigator.pushNamed(context, AppRoutes.login);
-                }
-                // Navigator.pushNamed(context, AppRoutes.onboard);
-              },
-              child: Text(
-                isLogin ? "Hello, $_username" : 'Login/Registration',
-                style: TextStyle(
-                  color: theme.primaryColor,
-                  fontWeight: FontWeight.normal,
-                  fontSize: 20,
+      body: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthError) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Logout Failed")),
+            );
+          }
+          if (state is AuthLogout) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Logged out successfully")),
+            );
+            Navigator.pushNamedAndRemoveUntil(
+              context,
+              AppRoutes.onboard,
+              (route) => false,
+            );
+          }
+        },
+        child: Stack(
+          children: [
+            // Top right Login button
+
+            Positioned(
+              top: isWeb ? 24 : 40,
+              right: isWeb ? 40 : 20,
+              child: TextButton(
+                onPressed: () {
+                  if (isLogin) {
+                    // Show a dropdown menu with logout option
+                    showMenu(
+                      context: context,
+                      position: RelativeRect.fromLTRB(
+                        MediaQuery.of(context).size.width - 60, // right
+                        isWeb ? 64 : 80, // top
+                        20, // left
+                        0, // bottom
+                      ),
+                      items: [
+                        PopupMenuItem(
+                          child: ListTile(
+                            leading:
+                                const Icon(Icons.logout, color: Colors.red),
+                            title: Text('Logout'),
+                            onTap: () async {
+                              context.read<AuthBloc>().add(LogoutRequested());
+                            },
+                          ),
+                        ),
+                      ],
+                    );
+                    // Navigate to profile or home
+                    // Navigator.pushNamed(context, AppRoutes.profile);
+                  } else {
+                    // Navigate to login/registration
+                    Navigator.pushNamed(context, AppRoutes.login);
+                  }
+                  // Navigator.pushNamed(context, AppRoutes.onboard);
+                },
+                child: Text(
+                  isLogin ? "Hello, $_username" : 'Login/Registration',
+                  style: TextStyle(
+                    color: theme.primaryColor,
+                    fontWeight: FontWeight.normal,
+                    fontSize: 20,
+                  ),
                 ),
               ),
             ),
-          ),
-          // Center content
-          Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Animated background behind logo
-                SizedBox(
-                  width: isWeb ? 400 : 348,
-                  height: isWeb ? 400 : 348,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Animated "snookte" effect
-                      // if (!isWeb)
-                      //   Positioned.fill(child: AnimatedSnookte()),
-                      // Logo image
-                      Container(
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Image.asset(
-                            'assets/logo.png',
-                            width: isWeb ? 200 : 200,
-                            height: isWeb ? 200 : 240,
+            // Center content
+            Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Animated background behind logo
+                  SizedBox(
+                    width: isWeb ? 400 : 348,
+                    height: isWeb ? 400 : 348,
+                    child: Stack(
+                      alignment: Alignment.center,
+                      children: [
+                        // Animated "snookte" effect
+                        // if (!isWeb)
+                        //   Positioned.fill(child: AnimatedSnookte()),
+                        // Logo image
+                        Container(
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                          ),
+                          child: Center(
+                            child: Image.asset(
+                              'assets/logo.png',
+                              width: isWeb ? 200 : 200,
+                              height: isWeb ? 200 : 240,
+                            ),
                           ),
                         ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 32),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: isWeb ? 120 : 90,
-            left: 0,
-            right: 0,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: isWeb ? 80.0 : 32.0),
-              child: Column(
-                children: [
-                  Text(
-                    'Ready to analyze your skin',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 16,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 16),
-                  Container(
-                    width: double.infinity,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(15),
-                      gradient: LinearGradient(
-                        colors: [
-                          theme.primaryColor,
-                          theme.colorScheme.secondary,
-                        ],
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                      ),
-                    ),
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.transparent,
-                        shadowColor: Colors.transparent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
-                        ),
-                        minimumSize: const Size(double.infinity, 48),
-                      ),
-                      onPressed: () {
-                        // TODO: Start analysis
-                        Navigator.pushNamed(context, AppRoutes.skinAnalysis);
-                      },
-                      child: const Text(
-                        'Start',
-                        style: TextStyle(fontSize: 18),
-                      ),
+                      ],
                     ),
                   ),
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
-          )
-        ],
+
+            Positioned(
+              bottom: isWeb ? 120 : 90,
+              left: 0,
+              right: 0,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: isWeb ? 80.0 : 32.0),
+                child: Column(
+                  children: [
+                    Text(
+                      'Ready to analyze your skin',
+                      style: TextStyle(
+                        color: Colors.grey[700],
+                        fontSize: 16,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      height: 48,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(15),
+                        gradient: LinearGradient(
+                          colors: [
+                            theme.primaryColor,
+                            theme.colorScheme.secondary,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                      ),
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.transparent,
+                          shadowColor: Colors.transparent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          minimumSize: const Size(double.infinity, 48),
+                        ),
+                        onPressed: () {
+                          // TODO: Start analysis
+                          Navigator.pushNamed(context, AppRoutes.skinAnalysis);
+                        },
+                        child: const Text(
+                          'Start',
+                          style: TextStyle(fontSize: 18),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            )
+          ],
+        ),
       ),
     );
   }

@@ -17,3 +17,4 @@ class AuthMessage extends AuthState {
   final String message;
   AuthMessage(this.message);
 }
+class AuthLogout extends AuthState {}

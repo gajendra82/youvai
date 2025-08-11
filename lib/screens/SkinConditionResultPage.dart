@@ -522,6 +522,202 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
+                              // const SizedBox(height: 20),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Card(
+                                      shape: RoundedRectangleBorder(
+                                        side: BorderSide(
+                                          color: Theme.of(context)
+                                              .colorScheme
+                                              .primary,
+                                        ),
+                                        borderRadius: BorderRadius.circular(16),
+                                      ),
+                                      elevation: 6,
+                                      child: AnimatedContainer(
+                                        duration:
+                                            const Duration(milliseconds: 700),
+                                        curve: Curves.easeInOut,
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            colors: [
+                                              // Theme.of(context)
+                                              //     .colorScheme
+                                              //     .wh,
+                                              Colors.white,
+                                              Colors.white,
+                                              // Theme.of(context)
+                                              //     .colorScheme
+                                              //     .primary.withOpacity(0.1),
+                                            ],
+                                            begin: Alignment.topLeft,
+                                            end: Alignment.bottomRight,
+                                          ),
+                                          borderRadius:
+                                              BorderRadius.circular(16),
+                                          boxShadow: [
+                                            BoxShadow(
+                                              color: Colors.deepPurple
+                                                  .withOpacity(0.08),
+                                              blurRadius: 16,
+                                              offset: Offset(0, 6),
+                                            ),
+                                          ],
+                                        ),
+                                        padding: const EdgeInsets.symmetric(
+                                            vertical: 22, horizontal: 12),
+                                        child: Column(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            TweenAnimationBuilder<double>(
+                                              tween: Tween<double>(
+                                                  begin: 0,
+                                                  end: attractivenessScore),
+                                              duration: const Duration(
+                                                  milliseconds: 2700),
+                                              curve: Curves.easeOutExpo,
+                                              builder: (context, value, child) {
+                                                return buildAssessmentChart(
+                                                    value,
+                                                    label: "Attractiveness");
+                                              },
+                                            ),
+                                            const SizedBox(height: 10),
+                                            AnimatedSwitcher(
+                                              duration: const Duration(
+                                                  milliseconds: 2700),
+                                              child: attractivenessScore >= 9
+                                                  ? Row(
+                                                      key:
+                                                          ValueKey("excellent"),
+                                                      mainAxisAlignment:
+                                                          MainAxisAlignment
+                                                              .center,
+                                                      children: [
+                                                        Icon(Icons.star,
+                                                            color: Colors.amber,
+                                                            size: 28),
+                                                        const SizedBox(
+                                                            width: 6),
+                                                        Text(
+                                                          "Excellent skin health!",
+                                                          style: TextStyle(
+                                                              color: Colors.green,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                              fontSize: 16),
+                                                        ),
+                                                      ],
+                                                    )
+                                                  : attractivenessScore >= 8
+                                                      ? Row(
+                                                          key: ValueKey("good"),
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .center,
+                                                          children: [
+                                                            Icon(Icons.thumb_up,
+                                                                color: Colors
+                                                                    .green,
+                                                                size: 24),
+                                                            const SizedBox(
+                                                                width: 6),
+                                                            Text(
+                                                              "Good skin condition",
+                                                              style: TextStyle(
+                                                                  color: Colors
+                                                                      .green,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .w600,
+                                                                  fontSize: 15),
+                                                            ),
+                                                          ],
+                                                        )
+                                                      : attractivenessScore >= 7
+                                                          ? Row(
+                                                              key: ValueKey(
+                                                                  "average"),
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .center,
+                                                              children: [
+                                                                Icon(
+                                                                    Icons
+                                                                        .info_outline,
+                                                                    color: Colors
+                                                                        .orange,
+                                                                    size: 22),
+                                                                const SizedBox(
+                                                                    width: 6),
+                                                                Text(
+                                                                  "Average skin health",
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .orange,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w500,
+                                                                      fontSize:
+                                                                          14),
+                                                                ),
+                                                              ],
+                                                            )
+                                                          : Row(
+                                                              key: ValueKey(
+                                                                  "improve"),
+                                                              mainAxisAlignment:
+                                                                  MainAxisAlignment
+                                                                      .center,
+                                                              children: [
+                                                                Icon(
+                                                                    Icons
+                                                                        .warning_amber_rounded,
+                                                                    color: Colors
+                                                                        .redAccent,
+                                                                    size: 22),
+                                                                const SizedBox(
+                                                                    width: 6),
+                                                                Text(
+                                                                  "Needs improvement",
+                                                                  style: TextStyle(
+                                                                      color: Colors
+                                                                          .redAccent,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w500,
+                                                                      fontSize:
+                                                                          14),
+                                                                ),
+                                                              ],
+                                                            ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            AnimatedOpacity(
+                                              opacity: 1.0,
+                                              duration: const Duration(
+                                                  milliseconds: 900),
+                                              child: Text(
+                                                "Your Attractiveness Index is calculated using AI and dermatology standards. Higher scores mean healthier, more radiant skin!",
+                                                style: TextStyle(
+                                                  color: Theme.of(context).colorScheme.primary,
+                                                  fontSize: 13,
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 20),
                               GridView.builder(
                                 shrinkWrap: true,
                                 gridDelegate:
@@ -588,48 +784,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 20),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Card(
-                                      shape: RoundedRectangleBorder(
-                                        side: BorderSide(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      elevation: 3,
-                                      child: Container(
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              Colors.white,
-                                              Colors.white,
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 18, horizontal: 8),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            buildAssessmentChart(
-                                                attractivenessScore,
-                                                label: "Attractiveness"),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+
                               const SizedBox(height: 10),
                               Text("From Recently Uploaded Image",
                                   style: TextStyle(
@@ -701,7 +856,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                         child: Column(
                                           mainAxisSize: MainAxisSize.min,
                                           crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                              CrossAxisAlignment.center,
                                           children: [
                                             Icon(Icons.lock,
                                                 color: Colors.white, size: 40),

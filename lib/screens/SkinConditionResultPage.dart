@@ -722,13 +722,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                             const SizedBox(height: 20),
                             GridView.builder(
                               shrinkWrap: true,
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
+                              physics: NeverScrollableScrollPhysics(), // Prevent scrolling
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio:
-                                    MediaQuery.of(context).size.width < 400
-                                        ? 1.3
-                                        : 2.4,
+                                childAspectRatio: MediaQuery.of(context).size.width < 400 ? 1.3 : 2.4,
                                 crossAxisSpacing: 14,
                                 mainAxisSpacing: 14,
                               ),
@@ -736,14 +733,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                               itemBuilder: (context, idx) {
                                 final p = percentages[idx];
                                 return _summaryStat(
-                                    p['condition'] ?? '',
-                                    "${p['percent']}%",
-                                    _getConditionIcon(p['condition'] ?? ''),
-                                    Theme.of(context).colorScheme.primary,
-                                    context,
-                                    compareTo:
-                                        getNormalPercentage(p['condition'])
-                                            .toDouble());
+                                  p['condition'] ?? '',
+                                  "${p['percent']}%",
+                                  _getConditionIcon(p['condition'] ?? ''),
+                                  Theme.of(context).colorScheme.primary,
+                                  context,
+                                  compareTo: getNormalPercentage(p['condition']).toDouble(),
+                                );
                               },
                             ),
                             const SizedBox(height: 20),

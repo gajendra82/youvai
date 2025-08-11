@@ -518,592 +518,593 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                           horizontal: 12, vertical: 12),
                       child: Padding(
                         padding: const EdgeInsets.all(16),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // const SizedBox(height: 20),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Card(
-                                      shape: RoundedRectangleBorder(
-                                        side: BorderSide(
-                                          color: Theme.of(context)
-                                              .colorScheme
-                                              .primary,
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // const SizedBox(height: 20),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Card(
+                                    shape: RoundedRectangleBorder(
+                                      side: BorderSide(
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .primary,
                                       ),
-                                      elevation: 6,
-                                      child: AnimatedContainer(
-                                        duration:
-                                            const Duration(milliseconds: 700),
-                                        curve: Curves.easeInOut,
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            colors: [
-                                              // Theme.of(context)
-                                              //     .colorScheme
-                                              //     .wh,
-                                              Colors.white,
-                                              Colors.white,
-                                              // Theme.of(context)
-                                              //     .colorScheme
-                                              //     .primary.withOpacity(0.1),
-                                            ],
-                                            begin: Alignment.topLeft,
-                                            end: Alignment.bottomRight,
-                                          ),
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.deepPurple
-                                                  .withOpacity(0.08),
-                                              blurRadius: 16,
-                                              offset: Offset(0, 6),
-                                            ),
-                                          ],
-                                        ),
-                                        padding: const EdgeInsets.symmetric(
-                                            vertical: 22, horizontal: 12),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            TweenAnimationBuilder<double>(
-                                              tween: Tween<double>(
-                                                  begin: 0,
-                                                  end: attractivenessScore),
-                                              duration: const Duration(
-                                                  milliseconds: 2700),
-                                              curve: Curves.easeOutExpo,
-                                              builder: (context, value, child) {
-                                                return buildAssessmentChart(
-                                                    value,
-                                                    label: "Attractiveness");
-                                              },
-                                            ),
-                                            const SizedBox(height: 10),
-                                            AnimatedSwitcher(
-                                              duration: const Duration(
-                                                  milliseconds: 2700),
-                                              child: attractivenessScore >= 9
-                                                  ? Row(
-                                                      key:
-                                                          ValueKey("excellent"),
-                                                      mainAxisAlignment:
-                                                          MainAxisAlignment
-                                                              .center,
-                                                      children: [
-                                                        Icon(Icons.star,
-                                                            color: Colors.amber,
-                                                            size: 28),
-                                                        const SizedBox(
-                                                            width: 6),
-                                                        Text(
-                                                          "Excellent skin health!",
-                                                          style: TextStyle(
-                                                              color: Colors.green,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                              fontSize: 16),
-                                                        ),
-                                                      ],
-                                                    )
-                                                  : attractivenessScore >= 8
-                                                      ? Row(
-                                                          key: ValueKey("good"),
-                                                          mainAxisAlignment:
-                                                              MainAxisAlignment
-                                                                  .center,
-                                                          children: [
-                                                            Icon(Icons.thumb_up,
-                                                                color: Colors
-                                                                    .green,
-                                                                size: 24),
-                                                            const SizedBox(
-                                                                width: 6),
-                                                            Text(
-                                                              "Good skin condition",
-                                                              style: TextStyle(
-                                                                  color: Colors
-                                                                      .green,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .w600,
-                                                                  fontSize: 15),
-                                                            ),
-                                                          ],
-                                                        )
-                                                      : attractivenessScore >= 7
-                                                          ? Row(
-                                                              key: ValueKey(
-                                                                  "average"),
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .center,
-                                                              children: [
-                                                                Icon(
-                                                                    Icons
-                                                                        .info_outline,
-                                                                    color: Colors
-                                                                        .orange,
-                                                                    size: 22),
-                                                                const SizedBox(
-                                                                    width: 6),
-                                                                Text(
-                                                                  "Average skin health",
-                                                                  style: TextStyle(
-                                                                      color: Colors
-                                                                          .orange,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w500,
-                                                                      fontSize:
-                                                                          14),
-                                                                ),
-                                                              ],
-                                                            )
-                                                          : Row(
-                                                              key: ValueKey(
-                                                                  "improve"),
-                                                              mainAxisAlignment:
-                                                                  MainAxisAlignment
-                                                                      .center,
-                                                              children: [
-                                                                Icon(
-                                                                    Icons
-                                                                        .warning_amber_rounded,
-                                                                    color: Colors
-                                                                        .redAccent,
-                                                                    size: 22),
-                                                                const SizedBox(
-                                                                    width: 6),
-                                                                Text(
-                                                                  "Needs improvement",
-                                                                  style: TextStyle(
-                                                                      color: Colors
-                                                                          .redAccent,
-                                                                      fontWeight:
-                                                                          FontWeight
-                                                                              .w500,
-                                                                      fontSize:
-                                                                          14),
-                                                                ),
-                                                              ],
-                                                            ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            AnimatedOpacity(
-                                              opacity: 1.0,
-                                              duration: const Duration(
-                                                  milliseconds: 900),
-                                              child: Text(
-                                                "Your Attractiveness Index is calculated using AI and dermatology standards. Higher scores mean healthier, more radiant skin!",
-                                                style: TextStyle(
-                                                  color: Theme.of(context).colorScheme.primary,
-                                                  fontSize: 13,
-                                                  fontWeight: FontWeight.w400,
-                                                ),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
+                                      borderRadius: BorderRadius.circular(16),
                                     ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 20),
-                              GridView.builder(
-                                shrinkWrap: true,
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  childAspectRatio:
-                                      MediaQuery.of(context).size.width < 400
-                                          ? 1.3
-                                          : 2.4,
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                ),
-                                itemCount: percentages.length,
-                                itemBuilder: (context, idx) {
-                                  final p = percentages[idx];
-                                  return _summaryStat(
-                                      p['condition'] ?? '',
-                                      "${p['percent']}%",
-                                      _getConditionIcon(p['condition'] ?? ''),
-                                      Theme.of(context).colorScheme.primary,
-                                      context,
-                                      compareTo:
-                                          getNormalPercentage(p['condition'])
-                                              .toDouble());
-                                },
-                              ),
-                              const SizedBox(height: 20),
-                              CustomSpiderChart(
-                                data: chartData,
-                                averageMap: averageMap,
-                                chartRadius: 120.0,
-                                tickCount: 5,
-                              ),
-                              const SizedBox(height: 24),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.symmetric(vertical: 8.0),
-                                child: Container(
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Colors.yellow.shade100,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(
-                                        color: Colors.yellow.shade700,
-                                        width: 1),
-                                  ),
-                                  padding: const EdgeInsets.all(12),
-                                  child: Row(
-                                    children: [
-                                      const Icon(Icons.info_outline,
-                                          color: Colors.orange, size: 22),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          "This is an AI-generated analysis. Please consult a dermatologist for professional advice.",
-                                          style: const TextStyle(
-                                            color: Colors.black87,
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 14,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-
-                              const SizedBox(height: 10),
-                              Text("From Recently Uploaded Image",
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black)),
-                              const SizedBox(height: 10),
-                              if (imageUrl != null && imageUrl.isNotEmpty)
-                                SizedBox(
-                                  height: 110,
-                                  child: ListView(
-                                    scrollDirection: Axis.horizontal,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () {
-                                          _showImageDialog(context, imageUrl);
-                                        },
-                                        child: Card(
-                                          margin:
-                                              const EdgeInsets.only(right: 12),
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12)),
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            child: Image.network(
-                                              imageUrl,
-                                              width: 140,
-                                              height: 100,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error,
-                                                      stackTrace) =>
-                                                  Container(
-                                                width: 140,
-                                                height: 100,
-                                                color: Colors.grey.shade200,
-                                                child: const Icon(
-                                                    Icons.broken_image,
-                                                    size: 40,
-                                                    color: Colors.grey),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              const Divider(height: 24),
-
-                              // Payment or unlocked section (coupon UI moved inside payment box)
-                              !_hasPaid
-                                  ? Center(
-                                      child: Container(
-                                        padding: const EdgeInsets.all(20),
-                                        decoration: BoxDecoration(
-                                          color: Colors.black87,
-                                          borderRadius:
-                                              BorderRadius.circular(16),
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: Colors.black26,
-                                              blurRadius: 8,
-                                              offset: Offset(0, 4),
-                                            ),
-                                          ],
-                                        ),
-                                        child: Column(
-                                          mainAxisSize: MainAxisSize.min,
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.lock,
-                                                color: Colors.white, size: 40),
-                                            const SizedBox(height: 12),
-                                            Text(
-                                              "Unlock Full Details",
-                                              style: TextStyle(
-                                                color: Colors.white,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 18,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 20),
-                                            // Coupon UI inside payment box
-                                            Text(
-                                              "Have a coupon?",
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 16,
-                                                color:
-                                                    Colors.deepPurple.shade200,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 8),
-                                            Row(
-                                              children: [
-                                                Expanded(
-                                                  child: TextField(
-                                                    controller:
-                                                        _couponController,
-                                                    enabled: !_couponApplied,
-                                                    style: TextStyle(
-                                                        color: Colors.white),
-                                                    decoration: InputDecoration(
-                                                      hintText:
-                                                          "Enter coupon code",
-                                                      hintStyle: TextStyle(
-                                                          color:
-                                                              Colors.white54),
-                                                      filled: true,
-                                                      fillColor: Colors.black,
-                                                      border:
-                                                          OutlineInputBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
-                                                        borderSide: BorderSide(
-                                                            color: Colors
-                                                                .deepPurple
-                                                                .shade200),
-                                                      ),
-                                                      focusedBorder:
-                                                          OutlineInputBorder(
-                                                        borderRadius:
-                                                            BorderRadius
-                                                                .circular(8),
-                                                        borderSide: BorderSide(
-                                                            color: Colors
-                                                                .deepPurple),
-                                                      ),
-                                                    ),
-                                                  ),
-                                                ),
-                                                const SizedBox(width: 10),
-                                                ElevatedButton(
-                                                  onPressed: _couponApplied ||
-                                                          _couponChecking
-                                                      ? null
-                                                      : _applyCoupon,
-                                                  child: _couponChecking
-                                                      ? const SizedBox(
-                                                          width: 16,
-                                                          height: 16,
-                                                          child:
-                                                              CircularProgressIndicator(
-                                                            strokeWidth: 2,
-                                                            color: Colors.white,
-                                                          ),
-                                                        )
-                                                      : Text(_couponApplied
-                                                          ? "Applied"
-                                                          : "Apply"),
-                                                  style:
-                                                      ElevatedButton.styleFrom(
-                                                    backgroundColor:
-                                                        _couponApplied
-                                                            ? Colors.green
-                                                            : Colors.deepPurple,
-                                                    foregroundColor:
-                                                        Colors.white,
-                                                    minimumSize: Size(90, 48),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                            if (_couponError.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 6.0),
-                                                child: Text(
-                                                  _couponError,
-                                                  style: TextStyle(
-                                                    color: Colors.red,
-                                                    fontWeight: FontWeight.w400,
-                                                  ),
-                                                ),
-                                              ),
-                                            if (_couponApplied &&
-                                                _appliedCoupon.isNotEmpty)
-                                              Padding(
-                                                padding: const EdgeInsets.only(
-                                                    top: 6.0),
-                                                child: Text(
-                                                  "Coupon \"$_appliedCoupon\" applied!",
-                                                  style: TextStyle(
-                                                    color: Colors.green,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
-                                                ),
-                                              ),
-                                            const SizedBox(height: 16),
-                                            Text(
-                                              _couponApplied
-                                                  ? "Your coupon is applied! Click below to unlock your report."
-                                                  : "Reveal your skin’s secrets with our in-depth analysis — just ₹499",
-                                              style: TextStyle(
-                                                color: Colors.white70,
-                                                fontSize: 14,
-                                              ),
-                                              textAlign: TextAlign.center,
-                                            ),
-                                            const SizedBox(height: 16),
-                                            ElevatedButton.icon(
-                                              icon: Icon(_couponApplied
-                                                  ? Icons.check
-                                                  : Icons.lock_open),
-                                              label: Text(_couponApplied
-                                                  ? "Unlock with Coupon"
-                                                  : "Unlock Full Details (₹499)"),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor:
-                                                    Colors.deepPurple,
-                                                foregroundColor: Colors.white,
-                                              ),
-                                              onPressed: _startPayment,
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    )
-                                  : Container(
+                                    elevation: 6,
+                                    child: AnimatedContainer(
+                                      duration:
+                                          const Duration(milliseconds: 700),
+                                      curve: Curves.easeInOut,
                                       decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: Colors.deepPurple,
-                                          width: 2,
+                                        gradient: LinearGradient(
+                                          colors: [
+                                            // Theme.of(context)
+                                            //     .colorScheme
+                                            //     .wh,
+                                            Colors.white,
+                                            Colors.white,
+                                            // Theme.of(context)
+                                            //     .colorScheme
+                                            //     .primary.withOpacity(0.1),
+                                          ],
+                                          begin: Alignment.topLeft,
+                                          end: Alignment.bottomRight,
                                         ),
-                                        borderRadius: BorderRadius.circular(16),
-                                        color: Colors.white,
+                                        borderRadius:
+                                            BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.deepPurple
                                                 .withOpacity(0.08),
-                                            blurRadius: 8,
-                                            offset: Offset(0, 2),
+                                            blurRadius: 16,
+                                            offset: Offset(0, 6),
                                           ),
                                         ],
                                       ),
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 22, horizontal: 12),
                                       child: Column(
+                                        mainAxisSize: MainAxisSize.min,
                                         children: [
-                                          Padding(
-                                            padding: const EdgeInsets.symmetric(
-                                                vertical: 12.0),
-                                            child: Column(
-                                              children: [
-                                                Icon(Icons.emoji_events,
-                                                    color: Colors.amber,
-                                                    size: 60),
-                                                const SizedBox(height: 12),
-                                                Text(
-                                                  "Congratulations!",
-                                                  style: TextStyle(
-                                                    fontSize: 22,
-                                                    fontWeight: FontWeight.bold,
-                                                    color: Colors.deepPurple,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  "You've unlocked your full skin analysis.",
-                                                  style: TextStyle(
-                                                    fontSize: 16,
-                                                    color: Colors.black87,
-                                                  ),
-                                                ),
-                                                const SizedBox(height: 8),
-                                                Text(
-                                                  "Your image has been sent to our experts. You will receive a detailed PDF report within 24 hours via email, or you can login to Youvai to view and download your full report.",
-                                                  style: TextStyle(
-                                                    fontSize: 14,
-                                                    color: Colors.black54,
-                                                  ),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ],
+                                          TweenAnimationBuilder<double>(
+                                            tween: Tween<double>(
+                                                begin: 0,
+                                                end: attractivenessScore),
+                                            duration: const Duration(
+                                                milliseconds: 2700),
+                                            curve: Curves.easeOutExpo,
+                                            builder: (context, value, child) {
+                                              return buildAssessmentChart(
+                                                  value,
+                                                  label: "Attractiveness");
+                                            },
+                                          ),
+                                          const SizedBox(height: 10),
+                                          AnimatedSwitcher(
+                                            duration: const Duration(
+                                                milliseconds: 2700),
+                                            child: attractivenessScore >= 9
+                                                ? Row(
+                                                    key:
+                                                        ValueKey("excellent"),
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .center,
+                                                    children: [
+                                                      Icon(Icons.star,
+                                                          color: Colors.amber,
+                                                          size: 28),
+                                                      const SizedBox(
+                                                          width: 6),
+                                                      Text(
+                                                        "Excellent skin health!",
+                                                        style: TextStyle(
+                                                            color:
+                                                                Colors.green,
+                                                            fontWeight:
+                                                                FontWeight
+                                                                    .bold,
+                                                            fontSize: 16),
+                                                      ),
+                                                    ],
+                                                  )
+                                                : attractivenessScore >= 8
+                                                    ? Row(
+                                                        key: ValueKey("good"),
+                                                        mainAxisAlignment:
+                                                            MainAxisAlignment
+                                                                .center,
+                                                        children: [
+                                                          Icon(Icons.thumb_up,
+                                                              color: Colors
+                                                                  .green,
+                                                              size: 24),
+                                                          const SizedBox(
+                                                              width: 6),
+                                                          Text(
+                                                            "Good skin condition",
+                                                            style: TextStyle(
+                                                                color: Colors
+                                                                    .green,
+                                                                fontWeight:
+                                                                    FontWeight
+                                                                        .w600,
+                                                                fontSize: 15),
+                                                          ),
+                                                        ],
+                                                      )
+                                                    : attractivenessScore >= 7
+                                                        ? Row(
+                                                            key: ValueKey(
+                                                                "average"),
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              Icon(
+                                                                  Icons
+                                                                      .info_outline,
+                                                                  color: Colors
+                                                                      .orange,
+                                                                  size: 22),
+                                                              const SizedBox(
+                                                                  width: 6),
+                                                              Text(
+                                                                "Average skin health",
+                                                                style: TextStyle(
+                                                                    color: Colors
+                                                                        .orange,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                    fontSize:
+                                                                        14),
+                                                              ),
+                                                            ],
+                                                          )
+                                                        : Row(
+                                                            key: ValueKey(
+                                                                "improve"),
+                                                            mainAxisAlignment:
+                                                                MainAxisAlignment
+                                                                    .center,
+                                                            children: [
+                                                              Icon(
+                                                                  Icons
+                                                                      .warning_amber_rounded,
+                                                                  color: Colors
+                                                                      .redAccent,
+                                                                  size: 22),
+                                                              const SizedBox(
+                                                                  width: 6),
+                                                              Text(
+                                                                "Needs improvement",
+                                                                style: TextStyle(
+                                                                    color: Colors
+                                                                        .redAccent,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .w500,
+                                                                    fontSize:
+                                                                        14),
+                                                              ),
+                                                            ],
+                                                          ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          AnimatedOpacity(
+                                            opacity: 1.0,
+                                            duration: const Duration(
+                                                milliseconds: 900),
+                                            child: Text(
+                                              "Your Attractiveness Index is calculated using AI and dermatology standards. Higher scores mean healthier, more radiant skin!",
+                                              style: TextStyle(
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .primary,
+                                                fontSize: 13,
+                                                fontWeight: FontWeight.w400,
+                                              ),
+                                              textAlign: TextAlign.center,
                                             ),
                                           ),
                                         ],
                                       ),
                                     ),
-                              // Column(
-                              //   crossAxisAlignment: CrossAxisAlignment.start,
-                              //   children: [
-                              //     const SizedBox(height: 10),
-                              //     const Text(
-                              //       "Recommended Doctor's",
-                              //       style: TextStyle(
-                              //         fontSize: 18,
-                              //         fontWeight: FontWeight.bold,
-                              //         color: Colors.black,
-                              //       ),
-                              //     ),
-                              //     const SizedBox(height: 10),
-                              //     SizedBox(
-                              //       height: 300,
-                              //       child: ListView.builder(
-                              //         physics: const BouncingScrollPhysics(),
-                              //         padding: const EdgeInsets.only(right: 16),
-                              //         scrollDirection: Axis.horizontal,
-                              //         itemCount: doctorList.length,
-                              //         itemBuilder: (context, index) {
-                              //           final doctor = doctorList[index];
-                              //           return DoctorCard(
-                              //             title: doctor["name"],
-                              //             speciality:
-                              //                 doctor["speciality"].toString(),
-                              //             stars:
-                              //                 doctor["reviewStars"].toString(),
-                              //             totalReviews:
-                              //                 doctor["totalReviews"].toString(),
-                              //           );
-                              //         },
-                              //       ),
-                              //     ),
-                              //   ],
-                              // )
-                            ],
-                          ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
+                            GridView.builder(
+                              shrinkWrap: true,
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                childAspectRatio:
+                                    MediaQuery.of(context).size.width < 400
+                                        ? 1.3
+                                        : 2.4,
+                                crossAxisSpacing: 14,
+                                mainAxisSpacing: 14,
+                              ),
+                              itemCount: percentages.length,
+                              itemBuilder: (context, idx) {
+                                final p = percentages[idx];
+                                return _summaryStat(
+                                    p['condition'] ?? '',
+                                    "${p['percent']}%",
+                                    _getConditionIcon(p['condition'] ?? ''),
+                                    Theme.of(context).colorScheme.primary,
+                                    context,
+                                    compareTo:
+                                        getNormalPercentage(p['condition'])
+                                            .toDouble());
+                              },
+                            ),
+                            const SizedBox(height: 20),
+                            CustomSpiderChart(
+                              data: chartData,
+                              averageMap: averageMap,
+                              chartRadius: 120.0,
+                              tickCount: 5,
+                            ),
+                            const SizedBox(height: 24),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.symmetric(vertical: 8.0),
+                              child: Container(
+                                width: double.infinity,
+                                decoration: BoxDecoration(
+                                  color: Colors.yellow.shade100,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                      color: Colors.yellow.shade700,
+                                      width: 1),
+                                ),
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    const Icon(Icons.info_outline,
+                                        color: Colors.orange, size: 22),
+                                    const SizedBox(width: 8),
+                                    Expanded(
+                                      child: Text(
+                                        "This is an AI-generated analysis. Please consult a dermatologist for professional advice.",
+                                        style: const TextStyle(
+                                          color: Colors.black87,
+                                          fontWeight: FontWeight.w500,
+                                          fontSize: 14,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                        
+                            const SizedBox(height: 10),
+                            Text("From Recently Uploaded Image",
+                                style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black)),
+                            const SizedBox(height: 10),
+                            if (imageUrl != null && imageUrl.isNotEmpty)
+                              SizedBox(
+                                height: 110,
+                                child: ListView(
+                                  scrollDirection: Axis.horizontal,
+                                  children: [
+                                    GestureDetector(
+                                      onTap: () {
+                                        _showImageDialog(context, imageUrl);
+                                      },
+                                      child: Card(
+                                        margin:
+                                            const EdgeInsets.only(right: 12),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(12)),
+                                        child: ClipRRect(
+                                          borderRadius:
+                                              BorderRadius.circular(12),
+                                          child: Image.network(
+                                            imageUrl,
+                                            width: 140,
+                                            height: 100,
+                                            fit: BoxFit.cover,
+                                            errorBuilder: (context, error,
+                                                    stackTrace) =>
+                                                Container(
+                                              width: 140,
+                                              height: 100,
+                                              color: Colors.grey.shade200,
+                                              child: const Icon(
+                                                  Icons.broken_image,
+                                                  size: 40,
+                                                  color: Colors.grey),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            const Divider(height: 24),
+                        
+                            // Payment or unlocked section (coupon UI moved inside payment box)
+                            !_hasPaid
+                                ? Center(
+                                    child: Container(
+                                      padding: const EdgeInsets.all(20),
+                                      decoration: BoxDecoration(
+                                        color: Colors.black87,
+                                        borderRadius:
+                                            BorderRadius.circular(16),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black26,
+                                            blurRadius: 8,
+                                            offset: Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.lock,
+                                              color: Colors.white, size: 40),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            "Unlock Full Details",
+                                            style: TextStyle(
+                                              color: Colors.white,
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 18,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 20),
+                                          // Coupon UI inside payment box
+                                          Text(
+                                            "Have a coupon?",
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color:
+                                                  Colors.deepPurple.shade200,
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Row(
+                                            children: [
+                                              Expanded(
+                                                child: TextField(
+                                                  controller:
+                                                      _couponController,
+                                                  enabled: !_couponApplied,
+                                                  style: TextStyle(
+                                                      color: Colors.white),
+                                                  decoration: InputDecoration(
+                                                    hintText:
+                                                        "Enter coupon code",
+                                                    hintStyle: TextStyle(
+                                                        color:
+                                                            Colors.white54),
+                                                    filled: true,
+                                                    fillColor: Colors.black,
+                                                    border:
+                                                        OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(8),
+                                                      borderSide: BorderSide(
+                                                          color: Colors
+                                                              .deepPurple
+                                                              .shade200),
+                                                    ),
+                                                    focusedBorder:
+                                                        OutlineInputBorder(
+                                                      borderRadius:
+                                                          BorderRadius
+                                                              .circular(8),
+                                                      borderSide: BorderSide(
+                                                          color: Colors
+                                                              .deepPurple),
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 10),
+                                              ElevatedButton(
+                                                onPressed: _couponApplied ||
+                                                        _couponChecking
+                                                    ? null
+                                                    : _applyCoupon,
+                                                child: _couponChecking
+                                                    ? const SizedBox(
+                                                        width: 16,
+                                                        height: 16,
+                                                        child:
+                                                            CircularProgressIndicator(
+                                                          strokeWidth: 2,
+                                                          color: Colors.white,
+                                                        ),
+                                                      )
+                                                    : Text(_couponApplied
+                                                        ? "Applied"
+                                                        : "Apply"),
+                                                style:
+                                                    ElevatedButton.styleFrom(
+                                                  backgroundColor:
+                                                      _couponApplied
+                                                          ? Colors.green
+                                                          : Colors.deepPurple,
+                                                  foregroundColor:
+                                                      Colors.white,
+                                                  minimumSize: Size(90, 48),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                          if (_couponError.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 6.0),
+                                              child: Text(
+                                                _couponError,
+                                                style: TextStyle(
+                                                  color: Colors.red,
+                                                  fontWeight: FontWeight.w400,
+                                                ),
+                                              ),
+                                            ),
+                                          if (_couponApplied &&
+                                              _appliedCoupon.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                  top: 6.0),
+                                              child: Text(
+                                                "Coupon \"$_appliedCoupon\" applied!",
+                                                style: TextStyle(
+                                                  color: Colors.green,
+                                                  fontWeight: FontWeight.w500,
+                                                ),
+                                              ),
+                                            ),
+                                          const SizedBox(height: 16),
+                                          Text(
+                                            _couponApplied
+                                                ? "Your coupon is applied! Click below to unlock your report."
+                                                : "Reveal your skin’s secrets with our in-depth analysis — just ₹499",
+                                            style: TextStyle(
+                                              color: Colors.white70,
+                                              fontSize: 14,
+                                            ),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                          const SizedBox(height: 16),
+                                          ElevatedButton.icon(
+                                            icon: Icon(_couponApplied
+                                                ? Icons.check
+                                                : Icons.lock_open),
+                                            label: Text(_couponApplied
+                                                ? "Unlock with Coupon"
+                                                : "Unlock Full Details (₹499)"),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor:
+                                                  Colors.deepPurple,
+                                              foregroundColor: Colors.white,
+                                            ),
+                                            onPressed: _startPayment,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.deepPurple,
+                                        width: 2,
+                                      ),
+                                      borderRadius: BorderRadius.circular(16),
+                                      color: Colors.white,
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.deepPurple
+                                              .withOpacity(0.08),
+                                          blurRadius: 8,
+                                          offset: Offset(0, 2),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 12.0),
+                                          child: Column(
+                                            children: [
+                                              Icon(Icons.emoji_events,
+                                                  color: Colors.amber,
+                                                  size: 60),
+                                              const SizedBox(height: 12),
+                                              Text(
+                                                "Congratulations!",
+                                                style: TextStyle(
+                                                  fontSize: 22,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Colors.deepPurple,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                "You've unlocked your full skin analysis.",
+                                                style: TextStyle(
+                                                  fontSize: 16,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 8),
+                                              Text(
+                                                "Your image has been sent to our experts. You will receive a detailed PDF report within 24 hours via email, or you can login to Youvai to view and download your full report.",
+                                                style: TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.black54,
+                                                ),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                            // Column(
+                            //   crossAxisAlignment: CrossAxisAlignment.start,
+                            //   children: [
+                            //     const SizedBox(height: 10),
+                            //     const Text(
+                            //       "Recommended Doctor's",
+                            //       style: TextStyle(
+                            //         fontSize: 18,
+                            //         fontWeight: FontWeight.bold,
+                            //         color: Colors.black,
+                            //       ),
+                            //     ),
+                            //     const SizedBox(height: 10),
+                            //     SizedBox(
+                            //       height: 300,
+                            //       child: ListView.builder(
+                            //         physics: const BouncingScrollPhysics(),
+                            //         padding: const EdgeInsets.only(right: 16),
+                            //         scrollDirection: Axis.horizontal,
+                            //         itemCount: doctorList.length,
+                            //         itemBuilder: (context, index) {
+                            //           final doctor = doctorList[index];
+                            //           return DoctorCard(
+                            //             title: doctor["name"],
+                            //             speciality:
+                            //                 doctor["speciality"].toString(),
+                            //             stars:
+                            //                 doctor["reviewStars"].toString(),
+                            //             totalReviews:
+                            //                 doctor["totalReviews"].toString(),
+                            //           );
+                            //         },
+                            //       ),
+                            //     ),
+                            //   ],
+                            // )
+                          ],
                         ),
                       ));
                 },

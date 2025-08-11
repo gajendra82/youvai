@@ -63,8 +63,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   bool _showScanning = false;
 
   // // This will hold the response from your single API call
-  // Map<String, dynamic>? _skinAnalysisResult = {"error":false,"status":200,"message":"Skin analysis completed successfully.","data":[{"file_name":"skin_6899c7cb4533c9.18545488.","url":"https:\/\/aestheticai.globalspace.in\/youvai\/youvai_backend\/public\/skin\/skin_6899c7cb4533c9.18545488.png","media_url":"https:\/\/aestheticai.globalspace.in\/youvai\/youvai_backend\/public\/skin\/skin_6899c7cb4533c9.18545488.","uploaded_date":"2025-08-11 10:37:06","analysis":["Normal (90.61%)","Eye Bags (10.11%)","Acne: 8.81%\nBlackheads: 0.03%\nDark Spots: 0.04%\nWrinkles: 10.21%\nSkin Redness: 25.80%\npores: 0.01%\nEye Bags: 55.11%"],"output":"Pdf will be generated soon."}]};
-  Map<String, dynamic>? _skinAnalysisResult;
+  Map<String, dynamic>? _skinAnalysisResult = {"error":false,"status":200,"message":"Skin analysis completed successfully.","data":[{"file_name":"skin_6899c7cb4533c9.18545488.","url":"https:\/\/aestheticai.globalspace.in\/youvai\/youvai_backend\/public\/skin\/skin_6899c7cb4533c9.18545488.png","media_url":"https:\/\/aestheticai.globalspace.in\/youvai\/youvai_backend\/public\/skin\/skin_6899c7cb4533c9.18545488.","uploaded_date":"2025-08-11 10:37:06","analysis":["Normal (90.61%)","Eye Bags (10.11%)","Acne: 8.81%\nBlackheads: 0.03%\nDark Spots: 0.04%\nWrinkles: 10.21%\nSkin Redness: 25.80%\npores: 0.01%\nEye Bags: 55.11%"],"output":"Pdf will be generated soon."}]};
+  // Map<String, dynamic>? _skinAnalysisResult;
 
 
   @override
@@ -259,16 +259,16 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       );
     }
     return ScanFaceScreen(
-      onCameraPressed: _startCamera,
-      // onCameraPressed: () async {
-      //   Navigator.of(context).push(
-      //     MaterialPageRoute(
-      //       builder: (context) => SkinConditionResultPage(
-      //         gradioResult: _skinAnalysisResult!,
-      //       ),
-      //     ),
-      //   );
-      // },
+      // onCameraPressed: _startCamera,
+      onCameraPressed: () async {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => SkinConditionResultPage(
+              gradioResult: _skinAnalysisResult!,
+            ),
+          ),
+        );
+      },
 
       onGalleryPressed: _pickImage,
     );

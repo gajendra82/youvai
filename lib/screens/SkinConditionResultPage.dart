@@ -554,8 +554,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                           begin: Alignment.topLeft,
                                           end: Alignment.bottomRight,
                                         ),
-                                        borderRadius:
-                                            BorderRadius.circular(16),
+                                        borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.deepPurple
@@ -578,8 +577,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                 milliseconds: 2700),
                                             curve: Curves.easeOutExpo,
                                             builder: (context, value, child) {
-                                              return buildAssessmentChart(
-                                                  value,
+                                              return buildAssessmentChart(value,
                                                   label: "Attractiveness");
                                             },
                                           ),
@@ -588,9 +586,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                             duration: const Duration(
                                                 milliseconds: 2700),
                                             child: attractivenessScore >= 9
-                                                ? Row(
-                                                    key:
-                                                        ValueKey("excellent"),
+                                                ? const Row(
+                                                    key: ValueKey("excellent"),
                                                     mainAxisAlignment:
                                                         MainAxisAlignment
                                                             .center,
@@ -598,16 +595,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                       Icon(Icons.star,
                                                           color: Colors.amber,
                                                           size: 28),
-                                                      const SizedBox(
-                                                          width: 6),
+                                                      const SizedBox(width: 6),
                                                       Text(
-                                                        "Excellent skin health!",
+                                                        "You're in the top 20 people!",
                                                         style: TextStyle(
-                                                            color:
-                                                                Colors.green,
+                                                            color: Colors.green,
                                                             fontWeight:
-                                                                FontWeight
-                                                                    .bold,
+                                                                FontWeight.bold,
                                                             fontSize: 16),
                                                       ),
                                                     ],
@@ -619,14 +613,14 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             MainAxisAlignment
                                                                 .center,
                                                         children: [
-                                                          Icon(Icons.thumb_up,
-                                                              color: Colors
-                                                                  .green,
+                                                          const Icon(Icons.thumb_up,
+                                                              color:
+                                                                  Colors.green,
                                                               size: 24),
                                                           const SizedBox(
                                                               width: 6),
-                                                          Text(
-                                                            "Good skin condition",
+                                                          const Text(
+                                                            "You're in the top 20 people!",
                                                             style: TextStyle(
                                                                 color: Colors
                                                                     .green,
@@ -637,63 +631,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                           ),
                                                         ],
                                                       )
-                                                    : attractivenessScore >= 7
-                                                        ? Row(
-                                                            key: ValueKey(
-                                                                "average"),
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .center,
-                                                            children: [
-                                                              Icon(
-                                                                  Icons
-                                                                      .info_outline,
-                                                                  color: Colors
-                                                                      .orange,
-                                                                  size: 22),
-                                                              const SizedBox(
-                                                                  width: 6),
-                                                              Text(
-                                                                "Average skin health",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .orange,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w500,
-                                                                    fontSize:
-                                                                        14),
-                                                              ),
-                                                            ],
-                                                          )
-                                                        : Row(
-                                                            key: ValueKey(
-                                                                "improve"),
-                                                            mainAxisAlignment:
-                                                                MainAxisAlignment
-                                                                    .center,
-                                                            children: [
-                                                              Icon(
-                                                                  Icons
-                                                                      .warning_amber_rounded,
-                                                                  color: Colors
-                                                                      .redAccent,
-                                                                  size: 22),
-                                                              const SizedBox(
-                                                                  width: 6),
-                                                              Text(
-                                                                "Needs improvement",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .redAccent,
-                                                                    fontWeight:
-                                                                        FontWeight
-                                                                            .w500,
-                                                                    fontSize:
-                                                                        14),
-                                                              ),
-                                                            ],
-                                                          ),
+                                                    : Container(),
                                           ),
                                           const SizedBox(height: 8),
                                           AnimatedOpacity(
@@ -722,10 +660,15 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                             const SizedBox(height: 20),
                             GridView.builder(
                               shrinkWrap: true,
-                              physics: NeverScrollableScrollPhysics(), // Prevent scrolling
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              physics:
+                                  NeverScrollableScrollPhysics(), // Prevent scrolling
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 2,
-                                childAspectRatio: MediaQuery.of(context).size.width < 400 ? 1.3 : 2.4,
+                                childAspectRatio:
+                                    MediaQuery.of(context).size.width < 400
+                                        ? 1.3
+                                        : 2.4,
                                 crossAxisSpacing: 14,
                                 mainAxisSpacing: 14,
                               ),
@@ -738,7 +681,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                   _getConditionIcon(p['condition'] ?? ''),
                                   Theme.of(context).colorScheme.primary,
                                   context,
-                                  compareTo: getNormalPercentage(p['condition']).toDouble(),
+                                  compareTo: getNormalPercentage(p['condition'])
+                                      .toDouble(),
                                 );
                               },
                             ),
@@ -759,8 +703,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                   color: Colors.yellow.shade100,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
-                                      color: Colors.yellow.shade700,
-                                      width: 1),
+                                      color: Colors.yellow.shade700, width: 1),
                                 ),
                                 padding: const EdgeInsets.all(12),
                                 child: Row(
@@ -782,7 +725,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                 ),
                               ),
                             ),
-                        
+
                             const SizedBox(height: 10),
                             Text("From Recently Uploaded Image",
                                 style: TextStyle(
@@ -814,9 +757,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                             width: 140,
                                             height: 100,
                                             fit: BoxFit.cover,
-                                            errorBuilder: (context, error,
-                                                    stackTrace) =>
-                                                Container(
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Container(
                                               width: 140,
                                               height: 100,
                                               color: Colors.grey.shade200,
@@ -833,7 +776,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                 ),
                               ),
                             const Divider(height: 24),
-                        
+
                             // Payment or unlocked section (coupon UI moved inside payment box)
                             !_hasPaid
                                 ? Center(
@@ -841,8 +784,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                       padding: const EdgeInsets.all(20),
                                       decoration: BoxDecoration(
                                         color: Colors.black87,
-                                        borderRadius:
-                                            BorderRadius.circular(16),
+                                        borderRadius: BorderRadius.circular(16),
                                         boxShadow: [
                                           BoxShadow(
                                             color: Colors.black26,
@@ -874,8 +816,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                             style: TextStyle(
                                               fontWeight: FontWeight.bold,
                                               fontSize: 16,
-                                              color:
-                                                  Colors.deepPurple.shade200,
+                                              color: Colors.deepPurple.shade200,
                                             ),
                                           ),
                                           const SizedBox(height: 8),
@@ -883,8 +824,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                             children: [
                                               Expanded(
                                                 child: TextField(
-                                                  controller:
-                                                      _couponController,
+                                                  controller: _couponController,
                                                   enabled: !_couponApplied,
                                                   style: TextStyle(
                                                       color: Colors.white),
@@ -892,15 +832,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                     hintText:
                                                         "Enter coupon code",
                                                     hintStyle: TextStyle(
-                                                        color:
-                                                            Colors.white54),
+                                                        color: Colors.white54),
                                                     filled: true,
                                                     fillColor: Colors.black,
-                                                    border:
-                                                        OutlineInputBorder(
+                                                    border: OutlineInputBorder(
                                                       borderRadius:
-                                                          BorderRadius
-                                                              .circular(8),
+                                                          BorderRadius.circular(
+                                                              8),
                                                       borderSide: BorderSide(
                                                           color: Colors
                                                               .deepPurple
@@ -909,8 +847,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                     focusedBorder:
                                                         OutlineInputBorder(
                                                       borderRadius:
-                                                          BorderRadius
-                                                              .circular(8),
+                                                          BorderRadius.circular(
+                                                              8),
                                                       borderSide: BorderSide(
                                                           color: Colors
                                                               .deepPurple),
@@ -937,14 +875,12 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                     : Text(_couponApplied
                                                         ? "Applied"
                                                         : "Apply"),
-                                                style:
-                                                    ElevatedButton.styleFrom(
+                                                style: ElevatedButton.styleFrom(
                                                   backgroundColor:
                                                       _couponApplied
                                                           ? Colors.green
                                                           : Colors.deepPurple,
-                                                  foregroundColor:
-                                                      Colors.white,
+                                                  foregroundColor: Colors.white,
                                                   minimumSize: Size(90, 48),
                                                 ),
                                               ),

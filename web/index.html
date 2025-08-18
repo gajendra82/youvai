@@ -65,5 +65,626 @@
         rzp.open();
       }
     </script>
+    <!-- Face Detection Script - Flutter Confirmation System -->
+<script>
+  (function() {
+    'use strict';
+    
+    console.log('Face detection script initializing...');
+    
+    // Face detection variables
+    let model;
+    let videoElement;
+    let faceIndicators = [];
+    let statusElement;
+    let isModelLoaded = false;
+    let detectionActive = false;
+    let scriptsLoaded = false;
+    let autoCapturing = false;
+    let stableFaceCount = 0;
+    let countdownTimer;
+    let countdownActive = false;
+    let captureInProgress = false;
+    let waitingForFlutterConfirmation = false;
+    let flutterProcessingStarted = false;
+    const requiredStableFrames = 10;
+  
+    // Enhanced Flutter communication with confirmation
+    function sendToFlutterWithConfirmation(message) {
+      console.log('=== SENDING TO FLUTTER WITH CONFIRMATION ===');
+      console.log('Message type:', message.type);
+      
+      waitingForFlutterConfirmation = true;
+      flutterProcessingStarted = false;
+      let confirmationTimeout;
+      
+      // Set up confirmation timeout (10 seconds)
+      confirmationTimeout = setTimeout(() => {
+        if (waitingForFlutterConfirmation) {
+          console.error('Flutter confirmation timeout - forcing cleanup');
+          waitingForFlutterConfirmation = false;
+          performCleanup();
+        }
+      }, 10000);
+      
+      // Method 1: Direct window message
+      try {
+        window.postMessage(message, '*');
+        console.log('✓ Sent via window.postMessage');
+      } catch (error) {
+        console.error('✗ window.postMessage failed:', error);
+      }
+      
+      // Method 2: Parent window
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(message, '*');
+          console.log('✓ Sent via parent.postMessage');
+        }
+      } catch (error) {
+        console.error('✗ parent.postMessage failed:', error);
+      }
+      
+      // Method 3: Store in multiple locations for Flutter to poll
+      try {
+        // Global variable
+        window.flutterCaptureData = message;
+        console.log('✓ Stored in window.flutterCaptureData');
+        
+        // LocalStorage
+        localStorage.setItem('flutter_face_capture', JSON.stringify(message));
+        localStorage.setItem('flutter_capture_timestamp', Date.now().toString());
+        console.log('✓ Stored in localStorage');
+        
+        // SessionStorage
+        sessionStorage.setItem('flutter_face_capture', JSON.stringify(message));
+        console.log('✓ Stored in sessionStorage');
+        
+      } catch (error) {
+        console.error('✗ Storage methods failed:', error);
+      }
+      
+      // Method 4: Custom event
+      try {
+        const event = new CustomEvent('flutter_face_captured', { 
+          detail: message,
+          bubbles: true,
+          cancelable: true
+        });
+        window.dispatchEvent(event);
+        document.dispatchEvent(event);
+        console.log('✓ Dispatched custom event');
+      } catch (error) {
+        console.error('✗ Custom event failed:', error);
+      }
+      
+      // Method 5: Try Flutter WebView if available
+      try {
+        if (window.flutter_inappwebview?.callHandler) {
+          window.flutter_inappwebview.callHandler('face_captured', JSON.stringify(message));
+          console.log('✓ Called Flutter WebView handler');
+        }
+      } catch (error) {
+        console.error('✗ Flutter WebView handler failed:', error);
+      }
+      
+      console.log('All delivery methods attempted, waiting for Flutter confirmation...');
+      
+      return confirmationTimeout;
+    }
+  
+    // Handle Flutter confirmation
+    function handleFlutterConfirmation(confirmationType) {
+      console.log('=== FLUTTER CONFIRMATION RECEIVED ===');
+      console.log('Confirmation type:', confirmationType);
+      
+      if (confirmationType === 'processing_started') {
+        flutterProcessingStarted = true;
+        console.log('Flutter has started processing the image');
+        updateStatus('✅ Flutter processing...', 'success');
+      } else if (confirmationType === 'processing_complete') {
+        console.log('Flutter has completed processing');
+        waitingForFlutterConfirmation = false;
+        flutterProcessingStarted = false;
+        
+        // Now it's safe to cleanup
+        setTimeout(() => {
+          console.log('Flutter confirmed processing complete - performing cleanup');
+          performCleanup();
+        }, 500);
+      }
+    }
+  
+    function performCleanup() {
+      console.log('=== PERFORMING CLEANUP ===');
+      detectionActive = false;
+      clearFaceIndicators();
+      if (statusElement) {
+        statusElement.style.display = 'none';
+      }
+      captureInProgress = false;
+      waitingForFlutterConfirmation = false;
+      flutterProcessingStarted = false;
+      
+      // Clear stored data
+      try {
+        window.flutterCaptureData = null;
+        localStorage.removeItem('flutter_face_capture');
+        localStorage.removeItem('flutter_capture_timestamp');
+        sessionStorage.removeItem('flutter_face_capture');
+        console.log('Cleanup completed');
+      } catch (error) {
+        console.error('Cleanup error:', error);
+      }
+    }
+  
+    // Inject CSS styles
+    function injectStyles() {
+      if (document.getElementById('face-detection-styles')) return;
+      
+      const style = document.createElement('style');
+      style.id = 'face-detection-styles';
+      style.textContent = `
+        .face-indicator {
+          position: fixed;
+          border: 3px solid #00ff00;
+          background: rgba(0, 255, 0, 0.1);
+          z-index: 9999;
+          pointer-events: none;
+          border-radius: 8px;
+          transition: all 0.2s ease;
+          display: none;
+        }
+        .face-indicator.well-positioned {
+          border-color: #00ff00;
+          box-shadow: 0 0 15px rgba(0, 255, 0, 0.7);
+          animation: pulse 1s infinite;
+        }
+        .face-indicator.not-positioned {
+          border-color: #ff9500;
+          box-shadow: 0 0 15px rgba(255, 149, 0, 0.7);
+        }
+        @keyframes pulse {
+          0% { transform: scale(1); }
+          50% { transform: scale(1.05); }
+          100% { transform: scale(1); }
+        }
+        .face-status {
+          position: fixed;
+          top: 30px;
+          left: 50%;
+          transform: translateX(-50%);
+          background: rgba(0, 0, 0, 0.9);
+          color: white;
+          padding: 12px 20px;
+          border-radius: 25px;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+          font-size: 16px;
+          font-weight: 600;
+          z-index: 10000;
+          transition: all 0.3s ease;
+          display: none;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        .face-status.success {
+          background: rgba(0, 200, 0, 0.9);
+        }
+        .face-status.warning {
+          background: rgba(255, 149, 0, 0.9);
+        }
+        .face-status.countdown {
+          background: rgba(0, 150, 255, 0.9);
+          font-size: 24px;
+          animation: countdownPulse 1s infinite;
+        }
+        @keyframes countdownPulse {
+          0% { transform: translateX(-50%) scale(1); }
+          50% { transform: translateX(-50%) scale(1.1); }
+          100% { transform: translateX(-50%) scale(1); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+  
+    // Create status element
+    function createStatusElement() {
+      if (document.getElementById('face-status')) return;
+      
+      const statusDiv = document.createElement('div');
+      statusDiv.id = 'face-status';
+      statusDiv.className = 'face-status';
+      statusDiv.style.display = 'none';
+      statusDiv.textContent = 'Position your face in the camera';
+      document.body.appendChild(statusDiv);
+      statusElement = statusDiv;
+    }
+  
+    // Load scripts (same as before)
+    async function loadFaceDetectionScripts() {
+      if (scriptsLoaded) return Promise.resolve();
+      
+      console.log('Loading face detection scripts...');
+      
+      try {
+        if (!window.tf) {
+          await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0');
+          console.log('TensorFlow.js loaded');
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        if (!window.blazeface) {
+          await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7');
+          console.log('BlazeFace loaded');
+        }
+        
+        scriptsLoaded = true;
+        return Promise.resolve();
+      } catch (error) {
+        console.error('Error loading scripts:', error);
+        throw error;
+      }
+    }
+  
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src*="${src.split('/').pop().split('@')[0]}"]`);
+        if (existing) {
+          resolve();
+          return;
+        }
+        
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+      });
+    }
+  
+    // Initialize (same as before)
+    async function initializeFaceDetection() {
+      console.log('Initializing face detection...');
+      
+      try {
+        injectStyles();
+        createStatusElement();
+        
+        updateStatus('Loading AI model...', 'warning');
+        await loadFaceDetectionScripts();
+        
+        model = await window.blazeface.load();
+        isModelLoaded = true;
+        console.log('BlazeFace model loaded');
+        
+        waitForVideoAndStartDetection();
+        
+      } catch (error) {
+        console.error('Error initializing:', error);
+        updateStatus('Failed to load face detection', 'warning');
+      }
+    }
+  
+    function waitForVideoAndStartDetection() {
+      let attempts = 0;
+      const maxAttempts = 50;
+      
+      const checkVideo = setInterval(() => {
+        attempts++;
+        videoElement = document.querySelector('video');
+        
+        if (videoElement && videoElement.videoWidth > 0) {
+          console.log(`Video ready: ${videoElement.videoWidth}x${videoElement.videoHeight}`);
+          clearInterval(checkVideo);
+          updateStatus('Position your face in the frame', '');
+          detectionActive = true;
+          detectFaces();
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkVideo);
+          updateStatus('Camera not available', 'warning');
+        }
+      }, 100);
+    }
+  
+    // Face detection loop (simplified)
+    async function detectFaces() {
+      if (!detectionActive || !isModelLoaded || !model || !videoElement || waitingForFlutterConfirmation) {
+        if (detectionActive && !waitingForFlutterConfirmation) {
+          requestAnimationFrame(detectFaces);
+        }
+        return;
+      }
+      
+      try {
+        const predictions = await model.estimateFaces(videoElement, false);
+        clearFaceIndicators();
+        
+        const boxes = predictions.map((prediction) => {
+          const [x, y] = prediction.topLeft;
+          const [x2, y2] = prediction.bottomRight;
+          
+          const relativeBox = {
+            x: x / videoElement.videoWidth,
+            y: y / videoElement.videoHeight,
+            width: (x2 - x) / videoElement.videoWidth,
+            height: (y2 - y) / videoElement.videoHeight,
+            confidence: prediction.probability ? prediction.probability[0] : 0.9
+          };
+          
+          createFaceIndicator(x, y, x2 - x, y2 - y, relativeBox);
+          return relativeBox;
+        });
+        
+        updateFaceStatus(boxes);
+        checkForAutoCapture(boxes);
+        
+      } catch (error) {
+        console.error('Face detection error:', error);
+      }
+      
+      if (detectionActive && !waitingForFlutterConfirmation) {
+        requestAnimationFrame(detectFaces);
+      }
+    }
+  
+    // Helper functions (same as before)
+    function createFaceIndicator(x, y, width, height, relativeBox) {
+      const indicator = document.createElement('div');
+      indicator.className = 'face-indicator';
+      indicator.style.display = 'block';
+      
+      if (checkIfWellPositioned(relativeBox)) {
+        indicator.classList.add('well-positioned');
+      } else {
+        indicator.classList.add('not-positioned');
+      }
+      
+      const videoRect = videoElement.getBoundingClientRect();
+      const scaleX = videoRect.width / videoElement.videoWidth;
+      const scaleY = videoRect.height / videoElement.videoHeight;
+      
+      indicator.style.left = `${videoRect.left + (x * scaleX)}px`;
+      indicator.style.top = `${videoRect.top + (y * scaleY)}px`;
+      indicator.style.width = `${width * scaleX}px`;
+      indicator.style.height = `${height * scaleY}px`;
+      
+      document.body.appendChild(indicator);
+      faceIndicators.push(indicator);
+    }
+  
+    function clearFaceIndicators() {
+      faceIndicators.forEach(indicator => {
+        if (indicator.parentNode) {
+          indicator.parentNode.removeChild(indicator);
+        }
+      });
+      faceIndicators = [];
+    }
+  
+    function checkIfWellPositioned(box) {
+      return box.width >= 0.15 && box.height >= 0.15 && 
+             box.width <= 0.8 && box.height <= 0.8 &&
+             Math.abs((box.x + box.width / 2) - 0.5) <= 0.25 &&
+             Math.abs((box.y + box.height / 2) - 0.5) <= 0.25;
+    }
+  
+    function updateFaceStatus(boxes) {
+      if (!statusElement || countdownActive || captureInProgress || waitingForFlutterConfirmation) return;
+      
+      if (boxes.length === 0) {
+        updateStatus('Position your face in the camera', '');
+      } else {
+        const bestFace = boxes.reduce((best, current) => 
+          current.confidence > best.confidence ? current : best);
+        
+        if (checkIfWellPositioned(bestFace)) {
+          updateStatus('Perfect! Hold still...', 'success');
+        } else {
+          updateStatus('Adjust your position', 'warning');
+        }
+      }
+    }
+  
+    function updateStatus(text, type) {
+      if (!statusElement) return;
+      statusElement.textContent = text;
+      statusElement.className = 'face-status';
+      if (type) statusElement.classList.add(type);
+      statusElement.style.display = 'block';
+    }
+  
+    function checkForAutoCapture(boxes) {
+      if (captureInProgress || waitingForFlutterConfirmation) return;
+      
+      const hasWellPositionedFace = boxes.some(box => checkIfWellPositioned(box));
+      
+      if (hasWellPositionedFace && !autoCapturing && !countdownActive) {
+        stableFaceCount++;
+        if (stableFaceCount >= requiredStableFrames) {
+          startAutoCapture();
+        }
+      } else if (!hasWellPositionedFace) {
+        stableFaceCount = 0;
+        if (autoCapturing && !countdownActive) {
+          cancelAutoCapture();
+        }
+      }
+    }
+  
+    function startAutoCapture() {
+      if (autoCapturing || countdownActive || captureInProgress || waitingForFlutterConfirmation) return;
+      
+      console.log('Starting countdown...');
+      autoCapturing = true;
+      countdownActive = true;
+      let countdown = 3;
+      
+      statusElement.className = 'face-status countdown';
+      statusElement.textContent = countdown.toString();
+      
+      countdownTimer = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          statusElement.textContent = countdown.toString();
+        } else {
+          clearInterval(countdownTimer);
+          countdownActive = false;
+          captureInProgress = true;
+          captureFaceImage();
+        }
+      }, 1000);
+    }
+  
+    function cancelAutoCapture() {
+      if (countdownTimer) clearInterval(countdownTimer);
+      autoCapturing = false;
+      countdownActive = false;
+      stableFaceCount = 0;
+      if (statusElement) statusElement.className = 'face-status';
+    }
+  
+    // Enhanced capture function with Flutter confirmation
+    function captureFaceImage() {
+      if (!videoElement) {
+        console.error('No video element');
+        captureInProgress = false;
+        return;
+      }
+      
+      try {
+        console.log('=== STARTING IMAGE CAPTURE ===');
+        updateStatus('📸 Capturing...', 'success');
+        
+        const canvas = document.createElement('canvas');
+        canvas.width = videoElement.videoWidth;
+        canvas.height = videoElement.videoHeight;
+        const ctx = canvas.getContext('2d');
+        
+        ctx.scale(-1, 1);
+        ctx.drawImage(videoElement, -canvas.width, 0);
+        
+        console.log(`Canvas created: ${canvas.width}x${canvas.height}`);
+        
+        canvas.toBlob((blob) => {
+          if (!blob) {
+            console.error('Failed to create blob');
+            captureInProgress = false;
+            return;
+          }
+          
+          console.log('Converting to base64...');
+          updateStatus('🔄 Processing...', 'success');
+          
+          const reader = new FileReader();
+          reader.onload = () => {
+            try {
+              const base64 = reader.result.split(',')[1];
+              console.log(`Base64 created: ${base64.length} chars`);
+              
+              const captureData = {
+                type: 'face_captured',
+                imageData: base64,
+                width: canvas.width,
+                height: canvas.height,
+                timestamp: Date.now(),
+                success: true
+              };
+              
+              console.log('=== SENDING TO FLUTTER WITH CONFIRMATION ===');
+              updateStatus('📤 Sending to Flutter...', 'success');
+              
+              // Send with confirmation system
+              sendToFlutterWithConfirmation(captureData);
+              autoCapturing = false;
+              
+            } catch (error) {
+              console.error('Error processing capture:', error);
+              captureInProgress = false;
+              updateStatus('❌ Failed', 'warning');
+            }
+          };
+          
+          reader.onerror = () => {
+            console.error('FileReader error');
+            captureInProgress = false;
+            updateStatus('❌ Failed', 'warning');
+          };
+          
+          reader.readAsDataURL(blob);
+        }, 'image/jpeg', 0.95);
+        
+      } catch (error) {
+        console.error('Capture error:', error);
+        captureInProgress = false;
+        updateStatus('❌ Failed', 'warning');
+      }
+    }
+  
+    // Enhanced message listener
+    window.addEventListener('message', function(event) {
+      if (!event.data?.type) return;
+      
+      console.log('JS received message:', event.data.type);
+      
+      switch (event.data.type) {
+        case 'start_face_detection':
+          initializeFaceDetection();
+          break;
+          
+        case 'stop_face_detection':
+          detectionActive = false;
+          clearFaceIndicators();
+          cancelAutoCapture();
+          if (statusElement) statusElement.style.display = 'none';
+          captureInProgress = false;
+          waitingForFlutterConfirmation = false;
+          break;
+          
+        case 'capture_now':
+          if (!captureInProgress && !waitingForFlutterConfirmation) {
+            cancelAutoCapture();
+            captureInProgress = true;
+            captureFaceImage();
+          }
+          break;
+          
+        case 'flutter_processing_started':
+          handleFlutterConfirmation('processing_started');
+          break;
+          
+        case 'flutter_processing_complete':
+          handleFlutterConfirmation('processing_complete');
+          break;
+      }
+    });
+  
+    // Enhanced visibility change handler
+    document.addEventListener('visibilitychange', function(event) {
+      if (captureInProgress || waitingForFlutterConfirmation || flutterProcessingStarted) {
+        console.log('Ignoring visibility change - capture/processing in progress');
+        event.preventDefault();
+        event.stopPropagation();
+        return false;
+      }
+      
+      if (document.hidden) {
+        console.log('Page hidden, pausing...');
+        detectionActive = false;
+        clearFaceIndicators();
+        cancelAutoCapture();
+        if (statusElement) statusElement.style.display = 'none';
+      }
+    });
+  
+    // Cleanup
+    window.addEventListener('beforeunload', function() {
+      if (!waitingForFlutterConfirmation) {
+        performCleanup();
+      }
+    });
+  
+    console.log('Face detection script ready');
+  })();
+  </script>
   </body>
 </html>

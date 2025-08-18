@@ -374,6 +374,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   }
 
   /// Calculate attractiveness score from percentages (clamped min 6.0, max 10.0)
+  /// Calculate attractiveness score from percentages (reduced by 1, clamped min 6.0, max 9.0)
   double calculateAttractivenessScore(List<Map<String, String>> percentages) {
     double score = 8.0;
     double normalPercent = 0.0;
@@ -393,6 +394,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       "eye pouch",
       "nasolabial fold"
     ];
+
     for (final entry in percentages) {
       final cond = entry['condition']?.toLowerCase() ?? "";
       final percent = double.tryParse(entry['percent'] ?? "0") ?? 0;
@@ -402,10 +404,17 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         negativePercent += percent;
       }
     }
+
     score += (normalPercent / 100) * 2.0;
     score -= (negativePercent / 100) * 2.5;
+
+    // Reduce score by 1 point as requested
+    score = score - 1.0;
+
+    // Clamp between 6.0 and 9.0 (reduced from 10.0 to 9.0)
     if (score < 6.0) score = 6.0;
-    if (score > 10.0) score = 10.0;
+    if (score > 9.0) score = 9.0;
+
     return double.parse(score.toStringAsFixed(2));
   }
 
@@ -613,7 +622,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             MainAxisAlignment
                                                                 .center,
                                                         children: [
-                                                          const Icon(Icons.thumb_up,
+                                                          const Icon(
+                                                              Icons.thumb_up,
                                                               color:
                                                                   Colors.green,
                                                               size: 24),
@@ -687,11 +697,20 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                               },
                             ),
                             const SizedBox(height: 20),
-                            CustomSpiderChart(
-                              data: chartData,
-                              averageMap: averageMap,
-                              chartRadius: 120.0,
-                              tickCount: 5,
+                            // Replace your existing CustomSpiderChart usage with this:
+                            Container(
+                              width: double.infinity,
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 8.0),
+                              child: CustomSpiderChart(
+                                data: chartData,
+                                averageMap: averageMap,
+                                chartRadius:
+                                    MediaQuery.of(context).size.width < 400
+                                        ? 80.0
+                                        : 120.0,
+                                tickCount: 5,
+                              ),
                             ),
                             const SizedBox(height: 24),
                             Padding(

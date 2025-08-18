@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 
 class CustomSpiderChart extends StatelessWidget {
-  final List<Map<String, dynamic>> data; // {condition: String, percent: double}
+  final List<Map<String, dynamic>> data;
   final Map<String, double> averageMap;
   final double chartRadius;
   final int tickCount;
@@ -17,45 +17,54 @@ class CustomSpiderChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        const Padding(
-          padding: EdgeInsets.only(bottom: 12.0, left: 6.0),
-          child: Text(
-            "Spider Chart of Condition Percentages",
-            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-          ),
-        ),
-        SizedBox(height: 10),
-        SizedBox(
-          width: chartRadius * 2 + 60, // Extra width for labels outside
-          height: chartRadius * 2 + 60, // Extra height for labels outside
-          child: CustomPaint(
-            painter: SpiderChartPainter(
-              data: data,
-              averageMap: averageMap,
-              chartRadius: chartRadius,
-              tickCount: tickCount,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Calculate responsive dimensions
+        final screenWidth = constraints.maxWidth;
+        final screenHeight = constraints.maxHeight;
+        final isSmallScreen = screenWidth < 400;
+        final isTinyScreen = screenWidth < 350;
+
+        // Adjust chart radius based on screen size with better scaling
+        final responsiveRadius = isTinyScreen
+            ? min(screenWidth * 0.20, chartRadius * 0.6)
+            : isSmallScreen
+                ? min(screenWidth * 0.25, chartRadius * 0.75)
+                : min(screenWidth * 0.28, chartRadius);
+
+        // Calculate container size to accommodate labels with better spacing
+        final labelSpacing = isTinyScreen
+            ? 50
+            : isSmallScreen
+                ? 60
+                : 80;
+        final containerSize = (responsiveRadius * 2) + (labelSpacing * 2);
+
+        return Container(
+          width: double.infinity,
+          height: containerSize,
+          padding: EdgeInsets.all(isTinyScreen ? 8 : 12),
+          child: Center(
+            child: SizedBox(
+              width: containerSize,
+              height: containerSize,
+              child: CustomPaint(
+                painter: SpiderChartPainter(
+                  data: data,
+                  averageMap: averageMap,
+                  chartRadius: responsiveRadius,
+                  tickCount: tickCount,
+                  screenWidth: screenWidth,
+                  isSmallScreen: isSmallScreen,
+                  isTinyScreen: isTinyScreen,
+                  containerSize: containerSize,
+                ),
+                size: Size(containerSize, containerSize),
+              ),
             ),
-            child: Container(),
           ),
-        ),
-        SizedBox(height: 10),
-        Padding(
-          padding: const EdgeInsets.only(top: 6.0, left: 6.0),
-          child: Row(
-            children: [
-              Container(width: 16, height: 16, color: Colors.green),
-              const SizedBox(width: 6),
-              const Text("Your strengths", style: TextStyle(fontSize: 13)),
-              const SizedBox(width: 12),
-              Container(width: 16, height: 16, color: Colors.red),
-              const SizedBox(width: 6),
-              const Text("Your concerns", style: TextStyle(fontSize: 13)),
-            ],
-          ),
-        ),
-      ],
+        );
+      },
     );
   }
 }
@@ -65,214 +74,478 @@ class SpiderChartPainter extends CustomPainter {
   final Map<String, double> averageMap;
   final double chartRadius;
   final int tickCount;
+  final double screenWidth;
+  final bool isSmallScreen;
+  final bool isTinyScreen;
+  final double containerSize;
 
   SpiderChartPainter({
     required this.data,
     required this.averageMap,
     required this.chartRadius,
     required this.tickCount,
+    required this.screenWidth,
+    required this.isSmallScreen,
+    required this.isTinyScreen,
+    required this.containerSize,
   });
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Offset center = Offset(size.width / 2, size.height / 2);
-    final int axisCount = data.length;
-    final double maxValue = 100.0;
-    final double angleStep = 2 * pi / axisCount;
+    if (data.isEmpty) return;
 
-    // Draw spider web (polygonal grid)
-    for (int t = 1; t <= tickCount; t++) {
-      final double r = chartRadius * (t / tickCount);
-      final Path webPath = Path();
-      for (int i = 0; i < axisCount; i++) {
-        final double angle = angleStep * i - pi / 2;
-        final Offset pt = Offset(
-          center.dx + r * cos(angle),
-          center.dy + r * sin(angle),
-        );
-        if (i == 0) {
-          webPath.moveTo(pt.dx, pt.dy);
-        } else {
-          webPath.lineTo(pt.dx, pt.dy);
-        }
-      }
-      webPath.close();
-      final Paint webPaint = Paint()
-        ..color = Colors.grey.shade700.withOpacity(t == tickCount ? 0.8 : 0.45)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = t == tickCount ? 2.5 : 1.0;
-      canvas.drawPath(webPath, webPaint);
+    final center = Offset(size.width / 2, size.height / 2);
 
-      // Tick labels (show only top center for clarity)
-      if (axisCount > 0 && t > 0) {
-        final double topAngle = -pi / 2;
-        final Offset topPt = Offset(
-          center.dx + r * cos(topAngle),
-          center.dy + r * sin(topAngle),
-        );
-        final tp = TextPainter(
-          text: TextSpan(
-            text: "${(maxValue * t / tickCount).toStringAsFixed(0)}",
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.white,
-              fontWeight: t == tickCount ? FontWeight.bold : FontWeight.w400,
-              shadows: [
-                const Shadow(
-                  color: Colors.black,
-                  offset: Offset(0, 0),
-                  blurRadius: 3,
-                ),
-              ],
-            ),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-        tp.paint(canvas, topPt + Offset(-tp.width / 2, -18));
-      }
+    // Enhanced paint objects with better styling
+    final Paint gridPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.2)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    final Paint axisPaint = Paint()
+      ..color = Colors.grey.withOpacity(0.4)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 0.8;
+
+    final Paint dataPaint = Paint()
+      ..color = Colors.deepPurple.withOpacity(0.2)
+      ..style = PaintingStyle.fill;
+
+    final Paint dataStrokePaint = Paint()
+      ..color = Colors.deepPurple
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isTinyScreen ? 1.5 : 2;
+
+    final Paint averagePaint = Paint()
+      ..color = Colors.orange.withOpacity(0.15)
+      ..style = PaintingStyle.fill;
+
+    final Paint averageStrokePaint = Paint()
+      ..color = Colors.orange
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isTinyScreen ? 1 : 1.5;
+
+    // Draw concentric polygons (grid)
+    for (int i = 1; i <= tickCount; i++) {
+      final radius = (chartRadius / tickCount) * i;
+      _drawPolygon(canvas, center, radius, data.length, gridPaint);
     }
 
-    // Draw axes (lines from center)
-    for (int i = 0; i < axisCount; i++) {
-      final double angle = angleStep * i - pi / 2;
-      final Offset axisEnd = Offset(
+    // Draw axes
+    final angleStep = 2 * pi / data.length;
+    for (int i = 0; i < data.length; i++) {
+      final angle = -pi / 2 + i * angleStep;
+      final endPoint = Offset(
         center.dx + chartRadius * cos(angle),
         center.dy + chartRadius * sin(angle),
       );
-      final Paint axisPaint = Paint()
-        ..color = Colors.grey.shade700
-        ..strokeWidth = 1.7;
-      canvas.drawLine(center, axisEnd, axisPaint);
+      canvas.drawLine(center, endPoint, axisPaint);
     }
 
-    // Draw polygon for values (the spider, not a closed circle)
-    Path spiderPath = Path();
-    List<Offset> valuePoints = [];
-    for (int i = 0; i < axisCount; i++) {
-      final double angle = angleStep * i - pi / 2;
-      final double value = data[i]['percent'] as double;
-      final double valueRadius = chartRadius * (value / maxValue);
-      final Offset pt = Offset(
-        center.dx + valueRadius * cos(angle),
-        center.dy + valueRadius * sin(angle),
-      );
-      valuePoints.add(pt);
-      if (i == 0) {
-        spiderPath.moveTo(pt.dx, pt.dy);
-      } else {
-        spiderPath.lineTo(pt.dx, pt.dy);
+    // Find max value for normalization
+    final maxValue = data.map((d) => d['percent'] as double).reduce(max);
+    final normalizedMax = maxValue > 0 ? maxValue : 100.0;
+
+    // Draw average data polygon
+    final averagePoints = <Offset>[];
+    for (int i = 0; i < data.length; i++) {
+      final condition = data[i]['condition'].toString().toLowerCase();
+      final averageValue = averageMap[condition] ?? 50.0;
+      final normalizedAverage = (averageValue / normalizedMax).clamp(0.0, 1.0);
+      final radius = chartRadius * normalizedAverage;
+      final angle = -pi / 2 + i * angleStep;
+
+      averagePoints.add(Offset(
+        center.dx + radius * cos(angle),
+        center.dy + radius * sin(angle),
+      ));
+    }
+
+    if (averagePoints.isNotEmpty) {
+      final averagePath = Path();
+      averagePath.moveTo(averagePoints[0].dx, averagePoints[0].dy);
+      for (int i = 1; i < averagePoints.length; i++) {
+        averagePath.lineTo(averagePoints[i].dx, averagePoints[i].dy);
       }
-    }
-    final Paint spiderPaint = Paint()
-      ..color = Colors.lightBlueAccent.withOpacity(0.19)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.5;
-    canvas.drawPath(spiderPath, spiderPaint);
-
-    // Draw lines from center to value points (spider legs)
-    for (final pt in valuePoints) {
-      final Paint legPaint = Paint()
-        ..color = Colors.blueAccent.withOpacity(0.7)
-        ..strokeWidth = 2.5;
-      canvas.drawLine(center, pt, legPaint);
+      averagePath.close();
+      canvas.drawPath(averagePath, averagePaint);
+      canvas.drawPath(averagePath, averageStrokePaint);
     }
 
-    // Draw colored dots and labels at each value point
-    for (int i = 0; i < axisCount; i++) {
-      final double angle = angleStep * i - pi / 2;
-      final double value = data[i]['percent'] as double;
-      final String label = data[i]['condition'];
-      final bool isConcern = value > (averageMap[label.toLowerCase()] ?? 20.0);
+    // Draw actual data polygon
+    final dataPoints = <Offset>[];
+    for (int i = 0; i < data.length; i++) {
+      final value = data[i]['percent'] as double;
+      final normalizedValue = (value / normalizedMax).clamp(0.0, 1.0);
+      final radius = chartRadius * normalizedValue;
+      final angle = -pi / 2 + i * angleStep;
 
-      final Offset pt = valuePoints[i];
+      dataPoints.add(Offset(
+        center.dx + radius * cos(angle),
+        center.dy + radius * sin(angle),
+      ));
+    }
 
-      // Dot color: green if strength, red if concern
-      final Paint dotPaint = Paint()
-        ..color = isConcern ? Colors.red : Colors.green;
-      canvas.drawCircle(pt, 8, dotPaint);
+    if (dataPoints.isNotEmpty) {
+      final dataPath = Path();
+      dataPath.moveTo(dataPoints[0].dx, dataPoints[0].dy);
+      for (int i = 1; i < dataPoints.length; i++) {
+        dataPath.lineTo(dataPoints[i].dx, dataPoints[i].dy);
+      }
+      dataPath.close();
+      canvas.drawPath(dataPath, dataPaint);
+      canvas.drawPath(dataPath, dataStrokePaint);
+    }
+
+    // Draw data points with responsive sizes
+    final pointSize = isTinyScreen
+        ? 2.5
+        : isSmallScreen
+            ? 3.0
+            : 4.0;
+    for (final point in dataPoints) {
+      canvas.drawCircle(point, pointSize, Paint()..color = Colors.deepPurple);
       canvas.drawCircle(
-        pt,
-        8,
+          point,
+          pointSize + 1,
+          Paint()
+            ..color = Colors.white
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1);
+    }
+
+    for (final point in averagePoints) {
+      canvas.drawCircle(point, pointSize * 0.8, Paint()..color = Colors.orange);
+    }
+
+    // Draw labels with enhanced responsive positioning
+    _drawEnhancedResponsiveLabels(canvas, center, size);
+
+    // Draw legend
+    _drawLegend(canvas, size);
+  }
+
+  void _drawEnhancedResponsiveLabels(Canvas canvas, Offset center, Size size) {
+    final angleStep = 2 * pi / data.length;
+
+    // Calculate responsive label distance and font sizes
+    final baseLabelDistance = chartRadius +
+        (isTinyScreen
+            ? 20
+            : isSmallScreen
+                ? 30
+                : 40);
+    final conditionFontSize = isTinyScreen
+        ? 8.0
+        : isSmallScreen
+            ? 9.0
+            : 11.0;
+    final valueFontSize = isTinyScreen
+        ? 7.0
+        : isSmallScreen
+            ? 8.0
+            : 10.0;
+
+    // Store label positions to avoid overlaps
+    final List<Rect> usedRects = [];
+
+    for (int i = 0; i < data.length; i++) {
+      final angle = -pi / 2 + i * angleStep;
+      final condition = data[i]['condition'].toString();
+      final value = data[i]['percent'] as double;
+
+      // Format condition name based on screen size
+      final formattedCondition = _formatConditionNameEnhanced(condition);
+
+      // Create text painters with responsive styling
+      final conditionTextPainter = TextPainter(
+        text: TextSpan(
+          text: formattedCondition,
+          style: TextStyle(
+            color: Colors.black87,
+            fontSize: conditionFontSize,
+            fontWeight: FontWeight.w600,
+            height: 1.1,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: isTinyScreen ? 2 : 1,
+        textAlign: TextAlign.center,
+      );
+
+      final valueTextPainter = TextPainter(
+        text: TextSpan(
+          text: '${value.toStringAsFixed(0)}%',
+          style: TextStyle(
+            color: Colors.deepPurple,
+            fontSize: valueFontSize,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+      );
+
+      conditionTextPainter.layout(maxWidth: isTinyScreen ? 60 : 80);
+      valueTextPainter.layout();
+
+      // Calculate optimal label position
+      final labelPosition = _calculateOptimalLabelPosition(
+        center,
+        angle,
+        baseLabelDistance,
+        conditionTextPainter,
+        valueTextPainter,
+        size,
+        usedRects,
+      );
+
+      // Draw background for better readability
+      final totalHeight =
+          conditionTextPainter.height + valueTextPainter.height + 4;
+      final maxWidth = max(conditionTextPainter.width, valueTextPainter.width);
+
+      final backgroundRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(
+          center: labelPosition,
+          width: maxWidth + 8,
+          height: totalHeight + 4,
+        ),
+        Radius.circular(4),
+      );
+
+      canvas.drawRRect(
+        backgroundRect,
         Paint()
-          ..color = Colors.white.withOpacity(0.6)
+          ..color = Colors.white.withOpacity(0.9)
+          ..style = PaintingStyle.fill,
+      );
+
+      canvas.drawRRect(
+        backgroundRect,
+        Paint()
+          ..color = Colors.grey.withOpacity(0.2)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 2,
+          ..strokeWidth = 0.5,
       );
 
-      // Value label
-      final tp = TextPainter(
-        text: TextSpan(
-          text: value.toStringAsFixed(1),
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.bold,
-            color: Colors.white,
-            shadows: [
-              Shadow(color: Colors.black, blurRadius: 6, offset: Offset(0, 0)),
-            ],
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      tp.paint(canvas, pt + Offset(-tp.width / 2, -22));
+      // Draw condition name
+      final conditionOffset = Offset(
+        labelPosition.dx - conditionTextPainter.width / 2,
+        labelPosition.dy - totalHeight / 2 + 2,
+      );
+      conditionTextPainter.paint(canvas, conditionOffset);
 
-      // Axis label - place further out, with more margin and no overlap
-      final double labelDist = chartRadius + 30;
-      final Offset labelPt = Offset(
-        center.dx + labelDist * cos(angle),
-        center.dy + labelDist * sin(angle),
+      // Draw value
+      final valueOffset = Offset(
+        labelPosition.dx - valueTextPainter.width / 2,
+        labelPosition.dy - totalHeight / 2 + conditionTextPainter.height + 4,
+      );
+      valueTextPainter.paint(canvas, valueOffset);
+
+      // Draw subtle connection line
+      final connectionStart = Offset(
+        center.dx + chartRadius * cos(angle),
+        center.dy + chartRadius * sin(angle),
       );
 
-      // Calculate label alignment based on angle for better distribution
-      Alignment align;
-      if (angle >= -pi / 2 - 0.2 && angle <= -pi / 2 + 0.2) {
-        align = Alignment.topCenter;
-      } else if (angle > -pi / 2 && angle < pi / 2) {
-        align = Alignment.centerRight;
-      } else if (angle > pi / 2 || angle < -pi / 2) {
-        align = Alignment.centerLeft;
-      } else if ((angle - pi).abs() < 0.2) {
-        align = Alignment.bottomCenter;
-      } else {
-        align = Alignment.center;
+      // Only draw connection line if label is far from chart
+      final distance = (labelPosition - connectionStart).distance;
+      if (distance > chartRadius * 0.3) {
+        final connectionPaint = Paint()
+          ..color = Colors.grey.withOpacity(0.3)
+          ..strokeWidth = 0.5;
+
+        canvas.drawLine(connectionStart, labelPosition, connectionPaint);
       }
 
-      final labelText = label;
-      final labelTp = TextPainter(
-        text: TextSpan(
-          text: labelText,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: isConcern ? Colors.red : Colors.green,
-            shadows: [
-              Shadow(color: Colors.white, blurRadius: 6),
-            ],
-          ),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      // Use Offset based on alignment
-      Offset labelOffset;
-      if (align == Alignment.topCenter) {
-        labelOffset = Offset(-labelTp.width / 2, -labelTp.height - 8);
-      } else if (align == Alignment.bottomCenter) {
-        labelOffset = Offset(-labelTp.width / 2, 8);
-      } else if (align == Alignment.centerRight) {
-        labelOffset = Offset(4, -labelTp.height / 2);
-      } else if (align == Alignment.centerLeft) {
-        labelOffset = Offset(-labelTp.width - 4, -labelTp.height / 2);
-      } else {
-        labelOffset = Offset(-labelTp.width / 2, -labelTp.height / 2);
-      }
-
-      labelTp.paint(
-        canvas,
-        labelPt + labelOffset,
-      );
+      // Add used rect to avoid overlaps
+      usedRects.add(backgroundRect.outerRect);
     }
   }
 
+  String _formatConditionNameEnhanced(String condition) {
+    // Enhanced condition name formatting with better abbreviations
+    final Map<String, String> conditionMappings = {
+      'nasolabial fold': isTinyScreen ? 'Nasolabial' : 'Nasolabial Fold',
+      'dark circle': isTinyScreen ? 'Dark\nCircles' : 'Dark Circle',
+      'eye bag': isTinyScreen ? 'Eye\nBags' : 'Eye Bag',
+      'brown spot': isTinyScreen ? 'Brown\nSpots' : 'Brown Spot',
+      'dark spot': isTinyScreen ? 'Dark\nSpots' : 'Dark Spot',
+      'pigmentation': isTinyScreen ? 'Pigment' : 'Pigmentation',
+      'blackhead': isTinyScreen ? 'Black\nheads' : 'Blackhead',
+      'comedone': isTinyScreen ? 'Come\ndone' : 'Comedone',
+      'wrinkle': 'Wrinkles',
+      'pores': 'Pores',
+      'acne': 'Acne',
+      'mole': 'Mole',
+      'normal': 'Normal',
+    };
+
+    final lowerCondition = condition.toLowerCase();
+
+    if (conditionMappings.containsKey(lowerCondition)) {
+      return conditionMappings[lowerCondition]!;
+    }
+
+    // Fallback formatting
+    final words = condition.split(' ');
+    if (isTinyScreen && words.length > 1) {
+      return words
+          .map(
+              (word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+          .join('\n');
+    }
+
+    return words
+        .map((word) => word[0].toUpperCase() + word.substring(1).toLowerCase())
+        .join(' ');
+  }
+
+  Offset _calculateOptimalLabelPosition(
+    Offset center,
+    double angle,
+    double baseDistance,
+    TextPainter conditionPainter,
+    TextPainter valuePainter,
+    Size canvasSize,
+    List<Rect> usedRects,
+  ) {
+    final maxTextWidth = max(conditionPainter.width, valuePainter.width);
+    final totalTextHeight = conditionPainter.height + valuePainter.height + 4;
+
+    // Start with base position
+    double labelDistance = baseDistance;
+    Offset labelPosition;
+
+    // Try different distances to avoid overlaps and boundaries
+    for (int attempt = 0; attempt < 5; attempt++) {
+      labelDistance += attempt * 10;
+
+      labelPosition = Offset(
+        center.dx + labelDistance * cos(angle),
+        center.dy + labelDistance * sin(angle),
+      );
+
+      // Adjust for canvas boundaries with padding
+      final padding = isTinyScreen ? 15.0 : 20.0;
+      labelPosition = Offset(
+        labelPosition.dx.clamp(
+          maxTextWidth / 2 + padding,
+          canvasSize.width - maxTextWidth / 2 - padding,
+        ),
+        labelPosition.dy.clamp(
+          totalTextHeight / 2 + padding,
+          canvasSize.height - totalTextHeight / 2 - padding,
+        ),
+      );
+
+      // Check for overlaps with existing labels
+      final proposedRect = Rect.fromCenter(
+        center: labelPosition,
+        width: maxTextWidth + 12,
+        height: totalTextHeight + 8,
+      );
+
+      bool hasOverlap = false;
+      for (final usedRect in usedRects) {
+        if (proposedRect.overlaps(usedRect)) {
+          hasOverlap = true;
+          break;
+        }
+      }
+
+      if (!hasOverlap) {
+        return labelPosition;
+      }
+    }
+
+    // Fallback: return adjusted position even with potential overlap
+    return Offset(
+      center.dx + baseDistance * cos(angle),
+      center.dy + baseDistance * sin(angle),
+    );
+  }
+
+  void _drawLegend(Canvas canvas, Size size) {
+    if (isTinyScreen) return; // Skip legend on very small screens
+
+    final legendY = size.height - (isSmallScreen ? 15 : 20);
+    final legendStartX = size.width * 0.1;
+
+    // Your data legend
+    canvas.drawCircle(
+      Offset(legendStartX, legendY),
+      isSmallScreen ? 3 : 4,
+      Paint()..color = Colors.deepPurple,
+    );
+
+    final yourDataPainter = TextPainter(
+      text: TextSpan(
+        text: 'Your Data',
+        style: TextStyle(
+          color: Colors.black87,
+          fontSize: isSmallScreen ? 9 : 10,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    yourDataPainter.layout();
+    yourDataPainter.paint(
+      canvas,
+      Offset(legendStartX + 15, legendY - yourDataPainter.height / 2),
+    );
+
+    // Average legend
+    final avgLegendX = legendStartX + yourDataPainter.width + 40;
+    canvas.drawCircle(
+      Offset(avgLegendX, legendY),
+      isSmallScreen ? 3 : 4,
+      Paint()..color = Colors.orange,
+    );
+
+    final avgDataPainter = TextPainter(
+      text: TextSpan(
+        text: 'Average',
+        style: TextStyle(
+          color: Colors.black87,
+          fontSize: isSmallScreen ? 9 : 10,
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    );
+    avgDataPainter.layout();
+    avgDataPainter.paint(
+      canvas,
+      Offset(avgLegendX + 15, legendY - avgDataPainter.height / 2),
+    );
+  }
+
+  void _drawPolygon(
+      Canvas canvas, Offset center, double radius, int sides, Paint paint) {
+    final path = Path();
+    final angleStep = 2 * pi / sides;
+
+    for (int i = 0; i < sides; i++) {
+      final angle = -pi / 2 + i * angleStep;
+      final point = Offset(
+        center.dx + radius * cos(angle),
+        center.dy + radius * sin(angle),
+      );
+
+      if (i == 0) {
+        path.moveTo(point.dx, point.dy);
+      } else {
+        path.lineTo(point.dx, point.dy);
+      }
+    }
+
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
   @override
-  bool shouldRepaint(covariant SpiderChartPainter oldDelegate) => true;
+  bool shouldRepaint(CustomPainter oldDelegate) => true;
 }

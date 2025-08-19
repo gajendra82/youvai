@@ -205,8 +205,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     js.context.callMethod('openRazorpayCheckout', [
       "rzp_live_jBXpBOtKrydrbs",
       "rzp_live_jBXpBOtKrydrbs",
-      // "49900",
-      "100",
+      "49900",
       name,
       email,
       number,

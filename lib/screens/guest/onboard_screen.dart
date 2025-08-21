@@ -371,8 +371,8 @@ class GoogleSignInButton extends StatelessWidget {
                     try {
                       context.read<AuthBloc>().emit(AuthLoading());
                       
-                      // Ensure Firebase is initialized
-                      await FirebaseUtils.initializeFirebase();
+                      // Ensure Firebase is ready before attempting sign-in
+                      await FirebaseUtils.waitForFirebase();
                       
                       final GoogleAuthProvider googleProvider =
                           GoogleAuthProvider();

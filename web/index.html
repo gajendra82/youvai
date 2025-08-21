@@ -34,13 +34,75 @@
     <link rel="manifest" href="manifest.json" />
   </head>
   <body>
-    <!-- Firebase SDK - Load before Flutter -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    
-    <!-- Firebase Configuration -->
-    <script src="firebase-config.js"></script>
+    <!-- Firebase SDK - Load before Flutter with proper error handling -->
+    <script>
+      // Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyAlg92sDvJb8xmuMt8yA9MtjbWrHMWV1oY",
+        authDomain: "youvai-56995.firebaseapp.com",
+        projectId: "youvai-56995",
+        storageBucket: "youvai-56995.appspot.com",
+        messagingSenderId: "377693730311",
+        appId: "1:377693730311:web:24dfc047db461c18c3dca2"
+      };
+
+      // Function to initialize Firebase
+      function initializeFirebase() {
+        if (typeof firebase !== 'undefined') {
+          try {
+            firebase.initializeApp(firebaseConfig);
+            console.log('Firebase initialized successfully in web');
+            return true;
+          } catch (error) {
+            console.error('Firebase initialization error:', error);
+            return false;
+          }
+        } else {
+          console.error('Firebase SDK not loaded');
+          return false;
+        }
+      }
+
+      // Load Firebase SDKs with fallback
+      function loadFirebaseSDK() {
+        const scripts = [
+          'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+          'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
+          'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js'
+        ];
+
+        let loadedCount = 0;
+        const totalScripts = scripts.length;
+
+        scripts.forEach((src, index) => {
+          const script = document.createElement('script');
+          script.src = src;
+          script.onload = () => {
+            loadedCount++;
+            if (loadedCount === totalScripts) {
+              // All scripts loaded, initialize Firebase
+              setTimeout(() => {
+                initializeFirebase();
+              }, 100);
+            }
+          };
+          script.onerror = () => {
+            console.error(`Failed to load Firebase script: ${src}`);
+            loadedCount++;
+            if (loadedCount === totalScripts) {
+              // Try to initialize anyway
+              setTimeout(() => {
+                initializeFirebase();
+              }, 100);
+            }
+          };
+          document.head.appendChild(script);
+        });
+      }
+
+      // Start loading Firebase SDKs
+      loadFirebaseSDK();
+    </script>
     
     <!-- Flutter Bootstrap -->
     <script src="flutter_bootstrap.js" async></script>

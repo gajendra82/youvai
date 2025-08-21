@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Debug</title>
+</head>
+<body>
+    <h1>Firebase Debug Page</h1>
+    <div id="status">Loading...</div>
+    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAlg92sDvJb8xmuMt8yA9MtjbWrHMWV1oY",
+            authDomain: "youvai-56995.firebaseapp.com",
+            projectId: "youvai-56995",
+            storageBucket: "youvai-56995.appspot.com",
+            messagingSenderId: "377693730311",
+            appId: "1:377693730311:web:24dfc047db461c18c3dca2"
+        };
+
+        function updateStatus(message) {
+            document.getElementById('status').innerHTML += '<br>' + message;
+            console.log(message);
+        }
+
+        // Load Firebase SDKs
+        function loadFirebaseSDK() {
+            updateStatus('Loading Firebase SDKs...');
+            
+            const scripts = [
+                'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+                'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
+                'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js'
+            ];
+
+            let loadedCount = 0;
+            const totalScripts = scripts.length;
+
+            scripts.forEach((src, index) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => {
+                    loadedCount++;
+                    updateStatus(`Loaded script ${index + 1}/${totalScripts}: ${src}`);
+                    if (loadedCount === totalScripts) {
+                        setTimeout(() => {
+                            initializeFirebase();
+                        }, 100);
+                    }
+                };
+                script.onerror = () => {
+                    updateStatus(`Failed to load script: ${src}`);
+                    loadedCount++;
+                    if (loadedCount === totalScripts) {
+                        setTimeout(() => {
+                            initializeFirebase();
+                        }, 100);
+                    }
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        function initializeFirebase() {
+            updateStatus('Attempting to initialize Firebase...');
+            
+            if (typeof firebase !== 'undefined') {
+                try {
+                    firebase.initializeApp(firebaseConfig);
+                    updateStatus('Firebase initialized successfully!');
+                    
+                    // Test Firebase Auth
+                    if (firebase.auth) {
+                        updateStatus('Firebase Auth is available');
+                    } else {
+                        updateStatus('Firebase Auth is NOT available');
+                    }
+                    
+                } catch (error) {
+                    updateStatus('Firebase initialization error: ' + error.message);
+                }
+            } else {
+                updateStatus('Firebase SDK not loaded');
+            }
+        }
+
+        // Start the process
+        loadFirebaseSDK();
+    </script>
+</body>
+</html>

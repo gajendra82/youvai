@@ -6,16 +6,48 @@ import 'package:skin_assessment/themes/app_theme.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:skin_assessment/utils/firebase_utils.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   try {
-    await FirebaseUtils.initializeFirebase();
-    FirebaseUtils.printFirebaseStatus();
-    
-    // Test Firebase Auth
-    await FirebaseUtils.checkFirebaseAuth();
+    if (kIsWeb) {
+      // For web, add a delay to ensure Firebase SDK is loaded
+      print("Waiting for Firebase SDK to load...");
+      await Future.delayed(Duration(seconds: 2));
+      
+      // Try to initialize Firebase with retry mechanism
+      bool firebaseInitialized = false;
+      int retryCount = 0;
+      const maxRetries = 3;
+      
+      while (!firebaseInitialized && retryCount < maxRetries) {
+        try {
+          await FirebaseUtils.initializeFirebase();
+          FirebaseUtils.printFirebaseStatus();
+          await FirebaseUtils.checkFirebaseAuth();
+          firebaseInitialized = true;
+          print("Firebase initialized successfully on attempt ${retryCount + 1}");
+        } catch (e) {
+          retryCount++;
+          print("Firebase initialization attempt $retryCount failed: $e");
+          if (retryCount < maxRetries) {
+            print("Retrying in 1 second...");
+            await Future.delayed(Duration(seconds: 1));
+          }
+        }
+      }
+      
+      if (!firebaseInitialized) {
+        print("Firebase initialization failed after $maxRetries attempts. Continuing without Firebase.");
+      }
+    } else {
+      // For mobile platforms
+      await FirebaseUtils.initializeFirebase();
+      FirebaseUtils.printFirebaseStatus();
+      await FirebaseUtils.checkFirebaseAuth();
+    }
   } catch (e) {
     print("Firebase initialization error: $e");
     // Continue with app initialization even if Firebase fails

@@ -1,6 +1,7 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
+import 'dart:async';
 
 class FirebaseUtils {
   static const FirebaseOptions firebaseOptions = FirebaseOptions(
@@ -15,6 +16,7 @@ class FirebaseUtils {
   static Future<void> initializeFirebase() async {
     try {
       if (Firebase.apps.isEmpty) {
+        print("Initializing Firebase...");
         await Firebase.initializeApp(options: firebaseOptions);
         print("Firebase initialized successfully");
       } else {
@@ -22,7 +24,23 @@ class FirebaseUtils {
       }
     } catch (e) {
       print("Firebase initialization error: $e");
-      rethrow;
+      
+      // For web, try to wait a bit and retry
+      if (kIsWeb) {
+        print("Waiting before retry...");
+        await Future.delayed(Duration(milliseconds: 500));
+        try {
+          if (Firebase.apps.isEmpty) {
+            await Firebase.initializeApp(options: firebaseOptions);
+            print("Firebase initialized successfully on retry");
+          }
+        } catch (retryError) {
+          print("Firebase retry failed: $retryError");
+          rethrow;
+        }
+      } else {
+        rethrow;
+      }
     }
   }
 
@@ -33,6 +51,7 @@ class FirebaseUtils {
   static Future<bool> checkFirebaseAuth() async {
     try {
       if (!isFirebaseInitialized()) {
+        print("Firebase not initialized, attempting to initialize...");
         await initializeFirebase();
       }
       
@@ -52,5 +71,40 @@ class FirebaseUtils {
     if (Firebase.apps.isNotEmpty) {
       print("Firebase app name: ${Firebase.app().name}");
     }
+  }
+
+  // Method to check if Firebase is ready for use
+  static Future<bool> isFirebaseReady() async {
+    try {
+      if (!isFirebaseInitialized()) {
+        return false;
+      }
+      
+      // Try a simple Firebase operation
+      await FirebaseAuth.instance.authStateChanges().first;
+      return true;
+    } catch (e) {
+      print("Firebase not ready: $e");
+      return false;
+    }
+  }
+
+  // Method to wait for Firebase to be ready
+  static Future<void> waitForFirebase() async {
+    int attempts = 0;
+    const maxAttempts = 10;
+    
+    while (attempts < maxAttempts) {
+      if (await isFirebaseReady()) {
+        print("Firebase is ready");
+        return;
+      }
+      
+      attempts++;
+      print("Waiting for Firebase to be ready... attempt $attempts");
+      await Future.delayed(Duration(milliseconds: 500));
+    }
+    
+    throw Exception("Firebase failed to become ready after $maxAttempts attempts");
   }
 }

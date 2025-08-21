@@ -8,6 +8,7 @@ import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:skin_assessment/utils/firebase_utils.dart';
+import 'package:skin_assessment/services/google_sign_in_service.dart';
 
 class OnboardScreen extends StatefulWidget {
   const OnboardScreen({Key? key}) : super(key: key);
@@ -379,37 +380,39 @@ class GoogleSignInButton extends StatelessWidget {
                       // Ensure Firebase is ready before attempting sign-in
                       await FirebaseUtils.waitForFirebase();
                       
-                      final GoogleAuthProvider googleProvider =
-                          GoogleAuthProvider();
-                      await FirebaseAuth.instance
-                          .signInWithPopup(googleProvider);
-                      print(FirebaseAuth.instance.currentUser?.email);
-                      print(FirebaseAuth.instance.currentUser?.displayName);
-                      print(FirebaseAuth.instance.currentUser?.uid);
-                      print(FirebaseAuth.instance.currentUser?.photoURL);
-                      print(FirebaseAuth.instance.currentUser?.photoURL);
-                      print(
-                          "Signed in: ${FirebaseAuth.instance.currentUser?.displayName}");
-                      context.read<AuthBloc>().add(
-                            GoogleLoginRequested(
-                              googleToken:
-                                  FirebaseAuth.instance.currentUser?.uid ?? '',
-                              email: FirebaseAuth.instance.currentUser?.email ??
-                                  '',
-                              displayName: FirebaseAuth
-                                      .instance.currentUser?.displayName ??
-                                  '',
-                              uid: FirebaseAuth.instance.currentUser?.uid ?? '',
-                              photoURL:
-                                  FirebaseAuth.instance.currentUser?.photoURL ??
-                                      '',
-                              phoneNumber: FirebaseAuth
-                                      .instance.currentUser?.phoneNumber ??
-                                  '',
-                            ),
-                          );
+                      // Use Google Sign-In service
+                      final UserCredential? userCredential = await GoogleSignInService.signInWithGoogle();
+                      
+                      if (userCredential == null) {
+                        // User cancelled the sign-in
+                        context.read<AuthBloc>().emit(AuthInitial());
+                        return;
+                      }
+                      
+                      final User? user = userCredential.user;
+                      
+                      if (user != null) {
+                        print("Google Sign-In successful: ${user.email}");
+                        print("User display name: ${user.displayName}");
+                        print("User ID: ${user.uid}");
+                        print("User photo URL: ${user.photoURL}");
+                        
+                        context.read<AuthBloc>().add(
+                          GoogleLoginRequested(
+                            googleToken: user.uid,
+                            email: user.email ?? '',
+                            displayName: user.displayName ?? '',
+                            uid: user.uid,
+                            photoURL: user.photoURL ?? '',
+                            phoneNumber: user.phoneNumber ?? '',
+                          ),
+                        );
+                      } else {
+                        throw Exception("Failed to sign in with Google");
+                      }
+                      
                     } catch (e) {
-                      print("Error signing in on web: $e");
+                      print("Error signing in with Google: $e");
                       // Show error to user
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(

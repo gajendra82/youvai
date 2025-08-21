@@ -5,6 +5,7 @@ import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/themes/app_theme.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:skin_assessment/utils/firebase_utils.dart';
+import 'package:skin_assessment/utils/google_signin_test.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'dart:async';
 
@@ -56,6 +57,12 @@ void main() async {
       FirebaseUtils.printFirebaseStatus();
       await FirebaseUtils.checkFirebaseAuth();
     }
+    
+    // Test Google Sign-In configuration
+    print("Testing Google Sign-In configuration...");
+    final googleSignInTest = await GoogleSignInTest.testConfiguration();
+    GoogleSignInTest.printTestResults(googleSignInTest);
+    
   } catch (e) {
     print("Firebase initialization error: $e");
     // Continue with app initialization even if Firebase fails

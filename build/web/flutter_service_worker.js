@@ -3,7 +3,8 @@ const MANIFEST = 'flutter-app-manifest';
 const TEMP = 'flutter-temp-cache';
 const CACHE_NAME = 'flutter-app-cache';
 
-const RESOURCES = {"assets/assets/face_wireframe.png": "fc5b3732d5683984380adbc3cf87de40",
+const RESOURCES = {"firebase-config.js": "1d4770e2330411fa2e6170bf744d0717",
+"assets/assets/face_wireframe.png": "fc5b3732d5683984380adbc3cf87de40",
 "assets/assets/google_logo.png": "e9612850a6cb55eb547266043e1eef86",
 "assets/assets/json/personal_care.json": "08b2ca068ff1b8544c289c0ea62eae23",
 "assets/assets/json/skin_analysis.json": "ab186949e3c9fec62d92950001b1ec9f",
@@ -17,8 +18,8 @@ const RESOURCES = {"assets/assets/face_wireframe.png": "fc5b3732d5683984380adbc3
 "assets/FontManifest.json": "dc3d03800ccca4601324923c0b1d6d57",
 "assets/packages/cupertino_icons/assets/CupertinoIcons.ttf": "33b7d9392238c04c131b6ce224e13711",
 "assets/AssetManifest.json": "16e5623cc68d8443d0af7a660ca6ce9e",
-"main.dart.js": "d4bf5be3a1a9a37e6991e1a3a13e2a1d",
-"flutter_bootstrap.js": "49eaf600398e59693fade965cb4113b0",
+"main.dart.js": "1606d055f3e0ab99bfd97e595d19528e",
+"flutter_bootstrap.js": "a57baa00b8bf5a9de0c10948ca8f4e47",
 "manifest.json": "f2a58b029c66761d2ed65047730efad9",
 "canvaskit/canvaskit.js.symbols": "bdcd3835edf8586b6d6edfce8749fb77",
 "canvaskit/skwasm.js": "ea559890a088fe28b4ddf70e17e60052",
@@ -29,8 +30,8 @@ const RESOURCES = {"assets/assets/face_wireframe.png": "fc5b3732d5683984380adbc3
 "canvaskit/chromium/canvaskit.wasm": "f504de372e31c8031018a9ec0a9ef5f0",
 "canvaskit/skwasm.js.symbols": "e72c79950c8a8483d826a7f0560573a1",
 "canvaskit/canvaskit.wasm": "7a3f4ae7d65fc1de6a6e7ddd3224bc93",
-"index.html": "e57a589b3e12b32100ce47fd944a4b54",
-"/": "e57a589b3e12b32100ce47fd944a4b54",
+"index.html": "09afa7ba2a738e042043528990b37904",
+"/": "09afa7ba2a738e042043528990b37904",
 "models/face-api.js-models/age_gender_model/age_gender_model-shard1": "c34648b1f6dcf740eedef0473f13f4e1",
 "models/face-api.js-models/age_gender_model/age_gender_model-weights_manifest.json": "d443abfd550a910c026d40cad6ea6000",
 "models/face-api.js-models/proto/ssd_mobilenet_face_optimized_v2.pbtxt": "cdb7a7357274b327fcf40eef5d102317",

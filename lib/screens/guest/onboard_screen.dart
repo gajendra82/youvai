@@ -7,6 +7,7 @@ import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:skin_assessment/utils/firebase_utils.dart';
 
 class OnboardScreen extends StatefulWidget {
   const OnboardScreen({Key? key}) : super(key: key);
@@ -369,6 +370,10 @@ class GoogleSignInButton extends StatelessWidget {
                     // context.read<AuthBloc>().add(GoogleLoginRequested());
                     try {
                       context.read<AuthBloc>().emit(AuthLoading());
+                      
+                      // Ensure Firebase is initialized
+                      await FirebaseUtils.initializeFirebase();
+                      
                       final GoogleAuthProvider googleProvider =
                           GoogleAuthProvider();
                       await FirebaseAuth.instance
@@ -400,6 +405,15 @@ class GoogleSignInButton extends StatelessWidget {
                           );
                     } catch (e) {
                       print("Error signing in on web: $e");
+                      // Show error to user
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Sign in failed: ${e.toString()}'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                      // Reset loading state
+                      context.read<AuthBloc>().emit(AuthInitial());
                     }
                   },
             icon: state is AuthLoading

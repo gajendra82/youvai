@@ -4,24 +4,24 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/themes/app_theme.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:skin_assessment/utils/firebase_utils.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
   try {
-    await Firebase.initializeApp(
-      options: const FirebaseOptions(
-        apiKey: "AIzaSyAlg92sDvJb8xmuMt8yA9MtjbWrHMWV1oY",
-        authDomain: "youvai-56995.firebaseapp.com",
-        // projectId: "project-377693730311",
-        projectId: "youvai-56995",
-        storageBucket: "youvai-56995.appspot.com",
-        messagingSenderId: "377693730311",
-        appId: "1:377693730311:web:24dfc047db461c18c3dca2",
-      ),
-    );
+    await FirebaseUtils.initializeFirebase();
+    FirebaseUtils.printFirebaseStatus();
+    
+    // Test Firebase Auth
+    await FirebaseUtils.checkFirebaseAuth();
   } catch (e) {
     print("Firebase initialization error: $e");
+    // Continue with app initialization even if Firebase fails
+    // This allows the app to run without Firebase if needed
   }
+  
   runApp(const MyApp());
 }
 

@@ -107,4 +107,48 @@ class FirebaseUtils {
     
     throw Exception("Firebase failed to become ready after $maxAttempts attempts");
   }
+
+  // Method to check if Firebase is available and working
+  static Future<bool> isFirebaseAvailable() async {
+    try {
+      // For web, check if Firebase is available in the browser
+      if (kIsWeb) {
+        // Try to access Firebase - this will throw if not available
+        await Firebase.apps;
+        return true;
+      } else {
+        // For mobile, Firebase should always be available
+        return true;
+      }
+    } catch (e) {
+      print("Firebase not available: $e");
+      return false;
+    }
+  }
+
+  // Method to safely initialize Firebase with availability check
+  static Future<bool> safeInitializeFirebase() async {
+    try {
+      if (await isFirebaseAvailable()) {
+        await initializeFirebase();
+        return true;
+      } else {
+        print("Firebase not available, skipping initialization");
+        return false;
+      }
+    } catch (e) {
+      print("Safe Firebase initialization failed: $e");
+      return false;
+    }
+  }
+
+  // Method to get Firebase status for debugging
+  static Map<String, dynamic> getFirebaseStatus() {
+    return {
+      'isWeb': kIsWeb,
+      'appsCount': Firebase.apps.length,
+      'isInitialized': isFirebaseInitialized(),
+      'appName': Firebase.apps.isNotEmpty ? Firebase.app().name : null,
+    };
+  }
 }

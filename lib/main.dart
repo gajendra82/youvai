@@ -13,28 +13,36 @@ void main() async {
   
   try {
     if (kIsWeb) {
-      // For web, add a delay to ensure Firebase SDK is loaded
-      print("Waiting for Firebase SDK to load...");
-      await Future.delayed(Duration(seconds: 2));
+      // For web, check if Firebase is available and ready
+      print("Checking Firebase availability on web...");
+      
+      // Wait a bit longer for Firebase to be ready
+      await Future.delayed(Duration(seconds: 3));
       
       // Try to initialize Firebase with retry mechanism
       bool firebaseInitialized = false;
       int retryCount = 0;
-      const maxRetries = 3;
+      const maxRetries = 5;
       
       while (!firebaseInitialized && retryCount < maxRetries) {
         try {
-          await FirebaseUtils.initializeFirebase();
-          FirebaseUtils.printFirebaseStatus();
-          await FirebaseUtils.checkFirebaseAuth();
-          firebaseInitialized = true;
-          print("Firebase initialized successfully on attempt ${retryCount + 1}");
+          // Check if Firebase is available in the browser
+          if (await _isFirebaseAvailableInBrowser()) {
+            await FirebaseUtils.initializeFirebase();
+            FirebaseUtils.printFirebaseStatus();
+            await FirebaseUtils.checkFirebaseAuth();
+            firebaseInitialized = true;
+            print("Firebase initialized successfully on attempt ${retryCount + 1}");
+          } else {
+            print("Firebase not available in browser, skipping initialization");
+            firebaseInitialized = true; // Mark as "handled" to stop retries
+          }
         } catch (e) {
           retryCount++;
           print("Firebase initialization attempt $retryCount failed: $e");
           if (retryCount < maxRetries) {
-            print("Retrying in 1 second...");
-            await Future.delayed(Duration(seconds: 1));
+            print("Retrying in 2 seconds...");
+            await Future.delayed(Duration(seconds: 2));
           }
         }
       }
@@ -55,6 +63,18 @@ void main() async {
   }
   
   runApp(const MyApp());
+}
+
+// Helper function to check if Firebase is available in the browser
+Future<bool> _isFirebaseAvailableInBrowser() async {
+  try {
+    // This will throw an error if Firebase is not available
+    await Firebase.apps;
+    return true;
+  } catch (e) {
+    print("Firebase not available in browser: $e");
+    return false;
+  }
 }
 
 class MyApp extends StatelessWidget {

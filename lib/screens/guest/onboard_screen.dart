@@ -371,6 +371,11 @@ class GoogleSignInButton extends StatelessWidget {
                     try {
                       context.read<AuthBloc>().emit(AuthLoading());
                       
+                      // Check if Firebase is available first
+                      if (!await FirebaseUtils.isFirebaseAvailable()) {
+                        throw Exception("Firebase is not available. Please check your internet connection and try again.");
+                      }
+                      
                       // Ensure Firebase is ready before attempting sign-in
                       await FirebaseUtils.waitForFirebase();
                       
@@ -410,6 +415,7 @@ class GoogleSignInButton extends StatelessWidget {
                         SnackBar(
                           content: Text('Sign in failed: ${e.toString()}'),
                           backgroundColor: Colors.red,
+                          duration: Duration(seconds: 5),
                         ),
                       );
                       // Reset loading state

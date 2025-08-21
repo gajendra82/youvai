@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Firebase Test - YouVai</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background-color: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Firebase Test Page - YouVai</h1>
+    <div id="status">Initializing...</div>
+    
+    <button onclick="testFirebase()">Test Firebase</button>
+    <button onclick="testAuth()">Test Auth</button>
+    <button onclick="clearStatus()">Clear Status</button>
+    
+    <script>
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyAlg92sDvJb8xmuMt8yA9MtjbWrHMWV1oY",
+            authDomain: "youvai-56995.firebaseapp.com",
+            projectId: "youvai-56995",
+            storageBucket: "youvai-56995.appspot.com",
+            messagingSenderId: "377693730311",
+            appId: "1:377693730311:web:24dfc047db461c18c3dca2"
+        };
+
+        let firebaseInitialized = false;
+
+        function addStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            const div = document.createElement('div');
+            div.className = `status ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()}: ${message}`;
+            statusDiv.appendChild(div);
+            console.log(message);
+        }
+
+        function clearStatus() {
+            document.getElementById('status').innerHTML = '';
+        }
+
+        // Load Firebase SDKs
+        function loadFirebaseSDK() {
+            addStatus('Loading Firebase SDKs...', 'info');
+            
+            const scripts = [
+                'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
+                'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
+                'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js'
+            ];
+
+            let loadedCount = 0;
+            const totalScripts = scripts.length;
+
+            scripts.forEach((src, index) => {
+                const script = document.createElement('script');
+                script.src = src;
+                script.async = false;
+                
+                script.onload = () => {
+                    loadedCount++;
+                    addStatus(`Loaded script ${index + 1}/${totalScripts}: ${src}`, 'success');
+                    
+                    if (loadedCount === totalScripts) {
+                        addStatus('All Firebase scripts loaded, initializing...', 'info');
+                        setTimeout(() => {
+                            initializeFirebase();
+                        }, 200);
+                    }
+                };
+                
+                script.onerror = () => {
+                    addStatus(`Failed to load script: ${src}`, 'error');
+                    loadedCount++;
+                    if (loadedCount === totalScripts) {
+                        setTimeout(() => {
+                            initializeFirebase();
+                        }, 200);
+                    }
+                };
+                
+                document.head.appendChild(script);
+            });
+        }
+
+        function initializeFirebase() {
+            addStatus('Attempting to initialize Firebase...', 'info');
+            
+            if (typeof firebase !== 'undefined') {
+                try {
+                    // Check if already initialized
+                    if (firebase.apps && firebase.apps.length > 0) {
+                        addStatus('Firebase already initialized', 'success');
+                        firebaseInitialized = true;
+                        return;
+                    }
+
+                    firebase.initializeApp(firebaseConfig);
+                    addStatus('Firebase initialized successfully!', 'success');
+                    firebaseInitialized = true;
+                    
+                    // Test Firebase Auth
+                    if (firebase.auth) {
+                        addStatus('Firebase Auth is available', 'success');
+                    } else {
+                        addStatus('Firebase Auth is NOT available', 'error');
+                    }
+                    
+                } catch (error) {
+                    addStatus('Firebase initialization error: ' + error.message, 'error');
+                }
+            } else {
+                addStatus('Firebase SDK not loaded', 'error');
+            }
+        }
+
+        function testFirebase() {
+            addStatus('Testing Firebase functionality...', 'info');
+            
+            if (!firebaseInitialized) {
+                addStatus('Firebase not initialized. Cannot test.', 'error');
+                return;
+            }
+
+            try {
+                // Test basic Firebase functionality
+                const apps = firebase.apps;
+                addStatus(`Firebase apps count: ${apps.length}`, 'success');
+                
+                if (apps.length > 0) {
+                    const app = apps[0];
+                    addStatus(`Firebase app name: ${app.name}`, 'success');
+                    addStatus(`Firebase app options: ${JSON.stringify(app.options)}`, 'info');
+                }
+                
+                // Test Auth
+                if (firebase.auth) {
+                    addStatus('Firebase Auth is working', 'success');
+                } else {
+                    addStatus('Firebase Auth is not working', 'error');
+                }
+                
+            } catch (error) {
+                addStatus('Firebase test failed: ' + error.message, 'error');
+            }
+        }
+
+        function testAuth() {
+            addStatus('Testing Firebase Auth...', 'info');
+            
+            if (!firebaseInitialized || !firebase.auth) {
+                addStatus('Firebase Auth not available. Cannot test.', 'error');
+                return;
+            }
+
+            try {
+                const auth = firebase.auth();
+                addStatus('Firebase Auth instance created successfully', 'success');
+                
+                // Check current user
+                const user = auth.currentUser;
+                if (user) {
+                    addStatus(`User is signed in: ${user.email}`, 'success');
+                } else {
+                    addStatus('No user is currently signed in', 'info');
+                }
+                
+                // Test auth state listener
+                const unsubscribe = auth.onAuthStateChanged((user) => {
+                    if (user) {
+                        addStatus(`Auth state changed - User signed in: ${user.email}`, 'success');
+                    } else {
+                        addStatus('Auth state changed - User signed out', 'info');
+                    }
+                });
+                
+                // Clean up listener after 5 seconds
+                setTimeout(() => {
+                    unsubscribe();
+                    addStatus('Auth state listener cleaned up', 'info');
+                }, 5000);
+                
+            } catch (error) {
+                addStatus('Firebase Auth test failed: ' + error.message, 'error');
+            }
+        }
+
+        // Start the process
+        loadFirebaseSDK();
+
+        // Fallback: If Firebase fails to load after 15 seconds, show warning
+        setTimeout(() => {
+            if (!firebaseInitialized) {
+                addStatus('Firebase failed to load within 15 seconds. This might indicate a network or hosting issue.', 'warning');
+            }
+        }, 15000);
+    </script>
+</body>
+</html>

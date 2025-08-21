@@ -34,7 +34,7 @@
     <link rel="manifest" href="manifest.json" />
   </head>
   <body>
-    <!-- Firebase SDK - Load before Flutter with proper error handling -->
+    <!-- Firebase SDK - Load before Flutter with comprehensive error handling -->
     <script>
       // Firebase configuration
       const firebaseConfig = {
@@ -46,25 +46,41 @@
         appId: "1:377693730311:web:24dfc047db461c18c3dca2"
       };
 
+      // Global Firebase status
+      window.firebaseReady = false;
+      window.firebaseError = null;
+
       // Function to initialize Firebase
       function initializeFirebase() {
         if (typeof firebase !== 'undefined') {
           try {
+            // Check if Firebase is already initialized
+            if (firebase.apps && firebase.apps.length > 0) {
+              console.log('Firebase already initialized');
+              window.firebaseReady = true;
+              return true;
+            }
+
             firebase.initializeApp(firebaseConfig);
             console.log('Firebase initialized successfully in web');
+            window.firebaseReady = true;
             return true;
           } catch (error) {
             console.error('Firebase initialization error:', error);
+            window.firebaseError = error.message;
             return false;
           }
         } else {
           console.error('Firebase SDK not loaded');
+          window.firebaseError = 'Firebase SDK not loaded';
           return false;
         }
       }
 
-      // Load Firebase SDKs with fallback
+      // Load Firebase SDKs with comprehensive error handling
       function loadFirebaseSDK() {
+        console.log('Starting Firebase SDK loading...');
+        
         const scripts = [
           'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
           'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js',
@@ -72,40 +88,108 @@
         ];
 
         let loadedCount = 0;
+        let errorCount = 0;
         const totalScripts = scripts.length;
 
         scripts.forEach((src, index) => {
           const script = document.createElement('script');
           script.src = src;
+          script.async = false; // Load synchronously to ensure order
+          
           script.onload = () => {
             loadedCount++;
+            console.log(`Loaded Firebase script ${index + 1}/${totalScripts}: ${src}`);
+            
             if (loadedCount === totalScripts) {
-              // All scripts loaded, initialize Firebase
+              console.log('All Firebase scripts loaded, initializing...');
               setTimeout(() => {
                 initializeFirebase();
-              }, 100);
+              }, 200);
             }
           };
+          
           script.onerror = () => {
+            errorCount++;
             console.error(`Failed to load Firebase script: ${src}`);
-            loadedCount++;
-            if (loadedCount === totalScripts) {
-              // Try to initialize anyway
-              setTimeout(() => {
-                initializeFirebase();
-              }, 100);
+            
+            // Try alternative CDN if main one fails
+            if (src.includes('gstatic.com')) {
+              const altScript = document.createElement('script');
+              altScript.src = src.replace('gstatic.com', 'firebaseapp.com');
+              altScript.async = false;
+              altScript.onload = () => {
+                loadedCount++;
+                console.log(`Loaded Firebase script from alternative CDN: ${src}`);
+                if (loadedCount === totalScripts) {
+                  setTimeout(() => {
+                    initializeFirebase();
+                  }, 200);
+                }
+              };
+              altScript.onerror = () => {
+                loadedCount++;
+                console.error(`Alternative CDN also failed for: ${src}`);
+                if (loadedCount === totalScripts) {
+                  setTimeout(() => {
+                    initializeFirebase();
+                  }, 200);
+                }
+              };
+              document.head.appendChild(altScript);
+            } else {
+              loadedCount++;
+              if (loadedCount === totalScripts) {
+                setTimeout(() => {
+                  initializeFirebase();
+                }, 200);
+              }
             }
           };
+          
           document.head.appendChild(script);
         });
       }
 
-      // Start loading Firebase SDKs
-      loadFirebaseSDK();
+      // Wait for DOM to be ready, then load Firebase
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadFirebaseSDK);
+      } else {
+        loadFirebaseSDK();
+      }
+
+      // Fallback: If Firebase fails to load after 10 seconds, continue anyway
+      setTimeout(() => {
+        if (!window.firebaseReady) {
+          console.warn('Firebase failed to load within 10 seconds, continuing without Firebase');
+          window.firebaseReady = true; // Allow app to continue
+        }
+      }, 10000);
     </script>
     
-    <!-- Flutter Bootstrap -->
-    <script src="flutter_bootstrap.js" async></script>
+    <!-- Flutter Bootstrap - Load after Firebase -->
+    <script>
+      // Wait for Firebase to be ready before loading Flutter
+      function loadFlutter() {
+        console.log('Loading Flutter...');
+        const script = document.createElement('script');
+        script.src = 'flutter_bootstrap.js';
+        script.async = true;
+        document.body.appendChild(script);
+      }
+
+      // Check Firebase status and load Flutter
+      function checkAndLoadFlutter() {
+        if (window.firebaseReady) {
+          loadFlutter();
+        } else {
+          // Wait a bit more for Firebase
+          setTimeout(checkAndLoadFlutter, 500);
+        }
+      }
+
+      // Start checking after 1 second
+      setTimeout(checkAndLoadFlutter, 1000);
+    </script>
     
     <!-- Razorpay -->
     <script src="https://checkout.razorpay.com/v1/checkout.js"></script>

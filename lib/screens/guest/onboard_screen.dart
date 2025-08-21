@@ -372,43 +372,70 @@ class GoogleSignInButton extends StatelessWidget {
                     try {
                       context.read<AuthBloc>().emit(AuthLoading());
                       
-                      // Check if Firebase is available first
-                      if (!await FirebaseUtils.isFirebaseAvailable()) {
-                        throw Exception("Firebase is not available. Please check your internet connection and try again.");
-                      }
+                      // Test availability first
+                      final availabilityTest = await GoogleSignInService.testAvailability();
+                      print('Availability test: $availabilityTest');
                       
-                      // Ensure Firebase is ready before attempting sign-in
-                      await FirebaseUtils.waitForFirebase();
-                      
-                      // Use Google Sign-In service
-                      final UserCredential? userCredential = await GoogleSignInService.signInWithGoogle();
-                      
-                      if (userCredential == null) {
-                        // User cancelled the sign-in
-                        context.read<AuthBloc>().emit(AuthInitial());
-                        return;
-                      }
-                      
-                      final User? user = userCredential.user;
-                      
-                      if (user != null) {
-                        print("Google Sign-In successful: ${user.email}");
-                        print("User display name: ${user.displayName}");
-                        print("User ID: ${user.uid}");
-                        print("User photo URL: ${user.photoURL}");
+                      if (!availabilityTest['firebaseAvailable']) {
+                        // Firebase is not available, try alternative sign-in
+                        print('Firebase not available, trying alternative sign-in...');
                         
-                        context.read<AuthBloc>().add(
-                          GoogleLoginRequested(
-                            googleToken: user.uid,
-                            email: user.email ?? '',
-                            displayName: user.displayName ?? '',
-                            uid: user.uid,
-                            photoURL: user.photoURL ?? '',
-                            phoneNumber: user.phoneNumber ?? '',
-                          ),
-                        );
+                        final userData = await GoogleSignInService.signInWithGoogleWithoutFirebase();
+                        
+                        if (userData != null) {
+                          print("Google Sign-In successful (without Firebase): ${userData['email']}");
+                          
+                          context.read<AuthBloc>().add(
+                            GoogleLoginRequested(
+                              googleToken: userData['id'] ?? '',
+                              email: userData['email'] ?? '',
+                              displayName: userData['displayName'] ?? '',
+                              uid: userData['id'] ?? '',
+                              photoURL: userData['photoUrl'] ?? '',
+                              phoneNumber: '',
+                            ),
+                          );
+                        } else {
+                          // User cancelled
+                          context.read<AuthBloc>().emit(AuthInitial());
+                        }
                       } else {
-                        throw Exception("Failed to sign in with Google");
+                        // Firebase is available, use normal sign-in
+                        print('Firebase available, using normal sign-in...');
+                        
+                        // Ensure Firebase is ready before attempting sign-in
+                        await FirebaseUtils.waitForFirebase();
+                        
+                        // Use Google Sign-In service
+                        final UserCredential? userCredential = await GoogleSignInService.signInWithGoogle();
+                        
+                        if (userCredential == null) {
+                          // User cancelled the sign-in
+                          context.read<AuthBloc>().emit(AuthInitial());
+                          return;
+                        }
+                        
+                        final User? user = userCredential.user;
+                        
+                        if (user != null) {
+                          print("Google Sign-In successful: ${user.email}");
+                          print("User display name: ${user.displayName}");
+                          print("User ID: ${user.uid}");
+                          print("User photo URL: ${user.photoURL}");
+                          
+                          context.read<AuthBloc>().add(
+                            GoogleLoginRequested(
+                              googleToken: user.uid,
+                              email: user.email ?? '',
+                              displayName: user.displayName ?? '',
+                              uid: user.uid,
+                              photoURL: user.photoURL ?? '',
+                              phoneNumber: user.phoneNumber ?? '',
+                            ),
+                          );
+                        } else {
+                          throw Exception("Failed to sign in with Google");
+                        }
                       }
                       
                     } catch (e) {

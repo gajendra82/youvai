@@ -1,19 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
-
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
-
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
-
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
+  
     <base href="$FLUTTER_BASE_HREF" />
 
     <meta charset="UTF-8" />
@@ -52,6 +40,8 @@
       // Global Firebase status
       window.firebaseReady = false;
       window.firebaseError = null;
+      window.firebaseLoadingAttempts = 0;
+      const maxFirebaseAttempts = 3;
 
       // Function to initialize Firebase
       function initializeFirebase() {
@@ -83,6 +73,7 @@
       // Load Firebase SDKs with comprehensive error handling
       function loadFirebaseSDK() {
         console.log('Starting Firebase SDK loading...');
+        window.firebaseLoadingAttempts++;
         
         const scripts = [
           'https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js',
@@ -106,7 +97,11 @@
             if (loadedCount === totalScripts) {
               console.log('All Firebase scripts loaded, initializing...');
               setTimeout(() => {
-                initializeFirebase();
+                const success = initializeFirebase();
+                if (!success && window.firebaseLoadingAttempts < maxFirebaseAttempts) {
+                  console.log(`Firebase initialization failed, retrying... (attempt ${window.firebaseLoadingAttempts + 1}/${maxFirebaseAttempts})`);
+                  setTimeout(loadFirebaseSDK, 2000);
+                }
               }, 200);
             }
           };
@@ -125,7 +120,11 @@
                 console.log(`Loaded Firebase script from alternative CDN: ${src}`);
                 if (loadedCount === totalScripts) {
                   setTimeout(() => {
-                    initializeFirebase();
+                    const success = initializeFirebase();
+                    if (!success && window.firebaseLoadingAttempts < maxFirebaseAttempts) {
+                      console.log(`Firebase initialization failed, retrying... (attempt ${window.firebaseLoadingAttempts + 1}/${maxFirebaseAttempts})`);
+                      setTimeout(loadFirebaseSDK, 2000);
+                    }
                   }, 200);
                 }
               };
@@ -134,7 +133,11 @@
                 console.error(`Alternative CDN also failed for: ${src}`);
                 if (loadedCount === totalScripts) {
                   setTimeout(() => {
-                    initializeFirebase();
+                    const success = initializeFirebase();
+                    if (!success && window.firebaseLoadingAttempts < maxFirebaseAttempts) {
+                      console.log(`Firebase initialization failed, retrying... (attempt ${window.firebaseLoadingAttempts + 1}/${maxFirebaseAttempts})`);
+                      setTimeout(loadFirebaseSDK, 2000);
+                    }
                   }, 200);
                 }
               };
@@ -143,7 +146,11 @@
               loadedCount++;
               if (loadedCount === totalScripts) {
                 setTimeout(() => {
-                  initializeFirebase();
+                  const success = initializeFirebase();
+                  if (!success && window.firebaseLoadingAttempts < maxFirebaseAttempts) {
+                    console.log(`Firebase initialization failed, retrying... (attempt ${window.firebaseLoadingAttempts + 1}/${maxFirebaseAttempts})`);
+                    setTimeout(loadFirebaseSDK, 2000);
+                  }
                 }, 200);
               }
             }
@@ -160,13 +167,14 @@
         loadFirebaseSDK();
       }
 
-      // Fallback: If Firebase fails to load after 10 seconds, continue anyway
+      // Fallback: If Firebase fails to load after multiple attempts, continue anyway
       setTimeout(() => {
         if (!window.firebaseReady) {
-          console.warn('Firebase failed to load within 10 seconds, continuing without Firebase');
+          console.warn('Firebase failed to load after multiple attempts, continuing without Firebase');
           window.firebaseReady = true; // Allow app to continue
+          window.firebaseError = 'Firebase failed to load, but app will continue';
         }
-      }, 10000);
+      }, 30000); // 30 seconds timeout
     </script>
     
     <!-- Flutter Bootstrap - Load after Firebase -->

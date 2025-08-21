@@ -258,75 +258,75 @@ class _LoginPageState extends State<LoginPage> {
                 // Bottom section
                 Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 18.0, top: 8),
-                      child: Row(
-                        children: const [
-                          Expanded(child: Divider(thickness: 1.2)),
-                          SizedBox(width: 12),
-                          Text(
-                            "Or continue with",
-                            style: TextStyle(
-                              color: Color(0xFFB0A4BA),
-                              fontSize: 13,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(child: Divider(thickness: 1.2)),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          BlocProvider(
-                            create: (_) => AuthBloc(),
-                            child: BlocListener<AuthBloc, AuthState>(
-                              listener: (context, state) {
-                                if (state is AuthAuthenticated) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('${state.message}')),
-                                  );
-                                  Navigator.pushReplacementNamed(
-                                      context, AppRoutes.start);
-                                  // Or: Navigator.push(...);
-                                } else if (state is AuthError) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(state.error)),
-                                  );
-                                }
-                              },
-                              child: GoogleSignInButton(),
-                            ),
-                          );
-                        },
-                        icon: Image.asset(
-                          'assets/google_logo.png',
-                          height: 22,
-                          width: 22,
-                        ),
-                        label: const Text(
-                          'Login with Google',
-                          style: TextStyle(
-                            color: Color(0xFF444444),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: const BorderSide(
-                            color: Color(0xFFE2E2E2),
-                            width: 1.2,
-                          ),
-                          backgroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
+                    // Padding(
+                    //   padding: const EdgeInsets.only(bottom: 18.0, top: 8),
+                    //   child: Row(
+                    //     children: const [
+                    //       Expanded(child: Divider(thickness: 1.2)),
+                    //       SizedBox(width: 12),
+                    //       Text(
+                    //         "Or continue with",
+                    //         style: TextStyle(
+                    //           color: Color(0xFFB0A4BA),
+                    //           fontSize: 13,
+                    //         ),
+                    //       ),
+                    //       SizedBox(width: 12),
+                    //       Expanded(child: Divider(thickness: 1.2)),
+                    //     ],
+                    //   ),
+                    // ),
+                    // SizedBox(
+                    //   width: double.infinity,
+                    //   child: OutlinedButton.icon(
+                    //     onPressed: () {
+                    //       BlocProvider(
+                    //         create: (_) => AuthBloc(),
+                    //         child: BlocListener<AuthBloc, AuthState>(
+                    //           listener: (context, state) {
+                    //             if (state is AuthAuthenticated) {
+                    //               ScaffoldMessenger.of(context).showSnackBar(
+                    //                 SnackBar(content: Text('${state.message}')),
+                    //               );
+                    //               Navigator.pushReplacementNamed(
+                    //                   context, AppRoutes.start);
+                    //               // Or: Navigator.push(...);
+                    //             } else if (state is AuthError) {
+                    //               ScaffoldMessenger.of(context).showSnackBar(
+                    //                 SnackBar(content: Text(state.error)),
+                    //               );
+                    //             }
+                    //           },
+                    //           child: GoogleSignInButton(),
+                    //         ),
+                    //       );
+                    //     },
+                    //     icon: Image.asset(
+                    //       'assets/google_logo.png',
+                    //       height: 22,
+                    //       width: 22,
+                    //     ),
+                    //     label: const Text(
+                    //       'Login with Google',
+                    //       style: TextStyle(
+                    //         color: Color(0xFF444444),
+                    //         fontWeight: FontWeight.w600,
+                    //         fontSize: 16,
+                    //       ),
+                    //     ),
+                    //     style: OutlinedButton.styleFrom(
+                    //       padding: const EdgeInsets.symmetric(vertical: 13),
+                    //       shape: RoundedRectangleBorder(
+                    //         borderRadius: BorderRadius.circular(12),
+                    //       ),
+                    //       side: const BorderSide(
+                    //         color: Color(0xFFE2E2E2),
+                    //         width: 1.2,
+                    //       ),
+                    //       backgroundColor: Colors.white,
+                    //     ),
+                    //   ),
+                    // ),
                     const SizedBox(height: 18),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

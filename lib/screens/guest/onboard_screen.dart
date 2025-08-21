@@ -322,28 +322,28 @@ class _OnboardScreenState extends State<OnboardScreen> {
                       //     ),
                       //   ),
                       // ),
-                      BlocProvider(
-                        create: (_) => AuthBloc(),
-                        child: BlocListener<AuthBloc, AuthState>(
-                          listener: (context, state) {
-                            if (state is AuthAuthenticated) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                    content: Text(
-                                        '${state.message}')),
-                              );
-                              Navigator.pushReplacementNamed(
-                                  context, AppRoutes.start);
-                              // Or: Navigator.push(...);
-                            } else if (state is AuthError) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(state.error)),
-                              );
-                            }
-                          },
-                          child: GoogleSignInButton(),
-                        ),
-                      ),
+                      // BlocProvider(
+                      //   create: (_) => AuthBloc(),
+                      //   child: BlocListener<AuthBloc, AuthState>(
+                      //     listener: (context, state) {
+                      //       if (state is AuthAuthenticated) {
+                      //         ScaffoldMessenger.of(context).showSnackBar(
+                      //           SnackBar(
+                      //               content: Text(
+                      //                   '${state.message}')),
+                      //         );
+                      //         Navigator.pushReplacementNamed(
+                      //             context, AppRoutes.start);
+                      //         // Or: Navigator.push(...);
+                      //       } else if (state is AuthError) {
+                      //         ScaffoldMessenger.of(context).showSnackBar(
+                      //           SnackBar(content: Text(state.error)),
+                      //         );
+                      //       }
+                      //     },
+                      //     child: GoogleSignInButton(),
+                      //   ),
+                      // ),
                     ],
                   ),
                 ),
@@ -356,105 +356,105 @@ class _OnboardScreenState extends State<OnboardScreen> {
   }
 }
 
-class GoogleSignInButton extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<AuthBloc, AuthState>(
-      builder: (context, state) {
-      return SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: state is AuthLoading
-                ? null
-                : () async {
-                    // context.read<AuthBloc>().add(GoogleLoginRequested());
-                    try {
-                      context.read<AuthBloc>().emit(AuthLoading());
-                      
-                      // Check if Firebase is available first
-                      if (!await FirebaseUtils.isFirebaseAvailable()) {
-                        throw Exception("Firebase is not available. Please check your internet connection and try again.");
-                      }
-                      
-                      // Ensure Firebase is ready before attempting sign-in
-                      await FirebaseUtils.waitForFirebase();
-                      
-                      final GoogleAuthProvider googleProvider =
-                          GoogleAuthProvider();
-                      await FirebaseAuth.instance
-                          .signInWithPopup(googleProvider);
-                      print(FirebaseAuth.instance.currentUser?.email);
-                      print(FirebaseAuth.instance.currentUser?.displayName);
-                      print(FirebaseAuth.instance.currentUser?.uid);
-                      print(FirebaseAuth.instance.currentUser?.photoURL);
-                      print(FirebaseAuth.instance.currentUser?.photoURL);
-                      print(
-                          "Signed in: ${FirebaseAuth.instance.currentUser?.displayName}");
-                      context.read<AuthBloc>().add(
-                            GoogleLoginRequested(
-                              googleToken:
-                                  FirebaseAuth.instance.currentUser?.uid ?? '',
-                              email: FirebaseAuth.instance.currentUser?.email ??
-                                  '',
-                              displayName: FirebaseAuth
-                                      .instance.currentUser?.displayName ??
-                                  '',
-                              uid: FirebaseAuth.instance.currentUser?.uid ?? '',
-                              photoURL:
-                                  FirebaseAuth.instance.currentUser?.photoURL ??
-                                      '',
-                              phoneNumber: FirebaseAuth
-                                      .instance.currentUser?.phoneNumber ??
-                                  '',
-                            ),
-                          );
-                    } catch (e) {
-                      print("Error signing in on web: $e");
-                      // Show error to user
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Sign in failed: ${e.toString()}'),
-                          backgroundColor: Colors.red,
-                          duration: Duration(seconds: 5),
-                        ),
-                      );
-                      // Reset loading state
-                      context.read<AuthBloc>().emit(AuthInitial());
-                    }
-                  },
-            icon: state is AuthLoading
-                ? const SizedBox(
-                    height: 22,
-                    width: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : Image.asset(
-                    'assets/google_logo.png',
-                    height: 22,
-                    width: 22,
-                  ),
-            label: Text(
-              state is AuthLoading ? "Signing in..." : "Login with Google",
-              style: const TextStyle(
-                color: Color(0xFF444444),
-                fontWeight: FontWeight.w600,
-                fontSize: 16,
-              ),
-            ),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 13),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              side: const BorderSide(
-                color: Color(0xFFE2E2E2),
-                width: 1.2,
-              ),
-              backgroundColor: Colors.white,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
+// class GoogleSignInButton extends StatelessWidget {
+//   @override
+//   Widget build(BuildContext context) {
+//     return BlocBuilder<AuthBloc, AuthState>(
+//       builder: (context, state) {
+//       return SizedBox(
+//           width: double.infinity,
+//           child: OutlinedButton.icon(
+//             onPressed: state is AuthLoading
+//                 ? null
+//                 : () async {
+//                     // context.read<AuthBloc>().add(GoogleLoginRequested());
+//                     try {
+//                       context.read<AuthBloc>().emit(AuthLoading());
+//                       
+//                       // Check if Firebase is available first
+//                       if (!await FirebaseUtils.isFirebaseAvailable()) {
+//                         throw Exception("Firebase is not available. Please check your internet connection and try again.");
+//                       }
+//                       
+//                       // Ensure Firebase is ready before attempting sign-in
+//                       await FirebaseUtils.waitForFirebase();
+//                       
+//                       final GoogleAuthProvider googleProvider =
+//                           GoogleAuthProvider();
+//                       await FirebaseAuth.instance
+//                           .signInWithPopup(googleProvider);
+//                       print(FirebaseAuth.instance.currentUser?.email);
+//                       print(FirebaseAuth.instance.currentUser?.displayName);
+//                       print(FirebaseAuth.instance.currentUser?.uid);
+//                       print(FirebaseAuth.instance.currentUser?.photoURL);
+//                       print(FirebaseAuth.instance.currentUser?.photoURL);
+//                       print(
+//                           "Signed in: ${FirebaseAuth.instance.currentUser?.displayName}");
+//                       context.read<AuthBloc>().add(
+//                             GoogleLoginRequested(
+//                               googleToken:
+//                                   FirebaseAuth.instance.currentUser?.uid ?? '',
+//                               email: FirebaseAuth.instance.currentUser?.email ??
+//                                   '',
+//                               displayName: FirebaseAuth
+//                                       .instance.currentUser?.displayName ??
+//                                   '',
+//                               uid: FirebaseAuth.instance.currentUser?.uid ?? '',
+//                               photoURL:
+//                                   FirebaseAuth.instance.currentUser?.photoURL ??
+//                                       '',
+//                               phoneNumber: FirebaseAuth
+//                                       .instance.currentUser?.phoneNumber ??
+//                                   '',
+//                             ),
+//                           );
+//                     } catch (e) {
+//                       print("Error signing in on web: $e");
+//                       // Show error to user
+//                       ScaffoldMessenger.of(context).showSnackBar(
+//                         SnackBar(
+//                           content: Text('Sign in failed: ${e.toString()}'),
+//                           backgroundColor: Colors.red,
+//                           duration: Duration(seconds: 5),
+//                         ),
+//                       );
+//                       // Reset loading state
+//                       context.read<AuthBloc>().emit(AuthInitial());
+//                     }
+//                   },
+//             icon: state is AuthLoading
+//                 ? const SizedBox(
+//                     height: 22,
+//                     width: 22,
+//                     child: CircularProgressIndicator(strokeWidth: 2),
+//                   )
+//                 : Image.asset(
+//                     'assets/google_logo.png',
+//                     height: 22,
+//                     width: 22,
+//                   ),
+//             label: Text(
+//               state is AuthLoading ? "Signing in..." : "Login with Google",
+//               style: const TextStyle(
+//                 color: Color(0xFF444444),
+//                 fontWeight: FontWeight.w600,
+//                 fontSize: 16,
+//               ),
+//             ),
+//             style: OutlinedButton.styleFrom(
+//               padding: const EdgeInsets.symmetric(vertical: 13),
+//               shape: RoundedRectangleBorder(
+//                 borderRadius: BorderRadius.circular(12),
+//               ),
+//               side: const BorderSide(
+//                 color: Color(0xFFE2E2E2),
+//                 width: 1.2,
+//               ),
+//               backgroundColor: Colors.white,
+//             ),
+//           ),
+//         );
+//       },
+//     );
+//   }
+// }

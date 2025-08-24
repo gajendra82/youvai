@@ -1,7 +1,9 @@
+// lib/screens/skin_analysis_screen.dart
 import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:camera/camera.dart';
@@ -16,7 +18,6 @@ import 'package:skin_assessment/services/mobile_face_detection_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math';
 
 // Helper class to return bytes and size together
 class ZoomResult {
@@ -64,18 +65,14 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   MobileFaceDetectionService? _faceDetectionService;
   List<FaceBox> _detectedFaces = [];
   int _stableFaceCount = 0;
-  Timer? _faceDetectionTimer;
   Timer? _autoCaptureMobileTimer;
   bool _isAutoCapturingMobile = false;
   int _mobileCountdown = 3;
-  static const int requiredStableFramesMobile = 15; // 3 seconds at 5 FPS
+  static const int requiredStableFramesMobile = 15; // ~3s @ ~5fps
 
-  // Web face detection
-  FaceDetectionResult? _latestWebDetection;
-  Timer? _webFaceCheckTimer;
-  int _stableWebFaceCount = 0;
-  bool _isWebAutoCapturing = false;
-  static const int requiredStableFramesWeb = 10; // 2 seconds at 5 FPS
+  // processing/capture guards (mobile)
+  bool _processingFrame = false;
+  bool _capturing = false;
 
   // Visual feedback animations
   late AnimationController _pulseController;
@@ -88,7 +85,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     super.initState();
     _initCameras();
     _setupAnimations();
-    _setupMessageListeners();
 
     // Initialize mobile face detection
     if (!kIsWeb) {
@@ -142,13 +138,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     ));
   }
 
-  void _setupMessageListeners() {
-    if (kIsWeb) {
-      // Listen for face detection results from JavaScript
-      // This would be implemented in WebAutoCaptureCamera widget
-    }
-  }
-
   void _handleInitialImage() {
     _faceImageBytes = widget.initialImageBytes;
     _originalImageSize = widget.initialImageSize;
@@ -162,7 +151,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _scanController.repeat();
       await _analyzeImageDirectAPI(null, _faceImageBytes!, _originalImageSize!);
       _scanController.reset();
-      setState(() {});
+      if (mounted) setState(() {});
     });
   }
 
@@ -173,24 +162,28 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   void _cleanup() {
+    try {
+      if (_cameraController?.value.isStreamingImages ?? false) {
+        _cameraController!.stopImageStream();
+      }
+    } catch (_) {}
     _cameraController?.dispose();
     _scanController.dispose();
     _pulseController.dispose();
     _countdownController.dispose();
     _faceDetectionService?.dispose();
-    _faceDetectionTimer?.cancel();
     _autoCaptureMobileTimer?.cancel();
-    _webFaceCheckTimer?.cancel();
   }
 
   Future<void> _initCameras() async {
+    if (kIsWeb) return; // web uses HTML video
     try {
       WidgetsFlutterBinding.ensureInitialized();
       final cameras = await availableCameras();
       setState(() {
         _cameras = cameras;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _cameras = [];
       });
@@ -201,9 +194,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     if (kIsWeb) {
       setState(() {
         _showCamera = true;
-        _initializeControllerFuture = null;
+        _initializeControllerFuture = null; // web handled by widget
       });
-      _startWebFaceDetection();
       return;
     }
 
@@ -228,73 +220,50 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     });
   }
 
-  void _startWebFaceDetection() {
-    // Send message to start face detection in web
-    if (kIsWeb) {
-      // This would communicate with the JavaScript face detection
-      _webFaceCheckTimer = Timer.periodic(
-        const Duration(milliseconds: 200),
-        (_) => _checkWebFaceDetection(),
-      );
-    }
-  }
-
-  void _checkWebFaceDetection() {
-    // This method would handle web face detection results
-    // Implementation depends on how WebAutoCaptureCamera communicates back
-  }
-
+  // --------- MOBILE: single stream + debounced detection ----------
   void _startMobileFaceDetection() {
     if (kIsWeb || _cameraController == null) return;
+    if (_cameraController!.value.isStreamingImages) return;
 
-    _faceDetectionTimer = Timer.periodic(
-      const Duration(milliseconds: 200), // 5 FPS
-      (_) => _detectFacesMobile(),
-    );
-  }
+    _stableFaceCount = 0;
+    _isAutoCapturingMobile = false;
 
-  Future<void> _detectFacesMobile() async {
-    if (_cameraController == null ||
-        !_cameraController!.value.isInitialized ||
-        _cameraController!.value.isStreamingImages) return;
+    _cameraController!.startImageStream((CameraImage image) async {
+      if (_processingFrame || _isAutoCapturingMobile) return;
+      _processingFrame = true;
 
-    try {
-      await _cameraController!.startImageStream((CameraImage image) async {
+      try {
         if (_faceDetectionService == null) return;
 
         final faces = await _faceDetectionService!.detectFaces(image);
+        if (!mounted) return;
 
-        if (mounted) {
-          setState(() {
-            _detectedFaces = faces;
-          });
+        setState(() {
+          _detectedFaces = faces;
+        });
 
-          // Check for well-positioned face
-          final hasWellPositionedFace =
-              faces.any((face) => face.isWellPositioned);
+        final hasWellPositioned = faces.any((f) => f.isWellPositioned);
 
-          if (hasWellPositionedFace && !_isAutoCapturingMobile) {
-            _stableFaceCount++;
-            if (_stableFaceCount >= requiredStableFramesMobile) {
-              _startMobileAutoCapture();
-            }
-            // Start pulse animation when face is well positioned
-            if (!_pulseController.isAnimating) {
-              _pulseController.repeat(reverse: true);
-            }
-          } else {
-            _stableFaceCount = 0;
+        if (hasWellPositioned) {
+          _stableFaceCount++;
+          if (_stableFaceCount >= requiredStableFramesMobile) {
+            _startMobileAutoCapture(); // will stop stream before capture
+          } else if (!_pulseController.isAnimating) {
+            _pulseController.repeat(reverse: true);
+          }
+        } else {
+          _stableFaceCount = 0;
+          if (_pulseController.isAnimating) {
             _pulseController.stop();
             _pulseController.reset();
-            if (_isAutoCapturingMobile) {
-              _cancelMobileAutoCapture();
-            }
           }
         }
-      });
-    } catch (e) {
-      print('Error starting face detection: $e');
-    }
+      } catch (e) {
+        debugPrint('Face detection error: $e');
+      } finally {
+        _processingFrame = false;
+      }
+    });
   }
 
   void _startMobileAutoCapture() {
@@ -305,56 +274,66 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _mobileCountdown = 3;
     });
 
-    _countdownController.reset();
-    _countdownController.forward();
+    _countdownController
+      ..reset()
+      ..forward();
 
     _autoCaptureMobileTimer =
-        Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) {
-        setState(() {
-          _mobileCountdown--;
-        });
+        Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) return;
+      setState(() => _mobileCountdown--);
 
-        if (_mobileCountdown <= 0) {
-          timer.cancel();
-          _captureAndAnalyze();
-        } else {
-          _countdownController.reset();
-          _countdownController.forward();
-        }
+      if (_mobileCountdown <= 0) {
+        timer.cancel();
+        try {
+          if (_cameraController != null &&
+              _cameraController!.value.isStreamingImages) {
+            await _cameraController!.stopImageStream();
+            await Future.delayed(const Duration(milliseconds: 120));
+          }
+        } catch (_) {}
+        await _captureAndAnalyze();
+      } else {
+        _countdownController
+          ..reset()
+          ..forward();
       }
     });
   }
 
-  void _cancelMobileAutoCapture() {
-    _autoCaptureMobileTimer?.cancel();
-    if (mounted) {
-      setState(() {
-        _isAutoCapturingMobile = false;
-        _mobileCountdown = 3;
-      });
-    }
-    _countdownController.reset();
-  }
-
   Future<void> _captureAndAnalyze() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized)
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
-
-    // Stop face detection during capture
-    _faceDetectionTimer?.cancel();
-    if (!kIsWeb && _cameraController!.value.isStreamingImages) {
-      await _cameraController!.stopImageStream();
     }
+    if (_capturing) return;
+    _capturing = true;
 
-    final image = await _cameraController!.takePicture();
-    setState(() {
-      _showCamera = false;
-      _isAutoCapturingMobile = false;
-    });
-    await _processPickedImage(image, fromCamera: true);
+    try {
+      // ensure stream stopped (idempotent)
+      if (_cameraController!.value.isStreamingImages) {
+        await _cameraController!.stopImageStream();
+        await Future.delayed(const Duration(milliseconds: 120));
+      }
+
+      final image = await _cameraController!.takePicture();
+      setState(() {
+        _showCamera = false;
+        _isAutoCapturingMobile = false;
+      });
+      await _processPickedImage(image, fromCamera: true);
+    } catch (e) {
+      debugPrint('Capture error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(content: Text('Capture failed: $e')),
+        );
+      }
+    } finally {
+      _capturing = false;
+    }
   }
 
+  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -421,9 +400,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            const CircularProgressIndicator(color: Colors.white),
-            const SizedBox(height: 18),
+          children: const [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 18),
             Text(
               "Processing...",
               style: TextStyle(
@@ -471,7 +450,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   Widget _buildWebCameraOverlay(BuildContext context) {
-    double cameraHeight = MediaQuery.of(context).size.height;
+    final cameraHeight = MediaQuery.of(context).size.height;
     return SizedBox(
       width: double.infinity,
       height: cameraHeight,
@@ -480,62 +459,37 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
           Positioned.fill(
             child: WebAutoCaptureCamera(
               onCaptured: (bytes, size) async {
-                print('SkinAnalysisScreen: === CAPTURE CALLBACK TRIGGERED ===');
-                print(
-                    'SkinAnalysisScreen: Image size: ${bytes.length} bytes, ${size.width}x${size.height}');
-
                 try {
-                  // Step 1: Close camera immediately
-                  print('SkinAnalysisScreen: Step 1 - Closing camera');
                   setState(() {
-                    _showCamera = false; // Close camera first
+                    _showCamera = false;
                     _scanningImageBytes = bytes;
                     _originalImageSize = size;
                     _faceImageBytes = bytes;
-                  });
-
-                  // Step 2: Show progress bar
-                  print('SkinAnalysisScreen: Step 2 - Showing progress');
-                  setState(() {
-                    _loading = true; // Show progress bar
+                    _loading = true;
                     _imageProvider = null;
                     _error = null;
                   });
 
-                  // Step 3: Start scanning animation
-                  print('SkinAnalysisScreen: Step 3 - Starting scan animation');
-                  _scanController.reset();
-                  _scanController.repeat();
+                  _scanController
+                    ..reset()
+                    ..repeat();
 
-                  // Small delay to ensure UI updates
-                  await Future.delayed(const Duration(milliseconds: 100));
-
-                  // Step 4: Call API
-                  print('SkinAnalysisScreen: Step 4 - Calling API');
+                  await Future.delayed(const Duration(milliseconds: 80));
                   await _analyzeImageDirectAPI(null, bytes, size);
 
-                  // Step 5: Complete
-                  print('SkinAnalysisScreen: Step 5 - Analysis complete');
                   _scanController.reset();
-
-                  setState(() {
-                    _loading = false;
-                  });
-
-                  print(
-                      'SkinAnalysisScreen: === PROCESS COMPLETED SUCCESSFULLY ===');
-                } catch (error, stackTrace) {
-                  print('SkinAnalysisScreen: === PROCESS ERROR ===');
-                  print('SkinAnalysisScreen: Error: $error');
-                  print('SkinAnalysisScreen: Stack trace: $stackTrace');
-
-                  _scanController.reset();
-                  setState(() {
-                    _loading = false;
-                    _error = "Failed to process image: $error";
-                  });
-
                   if (mounted) {
+                    setState(() {
+                      _loading = false;
+                    });
+                  }
+                } catch (error) {
+                  _scanController.reset();
+                  if (mounted) {
+                    setState(() {
+                      _loading = false;
+                      _error = "Failed to process image: $error";
+                    });
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Text('Processing error: $error'),
@@ -563,9 +517,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             _cameraController != null) {
-          double cameraHeight = MediaQuery.of(context).size.height;
+          final cameraHeight = MediaQuery.of(context).size.height;
 
-          return Container(
+          return SizedBox(
             width: double.infinity,
             height: cameraHeight,
             child: Stack(
@@ -577,13 +531,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   painter: OverlayPainter(),
                   child: Container(),
                 ),
-                // Face detection overlays for mobile
                 ..._buildMobileFaceOverlays(context),
-                // Instructions overlay
                 _buildInstructionsOverlay(),
-                // Mobile countdown overlay
                 if (_isAutoCapturingMobile) _buildMobileCountdownOverlay(),
-                // Capture button
                 _buildCaptureButton(),
               ],
             ),
@@ -623,13 +573,14 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
               ? Align(
                   alignment: Alignment.topCenter,
                   child: Container(
-                    margin: EdgeInsets.only(top: 4),
-                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    margin: const EdgeInsets.only(top: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
                       color: Colors.green,
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
+                    child: const Text(
                       'Perfect!',
                       style: TextStyle(
                         color: Colors.white,
@@ -785,7 +736,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       }
     }
 
-    // Provide specific positioning guidance
     final centerX = bestFace.x + bestFace.width / 2;
     final centerY = bestFace.y + bestFace.height / 2;
 
@@ -847,59 +797,45 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _faceImageBytes = bytes;
     });
 
-    _scanController.reset();
-    _scanController.repeat();
+    _scanController
+      ..reset()
+      ..repeat();
     await _analyzeImageDirectAPI(picked, bytes, size);
     _scanController.reset();
 
-    setState(() {
-      _loading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _analyzeImageDirectAPI(
       XFile? picked, Uint8List previewBytes, Size imageSize) async {
-    print('_analyzeImageDirectAPI: Starting analysis...');
-    print('_analyzeImageDirectAPI: Image bytes length: ${previewBytes.length}');
-    print('_analyzeImageDirectAPI: Image size: $imageSize');
-
     Map<String, dynamic>? resultJson;
-
     try {
       final uri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
 
-      print('_analyzeImageDirectAPI: Creating multipart request to $uri');
       var request = http.MultipartRequest('POST', uri);
 
-      // Get authentication data
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? guestId = prefs.getString('guest_id');
       String? token = prefs.getString('_token');
 
-      print(
-          '_analyzeImageDirectAPI: Auth data - token: ${token != null ? 'present' : 'null'}, guestId: $guestId');
-
       if (token != null) {
         request.headers['Authorization'] = 'Bearer $token';
-        print('_analyzeImageDirectAPI: Added Bearer token to headers');
       } else if (guestId == null) {
         guestId =
             'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
         await prefs.setString('guest_id', guestId);
-        print('_analyzeImageDirectAPI: Generated new guest ID: $guestId');
       }
 
       if (guestId != null) {
         request.fields['guest_id'] = guestId;
-        print('_analyzeImageDirectAPI: Added guest_id field');
       }
 
-      // Add file
       final fileName = picked != null ? basename(picked.path) : 'capture.jpg';
-      print(
-          '_analyzeImageDirectAPI: Adding file: $fileName (${previewBytes.length} bytes)');
-
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
@@ -908,64 +844,41 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         ),
       );
 
-      print('_analyzeImageDirectAPI: Sending request...');
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-
-      print('_analyzeImageDirectAPI: Response status: ${response.statusCode}');
-      print(
-          '_analyzeImageDirectAPI: Response body length: ${response.body.length}');
-      print('_analyzeImageDirectAPI: Response body: ${response.body}');
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode == 200) {
-        try {
-          final decoded = json.decode(response.body);
-          print('_analyzeImageDirectAPI: JSON decoded successfully');
-          print('_analyzeImageDirectAPI: Decoded keys: ${decoded.keys}');
+        final decoded = json.decode(response.body);
+        resultJson = decoded is Map<String, dynamic> ? decoded : null;
 
-          resultJson = decoded;
-
-          if (resultJson == null || resultJson.isEmpty) {
-            print('_analyzeImageDirectAPI: ERROR - Empty result');
+        if (resultJson == null || resultJson.isEmpty) {
+          if (mounted) {
             setState(() {
               _error = "No analysis data returned from server";
               _loading = false;
             });
-            return;
           }
-
-          print(
-              '_analyzeImageDirectAPI: Analysis result received successfully');
-        } catch (jsonError, stackTrace) {
-          print('_analyzeImageDirectAPI: ERROR parsing JSON: $jsonError');
-          print('_analyzeImageDirectAPI: JSON parse stack trace: $stackTrace');
-          setState(() {
-            _error = "Invalid response format from server";
-            _loading = false;
-          });
           return;
         }
       } else {
-        print('_analyzeImageDirectAPI: ERROR - HTTP ${response.statusCode}');
-        print('_analyzeImageDirectAPI: Error response body: ${response.body}');
-        setState(() {
-          _error = "Server error: ${response.statusCode}";
-          _loading = false;
-        });
+        if (mounted) {
+          setState(() {
+            _error = "Server error: ${response.statusCode}";
+            _loading = false;
+          });
+        }
         return;
       }
-    } catch (e, stackTrace) {
-      print('_analyzeImageDirectAPI: NETWORK ERROR: $e');
-      print('_analyzeImageDirectAPI: Network error stack trace: $stackTrace');
-      setState(() {
-        _error = "Network error: $e";
-        _loading = false;
-      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = "Network error: $e";
+          _loading = false;
+        });
+      }
       return;
     }
 
-    // Update state with results
-    print('_analyzeImageDirectAPI: Updating UI state...');
     if (mounted) {
       setState(() {
         _skinAnalysisResult = resultJson;
@@ -976,12 +889,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         _faceImageBytes = previewBytes;
         _originalImageSize = imageSize;
       });
-      print('_analyzeImageDirectAPI: UI state updated successfully');
-      print(
-          '_analyzeImageDirectAPI: Analysis result keys: ${_skinAnalysisResult?.keys}');
-    } else {
-      print(
-          '_analyzeImageDirectAPI: WARNING - Widget not mounted, skipping state update');
     }
   }
 
@@ -1003,14 +910,12 @@ class OverlayPainter extends CustomPainter {
     final ovalHeight = size.height * (kIsWeb ? 0.85 : 0.65);
     final center = size.center(Offset.zero);
 
-    // Create oval rect
     final rect = Rect.fromCenter(
       center: center,
       width: ovalWidth,
       height: ovalHeight,
     );
 
-    // Draw semi-transparent overlay outside the oval
     final overlayPaint = Paint()..color = Colors.black.withOpacity(0.35);
     final overlayPath = Path()..addRect(Offset.zero & size);
     final ovalPath = Path()..addOval(rect);
@@ -1018,19 +923,15 @@ class OverlayPainter extends CustomPainter {
         Path.combine(PathOperation.difference, overlayPath, ovalPath);
     canvas.drawPath(maskPath, overlayPaint);
 
-    // Draw clear area inside the oval
     final clearPaint = Paint()..blendMode = BlendMode.clear;
     canvas.drawOval(rect, clearPaint);
 
-    // Draw animated dashed border for the oval
     final dashPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
     _drawDashedOvalBorder(canvas, rect, dashPaint);
-
-    // Add face positioning guides (optional)
     _drawFaceGuides(canvas, rect);
   }
 
@@ -1038,7 +939,6 @@ class OverlayPainter extends CustomPainter {
     const dashLength = 15.0;
     const gapLength = 10.0;
 
-    // Calculate oval circumference approximation
     final a = rect.width / 2;
     final b = rect.height / 2;
     final circumference = pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)));
@@ -1063,7 +963,6 @@ class OverlayPainter extends CustomPainter {
 
     final center = rect.center;
 
-    // Draw subtle guide dots for eye positions
     canvas.drawCircle(
       Offset(center.dx - rect.width * 0.15, center.dy - rect.height * 0.08),
       2,
@@ -1076,7 +975,6 @@ class OverlayPainter extends CustomPainter {
       guidePaint,
     );
 
-    // Draw nose guide (small line)
     canvas.drawLine(
       Offset(center.dx, center.dy + rect.height * 0.05),
       Offset(center.dx, center.dy + rect.height * 0.12),

@@ -7,6 +7,7 @@ class UserModel {
   final DateTime? dateOfBirth;
   final String? gender; // 'male', 'female', 'other'
   final String? address;
+  final bool? policyAccept; // Track terms and conditions acceptance
 
   UserModel({
     this.id,
@@ -17,6 +18,7 @@ class UserModel {
     this.dateOfBirth,
     this.gender,
     this.address,
+    this.policyAccept,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +33,7 @@ class UserModel {
           : null,
       gender: json['gender'] as String?,
       address: json['address'] as String?,
+      policyAccept: json['policy_accept'] as bool?,
     );
   }
 
@@ -44,6 +47,7 @@ class UserModel {
       'date_of_birth': dateOfBirth?.toIso8601String(),
       'gender': gender,
       'address': address,
+      'policy_accept': policyAccept,
     };
   }
 }

@@ -4,6 +4,7 @@ import 'auth_state.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
+import '../../services/api_service.dart';
 
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc() : super(AuthInitial()) {
@@ -14,6 +15,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<VerifyLoginMobile>(mobileLogin);
     on<LogoutRequested>(logout);
     on<UpdateProfileRequested>(_updateProfile);
+    on<AcceptPolicyRequested>(_acceptPolicy);
   }
 
   Future<void> _onLoginRequested(
@@ -312,7 +314,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         },
         body: json.encode({
           'gender': event.gender,
-          'date_of_birth': event.dateOfBirth.toIso8601String(),
+          'date_of_birth': event.dateOfBirth?.toIso8601String(),
         }),
       );
 
@@ -335,7 +337,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
             
             // Update with new gender and date of birth
             updatedUserData['gender'] = event.gender;
-            updatedUserData['date_of_birth'] = event.dateOfBirth.toIso8601String();
+            updatedUserData['date_of_birth'] = event.dateOfBirth?.toIso8601String();
             
             // Save updated user data
             prefs.setString('userInfo', json.encode(updatedUserData));
@@ -356,6 +358,30 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       }
     } catch (e) {
       emit(AuthError('Profile update failed: $e'));
+    }
+  }
+
+  Future<void> _acceptPolicy(AcceptPolicyRequested event, Emitter<AuthState> emit) async {
+    emit(AuthLoading());
+    try {
+      // Call API to update policy acceptance
+      final result = await ApiService.updatePolicyAcceptance(event.accepted);
+      
+      if(result['success'] == true){
+      // Update local user data
+      final prefs = await SharedPreferences.getInstance();
+      final userInfoString = prefs.getString('userInfo');
+      if (userInfoString != null) {
+        final userData = json.decode(userInfoString);
+        userData['policy_accept'] = true;
+        prefs.setString('userInfo', json.encode(userData));
+      }
+      emit(PolicyAccepted('Policy acceptance updated successfully'));
+      } else {
+        emit(AuthError('Error updating policy acceptance: ${result['message']}'));
+      }
+    } catch (e) {
+      emit(AuthError('Error updating policy acceptance: $e'));
     }
   }
 

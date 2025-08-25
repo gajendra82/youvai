@@ -19,3 +19,8 @@ class AuthMessage extends AuthState {
   AuthMessage(this.message);
 }
 class AuthLogout extends AuthState {}
+
+class PolicyAccepted extends AuthState {
+  final String message;
+  PolicyAccepted(this.message);
+}

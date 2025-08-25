@@ -7,6 +7,7 @@ import '../bloc/auth/auth_event.dart';
 import '../bloc/auth/auth_state.dart';
 import '../models/user_model.dart';
 import 'profile_update_popup.dart';
+import 'terms_conditions_popup.dart';
 
 class ProfileCompletionChecker extends StatefulWidget {
   final Widget child;
@@ -42,6 +43,19 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
         print('userData: $userData');
         final user = UserModel.fromJson(userData);
         
+        // First check if policy_accept is null or false
+        print('user.policyAccept: ${user.policyAccept}');
+        if (user.policyAccept == null || user.policyAccept == false) {
+          if (widget.showPopup && mounted) {
+            // Wait a bit for the screen to load
+            await Future.delayed(const Duration(milliseconds: 500));
+            if (mounted) {
+              _showTermsConditionsPopup();
+              return; // Don't check other profile fields until terms are accepted
+            }
+          }
+        }
+        
         // Check if gender or dateOfBirth is null
         print('user.gender: ${user.gender}');
         print('user.dateOfBirth: ${user.dateOfBirth}');
@@ -52,20 +66,76 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
             if (mounted) {
               _showProfileUpdatePopup();
             }
-
           }
         }
+      } else {
+        print('No user info found in SharedPreferences');
       }
     } catch (e) {
       print('Error checking profile completion: $e');
+      // Show error to user if there's a critical error
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error checking profile: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     } finally {
       if (mounted) {
-        // Navigator.of(context).pop();
         setState(() {
           _hasCheckedProfile = true;
         });
       }
     }
+  }
+
+  void _showTermsConditionsPopup() {
+    if (_isPopupShowing) return; // Prevent multiple popups
+    
+    setState(() {
+      _isPopupShowing = true;
+    });
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return TermsConditionsPopup(
+          onAccept: (accepted) async {
+            try {
+              if (accepted) {
+                // Call the policy acceptance event
+                context.read<AuthBloc>().add(
+                  AcceptPolicyRequested(accepted: true),
+                );
+                
+                // Wait for the update to complete
+                await Future.delayed(const Duration(milliseconds: 500));
+                
+                // Check profile completion again after terms acceptance
+                await _checkProfileCompletion();
+              }
+            } catch (e) {
+              print('Error in terms acceptance: $e');
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error accepting terms: $e'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              }
+            }
+          },
+        );
+      },
+    ).then((_) {
+      setState(() {
+        _isPopupShowing = false;
+      });
+    });
   }
 
   void _showProfileUpdatePopup() {
@@ -189,6 +259,14 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
             SnackBar(
               content: Text(state.error),
               backgroundColor: Colors.red,
+            ),
+          );
+        } else if (state is PolicyAccepted) {
+          // Show success message for policy acceptance
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(state.message),
+              backgroundColor: Colors.green,
             ),
           );
         }

@@ -66,11 +66,17 @@ class VerifyLoginMobile extends AuthEvent {
 class LogoutRequested extends AuthEvent {}
 
 class UpdateProfileRequested extends AuthEvent {
-  final String gender;
-  final DateTime dateOfBirth;
+  final String? gender;
+  final DateTime? dateOfBirth;
 
   UpdateProfileRequested({
-    required this.gender,
-    required this.dateOfBirth,
+    this.gender,
+    this.dateOfBirth,
   });
+}
+
+class AcceptPolicyRequested extends AuthEvent {
+  final bool accepted;
+
+  AcceptPolicyRequested({required this.accepted});
 }

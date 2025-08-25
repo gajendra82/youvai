@@ -189,6 +189,7 @@ class _StartPageState extends State<StartPage> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 16),
+                    
                     Container(
                       width: double.infinity,
                       height: 48,
@@ -214,6 +215,67 @@ class _StartPageState extends State<StartPage> {
                         ),
                         onPressed: () {
                           // TODO: Start analysis
+                          showDialog(
+                            context: context,
+                            barrierDismissible: false,
+                            builder: (context) {
+                              bool accepted = false;
+                              return StatefulBuilder(
+                                builder: (context, setState) {
+                                  return AlertDialog(
+                                    title: const Text('Terms and Conditions'),
+                                    content: SingleChildScrollView(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: const [
+                                          Text(
+                                            'Please read and accept our Terms and Conditions before proceeding.',
+                                            style: TextStyle(fontWeight: FontWeight.bold),
+                                          ),
+                                          SizedBox(height: 16),
+                                          Text(
+                                            '1. You agree to provide accurate information.\n'
+                                            '2. Your skin analysis data may be used for research purposes.\n'
+                                            '3. The app does not provide medical advice.\n'
+                                            '4. You accept our privacy policy and data usage terms.\n'
+                                            '5. You are responsible for your own health decisions.',
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    actions: [
+                                      TextButton(
+                                        onPressed: () {
+                                          Navigator.of(context).pop();
+                                        },
+                                        child: const Text('Cancel'),
+                                      ),
+                                      ElevatedButton(
+                                        onPressed: () {
+                                                Navigator.of(context).pop();
+                                                Navigator.pushNamed(context, AppRoutes.skinAnalysis);
+                                              }
+                                            ,
+                                        child: const Text('Accept'),
+                                      ),
+                                    ],
+                                    contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 0),
+                                    actionsPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                    insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+                                    // Checkbox for acceptance
+                                    buttonPadding: EdgeInsets.zero,
+                                    // Add checkbox below content
+                                    // Use a Column for content + checkbox
+                                    // So move checkbox inside content
+                                    contentTextStyle: Theme.of(context).textTheme.bodyMedium,
+                                  );
+                                },
+                              );
+                            },
+                          );
+
+                          // Remove the direct navigation to skinAnalysis page below
+                          return;
                           Navigator.pushNamed(context, AppRoutes.skinAnalysis);
                         },
                         child: const Text(

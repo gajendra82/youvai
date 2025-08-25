@@ -307,6 +307,33 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                     if (condition.toLowerCase() == 'skin redness') {
                       condition = "Pigmentation";
                     }
+                    if (condition.toLowerCase() == "acne" ||
+                        condition.toLowerCase() == "acne_scar" ||
+                        condition.toLowerCase() == "scar") {
+                      // Find if "acne & acne scars" already exists in percentages
+                      final existingIdx = percentages.indexWhere((p) =>
+                          p['condition']!.toLowerCase() == "acne & acne scars");
+                      if (existingIdx != -1) {
+                        // Add this percent to the existing "acne & acne scars"
+                        final existingPercent = double.tryParse(
+                                percentages[existingIdx]['percent'] ?? "0") ??
+                            0;
+                        final currentPercent =
+                            double.tryParse(match.group(2) ?? "0") ?? 0;
+                        percentages[existingIdx]['percent'] =
+                            (existingPercent + currentPercent)
+                                .toStringAsFixed(2);
+                        continue; // Skip adding "acne" separately
+                      } else {
+                        // If not exists, add as "acne & acne scars"
+                        percentages.add({
+                          'condition': "acne & acne scars",
+                          'percent': match.group(2)!
+                        });
+                        seenConditions.add("Acne & Acne scars");
+                        continue; // Skip adding "acne" separately
+                      }
+                    }
                     if (!seenConditions.contains(condition.toLowerCase())) {
                       percentages.add(
                           {'condition': condition, 'percent': match.group(2)!});
@@ -326,6 +353,32 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                 if (condition.toLowerCase() == 'skin redness') {
                   condition = "Pigmentation";
                 }
+                if (condition.toLowerCase() == "acne" ||
+                    condition.toLowerCase() == "acne scar" ||
+                    condition.toLowerCase() == "scar") {
+                  // Find if "acne & acne scars" already exists in percentages
+                  final existingIdx = percentages.indexWhere((p) =>
+                      p['condition']!.toLowerCase() == "acne & acne scars");
+                  if (existingIdx != -1) {
+                    // Add this percent to the existing "acne & acne scars"
+                    final existingPercent = double.tryParse(
+                            percentages[existingIdx]['percent'] ?? "0") ??
+                        0;
+                    final currentPercent =
+                        double.tryParse(match.group(2) ?? "0") ?? 0;
+                    percentages[existingIdx]['percent'] =
+                        (existingPercent + currentPercent).toStringAsFixed(2);
+                    continue; // Skip adding "acne" separately
+                  } else {
+                    // If not exists, add as "acne & acne scars"
+                    percentages.add({
+                      'condition': "Acne & Acne scars",
+                      'percent': match.group(2)!
+                    });
+                    seenConditions.add("Acne & Acne scars");
+                    continue; // Skip adding "acne" separately
+                  }
+                }
                 if (!seenConditions.contains(condition.toLowerCase())) {
                   percentages.add(
                       {'condition': condition, 'percent': match.group(2)!});
@@ -343,6 +396,33 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
               var condition = match.group(1)!.trim();
               if (condition.toLowerCase() == 'skin redness') {
                 condition = "Pigmentation";
+              }
+              // Combine "acne" and "acne & acne scars" percentages
+              if (condition.toLowerCase() == "acne" ||
+                  condition.toLowerCase() == "acne_scar" ||
+                  condition.toLowerCase() == "scar") {
+                // Find if "acne & acne scars" already exists in percentages
+                final existingIdx = percentages.indexWhere((p) =>
+                    p['condition']!.toLowerCase() == "acne & acne scars");
+                if (existingIdx != -1) {
+                  // Add this percent to the existing "acne & acne scars"
+                  final existingPercent = double.tryParse(
+                          percentages[existingIdx]['percent'] ?? "0") ??
+                      0;
+                  final currentPercent =
+                      double.tryParse(match.group(2) ?? "0") ?? 0;
+                  percentages[existingIdx]['percent'] =
+                      (existingPercent + currentPercent).toStringAsFixed(2);
+                  continue; // Skip adding "acne" separately
+                } else {
+                  // If not exists, add as "acne & acne scars"
+                  percentages.add({
+                    'condition': "Acne & Acne scars",
+                    'percent': match.group(2)!
+                  });
+                  seenConditions.add("Acne & Acne scars");
+                  continue; // Skip adding "acne" separately
+                }
               }
               if (!seenConditions.contains(condition.toLowerCase())) {
                 percentages
@@ -499,7 +579,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
 
                   final chartData = percentages
                       .map((p) => {
-                            "condition": p['condition'],
+                            "condition": p['condition'].toUpperCase(),
                             "percent":
                                 double.tryParse(p['percent'] ?? "0") ?? 0.0
                           })
@@ -686,7 +766,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                               itemBuilder: (context, idx) {
                                 final p = percentages[idx];
                                 return _summaryStat(
-                                  p['condition'] ?? '',
+                                  p['condition'].toUpperCase() ?? '',
                                   "${p['percent']}%",
                                   _getConditionIcon(p['condition'] ?? ''),
                                   Theme.of(context).colorScheme.primary,
@@ -1151,6 +1231,61 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         "statusThresholds": {"under": 100, "normal": 100}
       },
     },
+    "combination skin": {
+      "type": "Combination Skin",
+      "meaning":
+          "A skin type where some areas of the face are oily (commonly the T-zone: forehead, nose, chin) while other areas, like the cheeks and jawline, are dry or normal.",
+      "cause":
+          "Genetics, hormonal changes, uneven oil (sebum) production, seasonal changes, or use of unsuitable skincare products.",
+      "suggestion":
+          "Use a gentle cleanser, apply lightweight non-comedogenic moisturizer on oily zones, richer hydration on dry zones, and balance with products designed for combination skin.",
+      "ageInfo": {
+        "typicalAge":
+            "Can occur at any age, but often noticeable during teens to early adulthood.",
+        "averageRange": "30–40% of people",
+        "under":
+            "Below 30% – Skin is mostly uniform (either dry, normal, or oily).",
+        "normal": "30–40% – Balanced mix of oily T-zone and dry/normal cheeks.",
+        "high":
+            "Above 40% – Pronounced difference between oily and dry zones; requires tailored skincare routine.",
+        "statusThresholds": {"under": 30, "normal": 40}
+      },
+    },
+    "oily skin": {
+      "type": "Oily Skin",
+      "meaning":
+          "A skin type where sebaceous glands produce excess sebum, leading to shine, enlarged pores, and higher risk of acne and blackheads.",
+      "cause":
+          "Genetics, hormonal imbalance, humidity, or overuse of harsh skincare that triggers oil rebound.",
+      "suggestion":
+          "Use oil-free, non-comedogenic products, gel-based moisturizers, gentle exfoliation, and avoid heavy creams.",
+      "ageInfo": {
+        "typicalAge": "13–30 years",
+        "averageRange": "20–30%",
+        "under": "Below 20% – Minimal oil, skin tends toward normal/dry.",
+        "normal": "20–30% – Balanced oil production with some shine.",
+        "high": "Above 30% – Excess sebum, frequent breakouts, enlarged pores.",
+        "statusThresholds": {"under": 20, "normal": 30}
+      },
+    },
+    "dry skin": {
+      "type": "Dry Skin",
+      "meaning":
+          "A skin type that lacks sufficient moisture and natural oils, resulting in tightness, rough texture, and flakiness.",
+      "cause":
+          "Genetics, low humidity, cold weather, excessive washing, or aging-related decrease in oil production.",
+      "suggestion":
+          "Use hydrating cleansers, ceramide-based moisturizers, avoid harsh soaps, and apply sunscreen to prevent further dryness.",
+      "ageInfo": {
+        "typicalAge": "Any age, more common in adults and elderly",
+        "averageRange": "15–25%",
+        "under": "Below 15% – Well-hydrated skin, minimal dryness.",
+        "normal": "15–25% – Mild dryness, occasional tightness.",
+        "high":
+            "Above 25% – Persistent flakiness, irritation, needs medical care.",
+        "statusThresholds": {"under": 15, "normal": 25}
+      },
+    },
     "wrinkles": {
       "type": "Wrinkles",
       "meaning":
@@ -1379,6 +1514,102 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         "normal": "Shallow lines, visible in 30s–40s.",
         "high": "Deep folds from nose to mouth. Common after 45."
       }
+    },
+    "scars": {
+      "type": "Scars",
+      "meaning":
+          "A skin condition that occurs when the skin heals after an injury, acne, or surgery, leaving marks or indentations on the surface. Scars can appear as flat, raised, or pitted areas.",
+      "cause":
+          "Damage to the deeper layers of skin due to acne, wounds, burns, surgery, or infections. The body produces excess or irregular collagen during healing.",
+      "suggestion":
+          "Use sunscreen to prevent darkening, consider silicone gels/patches, gentle exfoliation, or dermatologist treatments like chemical peels, microneedling, or laser therapy for deeper scars.",
+      "ageInfo": {
+        "typicalAge":
+            "Can occur at any age, more common after acne (teens–30s) or injuries.",
+        "averageRange": "10–20% of people have visible scars.",
+        "under": "Below 10% – Minimal or no visible scarring.",
+        "normal":
+            "10–20% – Mild scarring, usually from acne or small injuries.",
+        "high":
+            "Above 20% – Moderate to severe scarring, may need medical/dermatological intervention.",
+        "statusThresholds": {"under": 10, "normal": 20}
+      },
+    },
+    "melasma": {
+      "type": "Melasma",
+      "meaning":
+          "A common skin condition that causes dark, discolored patches on the skin, usually on the face (cheeks, forehead, upper lip, nose). It is often symmetrical and worsens with sun exposure.",
+      "cause":
+          "Overproduction of melanin due to hormonal changes (pregnancy, birth control, thyroid issues), genetics, sun exposure, or certain medications.",
+      "suggestion":
+          "Use broad-spectrum sunscreen daily, wear protective clothing, and consider dermatologist treatments like chemical peels, topical lightening creams (hydroquinone, azelaic acid), or laser therapy. Avoid excessive sun exposure.",
+      "ageInfo": {
+        "typicalAge": "20–50 years, more common in women.",
+        "averageRange":
+            "15–25% of adults (higher prevalence in women with darker skin types).",
+        "under": "Below 15% – Rare or minimal pigmentation issues.",
+        "normal":
+            "15–25% – Mild to moderate patches, common in women of childbearing age.",
+        "high":
+            "Above 25% – Severe pigmentation, widespread patches; requires medical intervention.",
+        "statusThresholds": {"under": 15, "normal": 25}
+      },
+    },
+    "wrinkle": {
+      "type": "Wrinkles",
+      "meaning":
+          "Fine lines or creases that form in the skin due to aging, loss of elasticity, and repeated facial expressions. They can appear on the forehead, around the eyes (crow’s feet), mouth, and neck.",
+      "cause":
+          "Natural aging process, decreased collagen and elastin, sun exposure (photoaging), smoking, dehydration, stress, or genetics.",
+      "suggestion":
+          "Use sunscreen daily, apply moisturizers with hyaluronic acid or peptides, consider retinoids, antioxidant serums (Vitamin C, E), and professional treatments like Botox, fillers, or laser resurfacing for deeper wrinkles.",
+      "ageInfo": {
+        "typicalAge": "30+ years (earlier with sun damage or smoking).",
+        "averageRange": "20–30% of adults show visible wrinkles by mid-30s.",
+        "under": "Below 20% – Minimal fine lines, usually in younger adults.",
+        "normal":
+            "20–30% – Mild to moderate wrinkles, typical with age progression.",
+        "high":
+            "Above 30% – Pronounced/deep wrinkles; may need medical/cosmetic treatments.",
+        "statusThresholds": {"under": 20, "normal": 30}
+      },
+    },
+    "normal skin": {
+      "type": "Normal Skin",
+      "meaning":
+          "A balanced skin type with neither excessive oiliness nor dryness; smooth texture, few imperfections, and minimal sensitivity.",
+      "cause":
+          "Genetics, well-balanced sebum production, and healthy lifestyle factors.",
+      "suggestion":
+          "Maintain routine with gentle cleanser, lightweight moisturizer, and sunscreen; avoid overusing harsh products.",
+      "ageInfo": {
+        "typicalAge": "Any age, more common in children and young adults",
+        "averageRange": "25–35%",
+        "under": "Below 25% – Some imbalance toward oily/dry tendencies.",
+        "normal": "25–35% – Even tone, good hydration, minimal issues.",
+        "high": "Above 35% – Ideal balanced skin, least prone to problems.",
+        "statusThresholds": {"under": 25, "normal": 35}
+      },
+    },
+    "acne & acne scars": {
+      "type": "Acne & Acne Scars",
+      "meaning":
+          "This combines active acne (pimples, cysts, blackheads) and the marks left behind after acne heals (scars, indentations, or dark spots). Both conditions can affect skin texture and appearance.",
+      "cause":
+          "Hormonal changes, excess oil production, bacteria, genetics, poor hygiene, and improper acne treatment can lead to acne. Scarring occurs when deeper layers of skin are damaged during healing.",
+      "suggestion":
+          "Use gentle cleansers, non-comedogenic products, and topical treatments with salicylic acid or benzoyl peroxide for active acne. For scars, consider products with retinoids, vitamin C, or consult a dermatologist for procedures like chemical peels, microneedling, or laser therapy.",
+      "ageInfo": {
+        "typicalAge":
+            "10–35 years (acne most common in teens and young adults; scars can persist longer)",
+        "averageRange": "15–30% of people experience both acne and scarring",
+        "under": "Below 15% – Clear skin, minimal active acne or scarring.",
+        "normal":
+            "15–30% – Mild to moderate acne and some scarring, common in teens and young adults.",
+        "high":
+            "Above 30% – Frequent breakouts and visible scars, may need medical/dermatological intervention.",
+        "statusThresholds": {"under": 15, "normal": 30}
+      },
     },
   };
 

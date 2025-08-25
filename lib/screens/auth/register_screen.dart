@@ -242,6 +242,38 @@ class _RegisterPageState extends State<RegisterPage> {
                           vertical: 18, horizontal: 0),
                     ),
                   ),
+                  const SizedBox(height: 16),
+
+                  // Date of Birth
+                  TextField(
+                    controller: _dobController,
+                    readOnly: true,
+                    onTap: () async {
+                      DateTime? picked = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime(2000, 1, 1),
+                        firstDate: DateTime(1900),
+                        lastDate: DateTime.now(),
+                      );
+                      if (picked != null) {
+                        _dobController.text =
+                            "${picked.toLocal()}".split(' ')[0];
+                      }
+                    },
+                    decoration: InputDecoration(
+                      prefixIcon: Icon(Icons.cake_outlined, color: purpleColor),
+                      hintText: "Date of Birth",
+                      filled: true,
+                      fillColor: const Color(0xFFF6F6F6),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: BorderSide.none,
+                      ),
+                      contentPadding: const EdgeInsets.symmetric(
+                          vertical: 18, horizontal: 0),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
 
                   // const SizedBox(height: 16),
                   // // Password
@@ -473,6 +505,4 @@ class _RegisterPageState extends State<RegisterPage> {
       },
     );
   }
-
-
 }

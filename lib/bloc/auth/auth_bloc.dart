@@ -13,6 +13,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<SendOtpRequested>(sendOtp);
     on<VerifyLoginMobile>(mobileLogin);
     on<LogoutRequested>(logout);
+    on<UpdateProfileRequested>(_updateProfile);
   }
 
   Future<void> _onLoginRequested(
@@ -293,6 +294,68 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(AuthLogout());
     } catch (e) {
       emit(AuthError('Logout failed: $e'));
+    }
+  }
+
+  Future<void> _updateProfile(UpdateProfileRequested event, Emitter<AuthState> emit) async {
+    emit(AuthLoadingProfile());
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+      
+      final response = await http.post(
+        Uri.parse(
+            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/auth/update-profile'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: json.encode({
+          'gender': event.gender,
+          'date_of_birth': event.dateOfBirth.toIso8601String(),
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = json.decode(response.body);
+        print('Profile update response: $responseData');
+        
+        // Check if the response has a success field
+        if (responseData is Map) {
+          bool? success = responseData['success'];
+          
+          if (success == true) {
+            // Get current user data
+            final currentUserInfoString = prefs.getString('userInfo');
+            Map<String, dynamic> updatedUserData = {};
+            
+            if (currentUserInfoString != null) {
+              updatedUserData = Map<String, dynamic>.from(json.decode(currentUserInfoString));
+            }
+            
+            // Update with new gender and date of birth
+            updatedUserData['gender'] = event.gender;
+            updatedUserData['date_of_birth'] = event.dateOfBirth.toIso8601String();
+            
+            // Save updated user data
+            prefs.setString('userInfo', json.encode(updatedUserData));
+            
+            print('Emitting AuthMessage: Profile updated successfully!');
+            emit(AuthMessage('Profile updated successfully!'));
+
+          } else {
+            print('Emitting AuthError: Profile update failed');
+            emit(AuthError('Profile update failed: ${responseData['message'] ?? 'Unknown error'}'));
+          }
+          emit(AuthProfileLoaded());
+        } else {
+          emit(AuthError('Invalid response format'));
+        }
+      } else {
+        emit(AuthError('Profile update failed: ${response.body}'));
+      }
+    } catch (e) {
+      emit(AuthError('Profile update failed: $e'));
     }
   }
 

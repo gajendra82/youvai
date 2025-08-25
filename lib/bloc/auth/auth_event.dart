@@ -64,3 +64,13 @@ class VerifyLoginMobile extends AuthEvent {
       required this.otp});
 }
 class LogoutRequested extends AuthEvent {}
+
+class UpdateProfileRequested extends AuthEvent {
+  final String gender;
+  final DateTime dateOfBirth;
+
+  UpdateProfileRequested({
+    required this.gender,
+    required this.dateOfBirth,
+  });
+}

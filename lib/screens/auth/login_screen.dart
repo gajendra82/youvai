@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pinput/pinput.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
@@ -288,8 +291,110 @@ class _LoginPageState extends State<LoginPage> {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     SnackBar(content: Text('${state.message}')),
                                   );
+                               
+                                    () async {
+                                      final prefs = await SharedPreferences.getInstance();
+                                        String? gender;
+                                        String? dob;
+                                        final userId = prefs.getString('userId'); 
+                                        final userInfoString = prefs.getString('userInfo');
+                                        if (userInfoString != null) {
+                                          final userInfo = jsonDecode(userInfoString);
+                                          gender = userInfo['gender'] as String?;
+                                          dob = userInfo['dob'] as String?;
+                                        } else {
+                                        gender = prefs.getString('gender');
+                                        dob = prefs.getString('dob');
+                                        }
+
+                                      if (gender == null || dob == null) {
+                                        // Show popup to get gender and dob
+                                        await showDialog(
+                                          context: context,
+                                          barrierDismissible: false,
+                                          builder: (BuildContext context) {
+                                            String selectedGender = '';
+                                            String selectedDob = '';
+                                            return AlertDialog(
+                                              title: const Text('Complete Profile'),
+                                              content: StatefulBuilder(
+                                                builder: (context, setState) {
+                                                  return Column(
+                                                    mainAxisSize: MainAxisSize.min,
+                                                    children: [
+                                                      DropdownButtonFormField<String>(
+                                                        value: selectedGender.isEmpty ? null : selectedGender,
+                                                        items: ['Male', 'Female', 'Other']
+                                                            .map((g) => DropdownMenuItem(
+                                                                  value: g,
+                                                                  child: Text(g),
+                                                                ))
+                                                            .toList(),
+                                                        onChanged: (val) {
+                                                          setState(() {
+                                                            selectedGender = val ?? '';
+                                                          });
+                                                        },
+                                                        decoration: const InputDecoration(
+                                                          labelText: 'Gender',
+                                                        ),
+                                                      ),
+                                                      TextField(
+                                                        readOnly: true,
+                                                        decoration: InputDecoration(
+                                                          labelText: 'Date of Birth',
+                                                          hintText: selectedDob.isEmpty ? 'Select DOB' : selectedDob,
+                                                        ),
+                                                        onTap: () async {
+                                                          final picked = await showDatePicker(
+                                                            context: context,
+                                                            initialDate: DateTime(2000),
+                                                            firstDate: DateTime(1900),
+                                                            lastDate: DateTime.now(),
+                                                          );
+                                                          if (picked != null) {
+                                                            setState(() {
+                                                              selectedDob = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                                                            });
+                                                          }
+                                                        },
+                                                      ),
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                              actions: [
+                                                TextButton(
+                                                  onPressed: () {
+                                                    if (selectedGender.isNotEmpty && selectedDob.isNotEmpty) {
+                                                      gender = selectedGender;
+                                                      dob = selectedDob;
+                                                      Navigator.of(context).pop();
+                                                    }
+                                                  },
+                                                  child: const Text('Submit'),
+                                                ),
+                                              ],
+                                            );
+                                          },
+                                        );
+
+                                        // Save to SharedPreferences
+                                        if (gender != null && dob != null) {
+                                          await prefs.setString('userInfo', jsonEncode({
+                                            'gender': gender,
+                                            'dob': dob,
+                                          }));
+
+                                          // Profile update will be handled by ProfileCompletionChecker widget
+                                        }
+                                      }
+                                    }();
+
+                                  // Profile completion check will be handled by ProfileCompletionChecker widget
                                   Navigator.pushReplacementNamed(
                                       context, AppRoutes.start);
+
                                   // Or: Navigator.push(...);
                                 } else if (state is AuthError) {
                                   ScaffoldMessenger.of(context).showSnackBar(

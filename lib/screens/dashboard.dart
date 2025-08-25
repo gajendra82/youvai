@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/profile_completion_checker.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -6,7 +7,8 @@ class DashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isWide = MediaQuery.of(context).size.width > 650;
-    return Scaffold(
+    return ProfileCompletionChecker(
+      child: Scaffold(
       backgroundColor: const Color(0xFFF8F7FA),
       body: SafeArea(
         child: LayoutBuilder(
@@ -373,7 +375,7 @@ class DashboardScreen extends StatelessWidget {
           },
         ),
       ),
-    );
+    ));
   }
 
   Widget _summaryStat(String label, String value, IconData icon, Color color) {

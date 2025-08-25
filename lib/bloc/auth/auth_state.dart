@@ -3,7 +3,8 @@ abstract class AuthState {}
 class AuthInitial extends AuthState {}
 
 class AuthLoading extends AuthState {}
-
+class AuthLoadingProfile extends AuthState {}
+class AuthProfileLoaded extends AuthState {}
 class AuthAuthenticated extends AuthState {
   final String message;
   AuthAuthenticated(this.message);

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'dart:io';
 import 'dart:math';
 import 'package:flutter/material.dart';
+import '../widgets/profile_completion_checker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
@@ -336,7 +337,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ProfileCompletionChecker(
+      child: Scaffold(
       backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
       body: SafeArea(
         child: Stack(
@@ -358,7 +360,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildScanningOverlay() {

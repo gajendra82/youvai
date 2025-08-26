@@ -162,7 +162,7 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
               
               // Wait for the update to complete
               await Future.delayed(const Duration(milliseconds: 500));
-              await context.read<AuthBloc>().stream.listen((state) async{
+               context.read<AuthBloc>().stream.listen((state) async{
                 if (state is AuthProfileLoaded) {
                   // Check if profile is now complete
                   final isComplete = await _isProfileComplete();
@@ -170,9 +170,9 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
                   
                   if (isComplete) {
                     // Close the popup
-                    if (mounted && Navigator.of(context).canPop()) {
+                    // if (mounted && Navigator.of(context).canPop()) {
                       Navigator.of(context).pop();
-                    }
+                    // }
                   }
                 }
               });

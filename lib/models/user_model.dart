@@ -7,7 +7,7 @@ class UserModel {
   final DateTime? dateOfBirth;
   final String? gender; // 'male', 'female', 'other'
   final String? address;
-  final bool? policyAccept; // Track terms and conditions acceptance
+  final int? policyAccept; // Track terms and conditions acceptance
 
   UserModel({
     this.id,
@@ -33,7 +33,7 @@ class UserModel {
           : null,
       gender: json['gender'] as String?,
       address: json['address'] as String?,
-      policyAccept: json['policy_accept'] as bool?,
+      policyAccept: json['policy_accept'] as int?,
     );
   }
 

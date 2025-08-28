@@ -40,12 +40,12 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
       
       if (userInfoString != null) {
         final userData = json.decode(userInfoString);
-        print('userData: $userData');
-        final user = UserModel.fromJson(userData);
+        //  // print('userData: ${userData['user']}');
+        final user = UserModel.fromJson(userData['user']);
         
         // First check if policy_accept is null or false
-        print('user.policyAccept: ${user.policyAccept}');
-        if (user.policyAccept == null || user.policyAccept == false) {
+        // //  // print('user.policyAccept: ${user.policyAccept}');
+        if (user.policyAccept == null || user.policyAccept == 0) {
           if (widget.showPopup && mounted) {
             // Wait a bit for the screen to load
             await Future.delayed(const Duration(milliseconds: 500));
@@ -57,8 +57,8 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
         }
         
         // Check if gender or dateOfBirth is null
-        print('user.gender: ${user.gender}');
-        print('user.dateOfBirth: ${user.dateOfBirth}');
+        //  // print('user.gender: ${user.gender}');
+        //  // print('user.dateOfBirth: ${user.dateOfBirth}');
         if (user.gender == null || user.dateOfBirth == null) {
           if (widget.showPopup && mounted) {
             // Wait a bit for the screen to load
@@ -69,10 +69,10 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
           }
         }
       } else {
-        print('No user info found in SharedPreferences');
+        //  // print('No user info found in SharedPreferences');
       }
     } catch (e) {
-      print('Error checking profile completion: $e');
+      //  // print('Error checking profile completion: $e');
       // Show error to user if there's a critical error
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -118,7 +118,7 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
                 await _checkProfileCompletion();
               }
             } catch (e) {
-              print('Error in terms acceptance: $e');
+              //  // print('Error in terms acceptance: $e');
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -166,7 +166,7 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
                 if (state is AuthProfileLoaded) {
                   // Check if profile is now complete
                   final isComplete = await _isProfileComplete();
-                  print('Profile completion check: $isComplete');
+                  //  // print('Profile completion check: $isComplete');
                   
                   if (isComplete) {
                     // Close the popup
@@ -178,7 +178,7 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
               });
               // Check if profile is now complete
               // final isComplete = await _isProfileComplete();
-              // print('Profile completion check: $isComplete');
+              // //  // print('Profile completion check: $isComplete');
               
               // if (isComplete) {
               //   // Close the popup
@@ -211,7 +211,7 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
               //   }
               // }
             } catch (e) {
-              print('Error in profile update: $e');
+              //  // print('Error in profile update: $e');
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -244,7 +244,7 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
       }
       return false;
     } catch (e) {
-      print('Error checking profile completion: $e');
+      //  // print('Error checking profile completion: $e');
       return false;
     }
   }

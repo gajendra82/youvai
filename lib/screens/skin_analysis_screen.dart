@@ -1,21 +1,24 @@
+// lib/screens/skin_analysis_screen.dart
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:io';
+import 'dart:math';
 import 'package:flutter/material.dart';
+import '../widgets/profile_completion_checker.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:skin_assessment/screens/SkinConditionResultPage.dart';
 import 'package:skin_assessment/screens/scan_face_screen.dart';
-import '../widgets/skin_analysis_view.dart';
-import '../models/skin_analysis_model.dart';
+import 'package:skin_assessment/widgets/web_auto_capture_camera_stub.dart'
+    if (dart.library.html) 'package:skin_assessment/widgets/web_auto_capture_camera.dart';
+import 'package:skin_assessment/models/face_detection_model.dart';
+import 'package:skin_assessment/services/mobile_face_detection_service.dart';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:path/path.dart';
-import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:math';
 
 // Helper class to return bytes and size together
 class ZoomResult {
@@ -39,38 +42,64 @@ class SkinAnalysisScreen extends StatefulWidget {
 }
 
 class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
+  // Camera and UI state
   CameraController? _cameraController;
   Future<void>? _initializeControllerFuture;
   List<CameraDescription>? _cameras;
   bool _showCamera = false;
-  XFile? _capturedImage;
-
   ImageProvider? _imageProvider;
   Size? _originalImageSize;
   bool _loading = false;
   String? _error;
-  SkinIssueType? _selectedIssueType;
-  File? _lastImageFile;
-  Uint8List? _lastImageBytes;
 
+  // Scanning animation
   late AnimationController _scanController;
   late Animation<double> _scanAnimation;
   Uint8List? _scanningImageBytes;
 
+  // Face detection and analysis
   Uint8List? _faceImageBytes;
-  bool _removingBg = false;
-  bool _showScanning = false;
-
-  // // This will hold the response from your single API call
-  // Map<String, dynamic>? _skinAnalysisResult = {"error":false,"status":200,"message":"Skin analysis completed successfully.","data":[{"file_name":"skin_6899c7cb4533c9.18545488.","url":"https:\/\/aestheticai.globalspace.in\/youvai\/youvai_backend\/public\/skin\/skin_6899c7cb4533c9.18545488.png","media_url":"https:\/\/aestheticai.globalspace.in\/youvai\/youvai_backend\/public\/skin\/skin_6899c7cb4533c9.18545488.","uploaded_date":"2025-08-11 10:37:06","analysis":["Normal (90.61%)","Eye Bags (10.11%)","Acne: 8.81%\nBlackheads: 0.03%\nDark Spots: 0.04%\nWrinkles: 10.21%\nSkin Redness: 25.80%\npores: 0.01%\nEye Bags: 55.11%"],"output":"Pdf will be generated soon."}]};
   Map<String, dynamic>? _skinAnalysisResult;
+
+  // Mobile face detection
+  MobileFaceDetectionService? _faceDetectionService;
+  List<FaceBox> _detectedFaces = [];
+  int _stableFaceCount = 0;
+  Timer? _autoCaptureMobileTimer;
+  bool _isAutoCapturingMobile = false;
+  int _mobileCountdown = 3;
+  static const int requiredStableFramesMobile = 15; // ~3s @ ~5fps
+
+  // processing/capture guards (mobile)
+  bool _processingFrame = false;
+  bool _capturing = false;
+
+  // Visual feedback animations
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+  late AnimationController _countdownController;
+  late Animation<double> _countdownAnimation;
 
   @override
   void initState() {
     super.initState();
     _initCameras();
+    _setupAnimations();
 
+    // Initialize mobile face detection
+    if (!kIsWeb) {
+      _faceDetectionService = MobileFaceDetectionService();
+    }
+
+    // Handle initial image if provided
+    if (widget.initialImageBytes != null && widget.initialImageSize != null) {
+      _handleInitialImage();
+    }
+  }
+
+  void _setupAnimations() {
+    // Scanning animation
     _scanController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 1),
@@ -83,44 +112,79 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         }
       });
 
-    if (widget.initialImageBytes != null && widget.initialImageSize != null) {
-      _faceImageBytes = widget.initialImageBytes;
-      _originalImageSize = widget.initialImageSize;
-      _imageProvider = MemoryImage(widget.initialImageBytes!);
+    // Pulse animation for buttons
+    _pulseController = AnimationController(
+      duration: const Duration(milliseconds: 800),
+      vsync: this,
+    );
+    _pulseAnimation = Tween<double>(
+      begin: 1.0,
+      end: 1.2,
+    ).animate(CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    ));
 
-      WidgetsBinding.instance.addPostFrameCallback((_) async {
-        setState(() {
-          _removingBg = false;
-          _showScanning = true;
-          _loading = true;
-        });
-        _scanController.reset();
-        _scanController.repeat();
-        await _analyzeImageDirectAPI(
-            null, _faceImageBytes!, _originalImageSize!);
-        _scanController.reset();
-        setState(() {
-          _showScanning = false;
-        });
+    // Countdown animation
+    _countdownController = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    );
+    _countdownAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _countdownController,
+      curve: Curves.easeInOut,
+    ));
+  }
+
+  void _handleInitialImage() {
+    _faceImageBytes = widget.initialImageBytes;
+    _originalImageSize = widget.initialImageSize;
+    _imageProvider = MemoryImage(widget.initialImageBytes!);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      setState(() {
+        _loading = true;
       });
-    }
+      _scanController.reset();
+      _scanController.repeat();
+      await _analyzeImageDirectAPI(null, _faceImageBytes!, _originalImageSize!);
+      _scanController.reset();
+      if (mounted) setState(() {});
+    });
   }
 
   @override
   void dispose() {
-    _cameraController?.dispose();
-    _scanController.dispose();
+    _cleanup();
     super.dispose();
   }
 
+  void _cleanup() {
+    try {
+      if (_cameraController?.value.isStreamingImages ?? false) {
+        _cameraController!.stopImageStream();
+      }
+    } catch (_) {}
+    _cameraController?.dispose();
+    _scanController.dispose();
+    _pulseController.dispose();
+    _countdownController.dispose();
+    _faceDetectionService?.dispose();
+    _autoCaptureMobileTimer?.cancel();
+  }
+
   Future<void> _initCameras() async {
+    if (kIsWeb) return; // web uses HTML video
     try {
       WidgetsFlutterBinding.ensureInitialized();
       final cameras = await availableCameras();
       setState(() {
         _cameras = cameras;
       });
-    } catch (e) {
+    } catch (_) {
       setState(() {
         _cameras = [];
       });
@@ -128,7 +192,16 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   Future<void> _startCamera() async {
+    if (kIsWeb) {
+      setState(() {
+        _showCamera = true;
+        _initializeControllerFuture = null; // web handled by widget
+      });
+      return;
+    }
+
     if (_cameras == null || _cameras!.isEmpty) return;
+
     _cameraController?.dispose();
     _cameraController = CameraController(
       _cameras!.firstWhere(
@@ -138,26 +211,134 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       ResolutionPreset.high,
       enableAudio: false,
     );
-    _initializeControllerFuture = _cameraController!.initialize();
+
+    _initializeControllerFuture = _cameraController!.initialize().then((_) {
+      _startMobileFaceDetection();
+    });
+
     setState(() {
       _showCamera = true;
     });
   }
 
-  Future<void> _captureAndAnalyze() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized)
-      return;
-    final image = await _cameraController!.takePicture();
-    setState(() {
-      _capturedImage = image;
-      _showCamera = false;
+  // --------- MOBILE: single stream + debounced detection ----------
+  void _startMobileFaceDetection() {
+    if (kIsWeb || _cameraController == null) return;
+    if (_cameraController!.value.isStreamingImages) return;
+
+    _stableFaceCount = 0;
+    _isAutoCapturingMobile = false;
+
+    _cameraController!.startImageStream((CameraImage image) async {
+      if (_processingFrame || _isAutoCapturingMobile) return;
+      _processingFrame = true;
+
+      try {
+        if (_faceDetectionService == null) return;
+
+        final faces = await _faceDetectionService!.detectFaces(image);
+        if (!mounted) return;
+
+        setState(() {
+          _detectedFaces = faces;
+        });
+
+        final hasWellPositioned = faces.any((f) => f.isWellPositioned);
+
+        if (hasWellPositioned) {
+          _stableFaceCount++;
+          if (_stableFaceCount >= requiredStableFramesMobile) {
+            _startMobileAutoCapture(); // will stop stream before capture
+          } else if (!_pulseController.isAnimating) {
+            _pulseController.repeat(reverse: true);
+          }
+        } else {
+          _stableFaceCount = 0;
+          if (_pulseController.isAnimating) {
+            _pulseController.stop();
+            _pulseController.reset();
+          }
+        }
+      } catch (e) {
+        debugPrint('Face detection error: $e');
+      } finally {
+        _processingFrame = false;
+      }
     });
-    await _processPickedImage(image, fromCamera: true);
   }
 
+  void _startMobileAutoCapture() {
+    if (_isAutoCapturingMobile) return;
+
+    setState(() {
+      _isAutoCapturingMobile = true;
+      _mobileCountdown = 3;
+    });
+
+    _countdownController
+      ..reset()
+      ..forward();
+
+    _autoCaptureMobileTimer =
+        Timer.periodic(const Duration(seconds: 1), (timer) async {
+      if (!mounted) return;
+      setState(() => _mobileCountdown--);
+
+      if (_mobileCountdown <= 0) {
+        timer.cancel();
+        try {
+          if (_cameraController != null &&
+              _cameraController!.value.isStreamingImages) {
+            await _cameraController!.stopImageStream();
+            await Future.delayed(const Duration(milliseconds: 120));
+          }
+        } catch (_) {}
+        await _captureAndAnalyze();
+      } else {
+        _countdownController
+          ..reset()
+          ..forward();
+      }
+    });
+  }
+
+  Future<void> _captureAndAnalyze() async {
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return;
+    }
+    if (_capturing) return;
+    _capturing = true;
+
+    try {
+      // ensure stream stopped (idempotent)
+      if (_cameraController!.value.isStreamingImages) {
+        await _cameraController!.stopImageStream();
+        await Future.delayed(const Duration(milliseconds: 120));
+      }
+
+      final image = await _cameraController!.takePicture();
+      setState(() {
+        _showCamera = false;
+        _isAutoCapturingMobile = false;
+      });
+      await _processPickedImage(image, fromCamera: true);
+    } catch (e) {
+      debugPrint('Capture error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(this.context).showSnackBar(
+          SnackBar(content: Text('Capture failed: $e')),
+        );
+      }
+    } finally {
+      _capturing = false;
+    }
+  }
+
+  // ---------------- UI ----------------
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return ProfileCompletionChecker(
+      child: Scaffold(
       backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
       body: SafeArea(
         child: Stack(
@@ -174,58 +355,64 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
             if (_loading &&
                 _scanningImageBytes != null &&
                 _originalImageSize != null)
-              Positioned.fill(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Stack(
-                      children: [
-                        Center(
-                          child: Image.memory(
-                            _scanningImageBytes!,
-                            fit: BoxFit.contain,
-                            width: constraints.maxWidth,
-                            height: constraints.maxHeight,
-                          ),
-                        ),
-                        AnimatedBuilder(
-                          animation: _scanController,
-                          builder: (context, child) {
-                            return CustomPaint(
-                              painter:
-                                  ScanningLinePainter(_scanAnimation.value),
-                              size: Size(
-                                constraints.maxWidth,
-                                constraints.maxHeight,
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    );
-                  },
+              _buildScanningOverlay(),
+            if (_loading) _buildLoadingOverlay(),
+          ],
+        ),
+      ),
+    ));
+  }
+
+  Widget _buildScanningOverlay() {
+    return Positioned.fill(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          return Stack(
+            children: [
+              Center(
+                child: Image.memory(
+                  _scanningImageBytes!,
+                  fit: BoxFit.contain,
+                  width: constraints.maxWidth,
+                  height: constraints.maxHeight,
                 ),
               ),
-            if (_loading)
-              Container(
-                color: Colors.black.withOpacity(0.7),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const CircularProgressIndicator(color: Colors.white),
-                      SizedBox(height: 18),
-                      Text(
-                        "Processing...",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+              AnimatedBuilder(
+                animation: _scanController,
+                builder: (context, child) {
+                  return CustomPaint(
+                    painter: ScanningLinePainter(_scanAnimation.value),
+                    size: Size(
+                      constraints.maxWidth,
+                      constraints.maxHeight,
+                    ),
+                  );
+                },
               ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLoadingOverlay() {
+    return Container(
+      color: Colors.black.withOpacity(0.7),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            CircularProgressIndicator(color: Colors.white),
+            SizedBox(height: 18),
+            Text(
+              "Processing...",
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
           ],
         ),
       ),
@@ -241,50 +428,100 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         ),
       );
     }
+
     if (_faceImageBytes != null &&
         _originalImageSize != null &&
         _skinAnalysisResult != null) {
-      // Show only the result from your main API, no predict/zoom_face calls
-      // return SkinAnalysisView(
-      //   analysisJson: _skinAnalysisResult!,
-      //   inputImage: MemoryImage(_faceImageBytes!),
-      //   originalImageSize: _originalImageSize!,
-      //   selectedType: _selectedIssueType,
-      //   // Remove gradioResult and onGradioResult, and any predict/zoom_face logic
-      //   // Pass only your main analysisJson
-      // );
       return SkinConditionResultPage(
         gradioResult: _skinAnalysisResult!,
       );
     }
+
     return ScanFaceScreen(
       onCameraPressed: _startCamera,
-      // onCameraPressed: () async {
-      //   Navigator.of(context).push(
-      //     MaterialPageRoute(
-      //       builder: (context) => SkinConditionResultPage(
-      //         gradioResult: _skinAnalysisResult!,
-      //       ),
-      //     ),
-      //   );
-      // },
-
       onGalleryPressed: _pickImage,
     );
   }
 
   Widget _buildCameraOverlay(BuildContext context) {
+    if (kIsWeb) {
+      return _buildWebCameraOverlay(context);
+    } else {
+      return _buildMobileCameraOverlay(context);
+    }
+  }
+
+  Widget _buildWebCameraOverlay(BuildContext context) {
+    final cameraHeight = MediaQuery.of(context).size.height;
+    return SizedBox(
+      width: double.infinity,
+      height: cameraHeight,
+      child: Stack(
+        children: [
+          Positioned.fill(
+            child: WebAutoCaptureCamera(
+              onCaptured: (bytes, size) async {
+                try {
+                  setState(() {
+                    _showCamera = false;
+                    _scanningImageBytes = bytes;
+                    _originalImageSize = size;
+                    _faceImageBytes = bytes;
+                    _loading = true;
+                    _imageProvider = null;
+                    _error = null;
+                  });
+
+                  _scanController
+                    ..reset()
+                    ..repeat();
+
+                  await Future.delayed(const Duration(milliseconds: 80));
+                  await _analyzeImageDirectAPI(null, bytes, size);
+
+                  _scanController.reset();
+                  if (mounted) {
+                    setState(() {
+                      _loading = false;
+                    });
+                  }
+                } catch (error) {
+                  _scanController.reset();
+                  if (mounted) {
+                    setState(() {
+                      _loading = false;
+                      _error = "Failed to process image: $error";
+                    });
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Processing error: $error'),
+                        backgroundColor: Colors.red,
+                        duration: const Duration(seconds: 5),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          ),
+          CustomPaint(
+            painter: OverlayPainter(),
+            child: Container(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileCameraOverlay(BuildContext context) {
     return FutureBuilder<void>(
       future: _initializeControllerFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.done &&
             _cameraController != null) {
-          double cameraHeight = kIsWeb
-              ? html.window.innerHeight?.toDouble() ??
-                  MediaQuery.of(context).size.height
-              : MediaQuery.of(context).size.height;
+          final cameraHeight = MediaQuery.of(context).size.height;
 
-          return Container(
+          return SizedBox(
             width: double.infinity,
             height: cameraHeight,
             child: Stack(
@@ -296,77 +533,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   painter: OverlayPainter(),
                   child: Container(),
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 42, horizontal: 24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.0),
-                        ],
-                      ),
-                    ),
-                    child: const Text(
-                      'Set your face in the center of the circle',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 42, horizontal: 24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.0),
-                          Colors.black.withOpacity(0.0),
-                        ],
-                      ),
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          minimumSize: const Size.fromHeight(54),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                        onPressed: _captureAndAnalyze,
-                        child: const Text(
-                          'Capture & Analyze',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
+                ..._buildMobileFaceOverlays(context),
+                _buildInstructionsOverlay(),
+                if (_isAutoCapturingMobile) _buildMobileCountdownOverlay(),
+                _buildCaptureButton(),
               ],
             ),
           );
@@ -375,6 +545,213 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         }
       },
     );
+  }
+
+  List<Widget> _buildMobileFaceOverlays(BuildContext context) {
+    if (_detectedFaces.isEmpty) return [];
+
+    final screenSize = MediaQuery.of(context).size;
+
+    return _detectedFaces.map((face) {
+      final left = face.x * screenSize.width;
+      final top = face.y * screenSize.height;
+      final width = face.width * screenSize.width;
+      final height = face.height * screenSize.height;
+
+      return Positioned(
+        left: left,
+        top: top,
+        width: width,
+        height: height,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: face.isWellPositioned ? Colors.green : Colors.orange,
+              width: 3,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: face.isWellPositioned
+              ? Align(
+                  alignment: Alignment.topCenter,
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 4),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.green,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Text(
+                      'Perfect!',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                )
+              : null,
+        ),
+      );
+    }).toList();
+  }
+
+  Widget _buildInstructionsOverlay() {
+    return Positioned(
+      top: 40,
+      left: 20,
+      right: 20,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Text(
+          _getMobileInstructionText(),
+          textAlign: TextAlign.center,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileCountdownOverlay() {
+    return Center(
+      child: AnimatedBuilder(
+        animation: _countdownAnimation,
+        builder: (context, child) {
+          return Transform.scale(
+            scale: 1.0 + (_countdownAnimation.value * 0.3),
+            child: Container(
+              width: 120,
+              height: 120,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.green.withOpacity(0.8),
+                border: Border.all(
+                  color: Colors.white,
+                  width: 4,
+                ),
+              ),
+              child: Center(
+                child: Text(
+                  '$_mobileCountdown',
+                  style: const TextStyle(
+                    fontSize: 48,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCaptureButton() {
+    return Positioned(
+      left: 0,
+      right: 0,
+      bottom: 0,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.bottomCenter,
+            end: Alignment.topCenter,
+            colors: [
+              Colors.black.withOpacity(0.85),
+              Colors.black.withOpacity(0.85),
+              Colors.black.withOpacity(0.0),
+              Colors.black.withOpacity(0.0),
+            ],
+          ),
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          child: AnimatedBuilder(
+            animation: _pulseAnimation,
+            builder: (context, child) {
+              return Transform.scale(
+                scale: _hasWellPositionedFaceMobile()
+                    ? _pulseAnimation.value
+                    : 1.0,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _hasWellPositionedFaceMobile()
+                        ? Colors.green
+                        : Colors.white,
+                    foregroundColor: _hasWellPositionedFaceMobile()
+                        ? Colors.white
+                        : Colors.black,
+                    minimumSize: const Size.fromHeight(54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _captureAndAnalyze,
+                  child: Text(
+                    _hasWellPositionedFaceMobile()
+                        ? 'Perfect! Tap to Capture'
+                        : 'Capture & Analyze',
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _hasWellPositionedFaceMobile() {
+    return _detectedFaces.any((face) => face.isWellPositioned);
+  }
+
+  String _getMobileInstructionText() {
+    if (_detectedFaces.isEmpty) {
+      return 'Position your face in the camera';
+    }
+
+    final bestFace = _detectedFaces.firstWhere(
+      (face) => face.isWellPositioned,
+      orElse: () => _detectedFaces.first,
+    );
+
+    if (bestFace.isWellPositioned) {
+      if (_isAutoCapturingMobile) {
+        return 'Hold still! Capturing in $_mobileCountdown...';
+      } else {
+        return 'Perfect position! Auto-capture starting...';
+      }
+    }
+
+    final centerX = bestFace.x + bestFace.width / 2;
+    final centerY = bestFace.y + bestFace.height / 2;
+
+    if (bestFace.width < 0.15 || bestFace.height < 0.15) {
+      return 'Move closer to the camera';
+    } else if (bestFace.width > 0.8 || bestFace.height > 0.8) {
+      return 'Move away from the camera';
+    } else if ((centerX - 0.5).abs() > 0.3) {
+      return centerX < 0.5 ? 'Move right' : 'Move left';
+    } else if ((centerY - 0.5).abs() > 0.3) {
+      return centerY < 0.5 ? 'Move down' : 'Move up';
+    } else {
+      return 'Almost there! Hold still...';
+    }
   }
 
   Future<void> _pickImage() async {
@@ -420,30 +797,29 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _loading = true;
       _imageProvider = null;
       _faceImageBytes = bytes;
-      _removingBg = false;
-      _showScanning = false;
     });
 
-    await _analyzeImageDirectAPI(picked, bytes!, size!);
+    _scanController
+      ..reset()
+      ..repeat();
+    await _analyzeImageDirectAPI(picked, bytes, size);
+    _scanController.reset();
 
-    setState(() {
-      _showScanning = false;
-      _loading = false;
-      _removingBg = true;
-    });
+    if (mounted) {
+      setState(() {
+        _loading = false;
+      });
+    }
   }
 
   Future<void> _analyzeImageDirectAPI(
       XFile? picked, Uint8List previewBytes, Size imageSize) async {
     Map<String, dynamic>? resultJson;
-
     try {
-      // final uri = Uri.parse(
-      //     'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
       final uri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
+
       var request = http.MultipartRequest('POST', uri);
-      // Generate guest_id if not present and store in SharedPreferences
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? guestId = prefs.getString('guest_id');
@@ -455,58 +831,67 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         guestId =
             'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
         await prefs.setString('guest_id', guestId);
+      }
+
+      if (guestId != null) {
         request.fields['guest_id'] = guestId;
       }
-      // request.fields['doctor_id'] = "70690";
-      // request.fields['patient_id'] = "42";
-      // request.fields['patient_number'] = "8600285374";
+
+      final fileName = picked != null ? basename(picked.path) : 'capture.jpg';
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
-          previewBytes!,
-          filename: basename(picked!.path),
+          previewBytes,
+          filename: fileName,
         ),
       );
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-      if (response.statusCode == 200) {
-        print(response.body);
-        final decoded = json.decode(response.body);
 
-        resultJson = decoded;
-        if (resultJson == null) {
-          print("No valid data found");
-          return decoded;
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        resultJson = decoded is Map<String, dynamic> ? decoded : null;
+
+        if (resultJson == null || resultJson.isEmpty) {
+          if (mounted) {
+            setState(() {
+              _error = "No analysis data returned from server";
+              _loading = false;
+            });
+          }
+          return;
         }
       } else {
-        print("Error: ${response.statusCode} - ${response.body}");
-        setState(() {
-          _error = "API failed with status ${response.statusCode}";
-        });
-        return null;
+        if (mounted) {
+          setState(() {
+            _error = "Server error: ${response.statusCode}";
+            _loading = false;
+          });
+        }
+        return;
       }
     } catch (e) {
-      print("Error occurred: $e");
-      return null;
+      if (mounted) {
+        setState(() {
+          _error = "Network error: $e";
+          _loading = false;
+        });
+      }
+      return;
     }
 
-    setState(() {
-      _skinAnalysisResult = resultJson;
-      _loading = false;
-      _error = (_skinAnalysisResult == null)
-          ? "API failed or returned no detections. Try again."
-          : null;
-      _imageProvider = MemoryImage(previewBytes);
-      _scanningImageBytes = null;
-      _faceImageBytes = previewBytes;
-      _originalImageSize = imageSize;
-      _lastImageBytes = previewBytes;
-      if (!kIsWeb) {
-        _lastImageFile = picked != null ? File(picked.path) : null;
-      } else {
-        _lastImageFile = null;
-      }
-    });
+    if (mounted) {
+      setState(() {
+        _skinAnalysisResult = resultJson;
+        _loading = false;
+        _error = null;
+        _imageProvider = MemoryImage(previewBytes);
+        _scanningImageBytes = null;
+        _faceImageBytes = previewBytes;
+        _originalImageSize = imageSize;
+      });
+    }
   }
 
   Future<Size> _getImageSizeMobileBytes(Uint8List bytes) async {
@@ -526,13 +911,13 @@ class OverlayPainter extends CustomPainter {
     final ovalWidth = size.width * (kIsWeb ? 0.95 : 0.8);
     final ovalHeight = size.height * (kIsWeb ? 0.85 : 0.65);
     final center = size.center(Offset.zero);
+
     final rect = Rect.fromCenter(
       center: center,
       width: ovalWidth,
       height: ovalHeight,
     );
 
-    // Draw transparent outside the oval, and slightly black transparent overlay
     final overlayPaint = Paint()..color = Colors.black.withOpacity(0.35);
     final overlayPath = Path()..addRect(Offset.zero & size);
     final ovalPath = Path()..addOval(rect);
@@ -540,29 +925,65 @@ class OverlayPainter extends CustomPainter {
         Path.combine(PathOperation.difference, overlayPath, ovalPath);
     canvas.drawPath(maskPath, overlayPaint);
 
-    // Draw transparent inside the oval
     final clearPaint = Paint()..blendMode = BlendMode.clear;
     canvas.drawOval(rect, clearPaint);
 
-    // Draw dashed white border for the oval
     final dashPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3;
 
-    const dashLength = 12.0;
-    const gapLength = 8.0;
-    final perimeter = 2 * 3.141592653589793 * ((ovalWidth + ovalHeight) / 4);
-    final dashCount = (perimeter / (dashLength + gapLength)).floor();
+    _drawDashedOvalBorder(canvas, rect, dashPaint);
+    _drawFaceGuides(canvas, rect);
+  }
+
+  void _drawDashedOvalBorder(Canvas canvas, Rect rect, Paint paint) {
+    const dashLength = 15.0;
+    const gapLength = 10.0;
+
+    final a = rect.width / 2;
+    final b = rect.height / 2;
+    final circumference = pi * (3 * (a + b) - sqrt((3 * a + b) * (a + 3 * b)));
+
+    final dashCount = (circumference / (dashLength + gapLength)).floor();
 
     for (int i = 0; i < dashCount; i++) {
       final startAngle =
-          (i * (dashLength + gapLength)) / ((ovalWidth + ovalHeight) / 4);
-      final endAngle = startAngle + dashLength / ((ovalWidth + ovalHeight) / 4);
+          (i * (dashLength + gapLength)) / (circumference / (2 * pi));
+      final endAngle = startAngle + (dashLength / (circumference / (2 * pi)));
+
       final path = Path();
       path.addArc(rect, startAngle, endAngle - startAngle);
-      canvas.drawPath(path, dashPaint);
+      canvas.drawPath(path, paint);
     }
+  }
+
+  void _drawFaceGuides(Canvas canvas, Rect rect) {
+    final guidePaint = Paint()
+      ..color = Colors.white.withOpacity(0.6)
+      ..style = PaintingStyle.fill;
+
+    final center = rect.center;
+
+    canvas.drawCircle(
+      Offset(center.dx - rect.width * 0.15, center.dy - rect.height * 0.08),
+      2,
+      guidePaint,
+    );
+
+    canvas.drawCircle(
+      Offset(center.dx + rect.width * 0.15, center.dy - rect.height * 0.08),
+      2,
+      guidePaint,
+    );
+
+    canvas.drawLine(
+      Offset(center.dx, center.dy + rect.height * 0.05),
+      Offset(center.dx, center.dy + rect.height * 0.12),
+      Paint()
+        ..color = Colors.white.withOpacity(0.4)
+        ..strokeWidth = 1.5,
+    );
   }
 
   @override

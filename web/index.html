@@ -69,413 +69,249 @@
     <!-- Face Detection Script - Eyes + Nose + Cheeks gating -->
 <!-- Auto-detection + auto-capture (lazy & non-blocking) -->
 <script>
-  (function () {
-    'use strict';
+(function () {
+  'use strict';
 
-    /* ----------------------- Lazy loader helpers ----------------------- */
-    const LOAD_TIMEOUT_MS = 20000;  // give up after 20s
-    const WARMUP_SIZE = 96;         // smaller warmup to reduce jank
+  const LOAD_TIMEOUT_MS = 20000;
+  const REQUIRED_STABLE_FRAMES = 10;
 
-    function loadScript(src) {
-      return new Promise((resolve, reject) => {
-        if (document.querySelector(`script[src="${src}"]`)) return resolve();
-        const s = document.createElement('script');
-        s.src = src;
-        s.async = true;
-        s.onload = resolve;
-        s.onerror = () => reject(new Error('Failed to load ' + src));
-        document.head.appendChild(s);
-      });
-    }
+  let preloadedModel = null;
+  let model = null, modelReady = false;
+  let videoEl = null, detectionActive = false;
+  let captureInProgress = false, countdownActive = false;
+  let statusEl, ovalEl, countdownTimer = null;
+  let stableFaceCount = 0;
+  let lastOkAll = false; // tracks if last detection was valid
 
-    function idle(fn) {
-      if (window.requestIdleCallback) return requestIdleCallback(fn, { timeout: 1500 });
-      return setTimeout(fn, 0);
-    }
-
-    async function loadModelWithTimeout() {
-      const abort = new Promise((_, rej) =>
-        setTimeout(() => rej(new Error('Model load timeout')), LOAD_TIMEOUT_MS)
-      );
-
-      // Lazy load libs only when asked
-      const loadLibs = (async () => {
-        if (!window.tf) await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0');
-        // tiny breather for the UI thread
-        await new Promise(r => setTimeout(r, 50));
-        if (!window.blazeface) await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7');
-      })();
-
-      await Promise.race([loadLibs, abort]);
-
-      // Backend choose (do not block UI on failure)
-      try {
-        if (tf?.getBackend && tf.getBackend() !== 'webgl' && tf.setBackend) {
-          await tf.setBackend('webgl');
-        }
-        await tf.ready();
-      } catch (_) { /* ignore */ }
-
-      const model = await Promise.race([
-        blazeface.load({ maxFaces: 1 }),
-        abort
-      ]);
-
-      // Light warmup on a tiny canvas to avoid first-call stall
-      try {
-        const c = document.createElement('canvas');
-        c.width = WARMUP_SIZE; c.height = WARMUP_SIZE;
-        const g = c.getContext('2d');
-        g.fillStyle = '#000'; g.fillRect(0, 0, WARMUP_SIZE, WARMUP_SIZE);
-        await model.estimateFaces(c, false);
-      } catch (_) { /* ignore */ }
-
-      return model;
-    }
-
-    /* -------------------------- UI components -------------------------- */
-    let statusEl, ovalEl;
-    let dotsTimer = null, dots = 0;
-
-    function injectStyles() {
-      if (document.getElementById('fd-styles')) return;
-      const css = `
-        .fd-status{position:fixed;top:30px;left:50%;transform:translateX(-50%);
-          background:rgba(0,0,0,.9);color:#fff;padding:12px 20px;border-radius:25px;
-          font:600 16px system-ui,-apple-system,Segoe UI,Roboto,Arial;z-index:10000;display:none;box-shadow:0 4px 12px rgba(0,0,0,.3)}
-        .fd-status.success{background:rgba(0,200,0,.9)} .fd-status.warning{background:rgba(255,149,0,.9)}
-        .fd-status.loading::after{content:attr(data-dots);margin-left:6px}
-        .fd-status.countdown{background:rgba(0,150,255,.9);font-size:24px}
-        .fd-oval{position:fixed;border:3px solid #00c853;border-radius:50%;
-          box-shadow:0 0 18px rgba(0,200,83,.6);background:rgba(0,200,83,.08);
-          z-index:9999;pointer-events:none;display:none;transition:transform .12s,left .12s,top .12s,width .12s,height .12s}
-        .fd-oval.warn{border-color:#ff9500;background:rgba(255,149,0,.07);box-shadow:0 0 14px rgba(255,149,0,.6)}
-      `;
-      const s = document.createElement('style');
-      s.id = 'fd-styles';
-      s.textContent = css;
+  /* ---------------- Helpers ---------------- */
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) return resolve();
+      const s = document.createElement('script');
+      s.src = src;
+      s.async = true;
+      s.onload = resolve;
+      s.onerror = () => reject(new Error('Failed to load ' + src));
       document.head.appendChild(s);
-    }
-    function ensureStatus() { if (!statusEl) { statusEl = document.createElement('div'); statusEl.className='fd-status'; document.body.appendChild(statusEl); } }
-    function setStatus(text, tone) {
-      ensureStatus();
-      statusEl.textContent = text;
-      statusEl.className = 'fd-status';
-      if (tone) statusEl.classList.add(tone);
-      statusEl.style.display = 'block';
-    }
-    function showLoading(msg) {
-      ensureStatus();
-      statusEl.className = 'fd-status loading';
-      statusEl.textContent = msg;
-      statusEl.dataset.dots = '';
-      statusEl.style.display = 'block';
-      if (dotsTimer) return;
-      dotsTimer = setInterval(() => { dots = (dots + 1) % 4; statusEl.dataset.dots = '.'.repeat(dots); }, 300);
-    }
-    function stopLoading() { if (dotsTimer) { clearInterval(dotsTimer); dotsTimer = null; } if (statusEl) statusEl.removeAttribute('data-dots'); }
-    function ensureOval(){ if (!ovalEl){ ovalEl=document.createElement('div'); ovalEl.className='fd-oval'; document.body.appendChild(ovalEl); } }
-// --- replace your current setOval(...) with this responsive, cover-aware version ---
-// helper to detect if the video element is mirrored with CSS
-function _isMirrored(el) {
-  const t = getComputedStyle(el).transform || 'none';
-  // matrix(-1, 0, 0, 1, 0, 0) or scaleX(-1)
-  return t.includes('matrix(-1') || t.includes('scaleX(-1)');
-}
-
-// --- replace your setOval(...) with this version ---
-function setOval(videoEl, x, y, w, h, warn) {
-  ensureOval();
-
-  const r = videoEl.getBoundingClientRect();
-  const vw = videoEl.videoWidth  || 1;
-  const vh = videoEl.videoHeight || 1;
-
-  // object-fit: cover uses a uniform scale
-  const scale = Math.max(r.width / vw, r.height / vh);
-
-  // displayed (scaled) content size inside the <video> rect
-  const dispW = vw * scale;
-  const dispH = vh * scale;
-
-  // cropping offsets — content centered within the element
-  const contentLeft = r.left + (r.width  - dispW) / 2;
-  const contentTop  = r.top  + (r.height - dispH) / 2;
-
-  // source-space face center
-  let srcCx = x + w / 2;
-  const srcCy = y + h / 2;
-
-  // account for CSS mirror (scaleX(-1)) commonly used for front cameras
-  if (_isMirrored(videoEl)) {
-    srcCx = vw - srcCx;
+    });
   }
 
-  // expand factor: slightly smaller on very small screens
-  const smallScreen = Math.min(window.innerWidth, window.innerHeight) <= 480;
-  const expandX = smallScreen ? 1.06 : 1.18;   // tuned down for mobile
-  const expandY = smallScreen ? 1.12 : 1.26;
+  async function loadModelWithTimeout() {
+    if (preloadedModel) return preloadedModel;
+    const abort = new Promise((_, rej) =>
+      setTimeout(() => rej(new Error('Model load timeout')), LOAD_TIMEOUT_MS)
+    );
+    const load = (async () => {
+      if (!window.tf) await loadScript("https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.2.0");
+      if (!window.blazeface) await loadScript("https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7");
+      return blazeface.load({ maxFaces: 1 });
+    })();
+    preloadedModel = await Promise.race([load, abort]);
+    return preloadedModel;
+  }
 
-  // convert to screen pixels
-  const cx = srcCx * scale;
-  const cy = srcCy * scale;
-  let ow = (w * scale) * expandX;
-  let oh = (h * scale) * expandY;
-
-  // clamp size so the oval always fits inside the visible video box
-  const pad = 6;
-  ow = Math.min(ow, r.width  - 2 * pad);
-  oh = Math.min(oh, r.height - 2 * pad);
-
-  // position so the oval center matches the face center (inside content area)
-  let left = contentLeft + cx - ow / 2;
-  let top  = contentTop  + cy - oh / 2;
-
-  // clamp position within the video element’s visible rect
-  left = Math.max(r.left + pad, Math.min(left, r.left + r.width  - ow - pad));
-  top  = Math.max(r.top  + pad, Math.min(top,  r.top  + r.height - oh - pad));
-
-  // apply styles
-  ovalEl.style.left   = left + 'px';
-  ovalEl.style.top    = top  + 'px';
-  ovalEl.style.width  = ow   + 'px';
-  ovalEl.style.height = oh   + 'px';
-  ovalEl.classList.toggle('warn', !!warn);
-  ovalEl.style.display = 'block';
-}
-
-
-    function hideOval(){ if (ovalEl) ovalEl.style.display='none'; }
-
-    /* ---------------------- Face geometry constraints ------------------- */
-    const _norm = (pt,vw,vh)=>({x:pt[0]/vw,y:pt[1]/vh});
-    const _deg = (rad)=>rad*(180/Math.PI);
-
-    function poseOK(pred, vw, vh){
-      const L = pred.landmarks || []; if (!L || L.length < 3) return { ok:false, reason:'face' };
-      const rightEye=_norm(L[0],vw,vh), leftEye=_norm(L[1],vw,vh), nose=_norm(L[2],vw,vh);
-      if (!isFinite(rightEye.x) || !isFinite(leftEye.x)) return { ok:false, reason:'eyes' };
-
-      const dx=leftEye.x-rightEye.x, dy=leftEye.y-rightEye.y;
-      const eyeDist=Math.hypot(dx,dy), roll=_deg(Math.atan2(dy,dx));
-      const levelOK=Math.abs(roll)<=8;
-      const eyesInBand = rightEye.y>0.20&&rightEye.y<0.60 && leftEye.y>0.20&&leftEye.y<0.60 && rightEye.x>0.15 && leftEye.x<0.85;
-      const scaleOK = eyeDist>0.10 && eyeDist<0.35;
-      if (!(eyesInBand && scaleOK && levelOK)) return { ok:false, reason:'eyes' };
-
-      const midX=(leftEye.x+rightEye.x)/2, avgY=(leftEye.y+rightEye.y)/2;
-      const noseCenteredX=Math.abs(nose.x-midX)<=eyeDist*0.30;
-      const noseBelow = nose.y>avgY && nose.y<avgY+0.30;
-      if (!(noseCenteredX && noseBelow)) return { ok:false, reason:'nose' };
-
-      return { ok: levelOK && noseCenteredX, reason: levelOK&&noseCenteredX ? null : 'cheeks' };
-    }
-    function boxOK(box){
-      const min=0.18,max=0.75,tol=0.20;
-      if (box.width<min||box.height<min||box.width>max||box.height>max) return false;
-      const cx=box.x+box.width/2, cy=box.y+box.height/2;
-      return Math.abs(cx-0.5)<=tol && Math.abs(cy-0.5)<=tol;
-    }
-    function hint(reason){
-      switch(reason){
-        case 'eyes': return 'Show both eyes inside the oval';
-        case 'nose': return 'Center your nose between the eyes';
-        case 'cheeks': return 'Face straight—show both cheeks';
-        case 'face': return 'Move fully into the frame';
-        default: return 'Adjust your position';
-      }
-    }
-
-    /* -------------------- Detection & capture state --------------------- */
-    let model=null, modelReady=false, videoEl=null;
-    let detectionActive=false, detectionStarted=false, waitingForFlutter=false;
-    let autoCapturing=false, countdownActive=false, captureInProgress=false, criticalPhase=false;
-    let stableFaceCount=0, lastInfer=0, ignoreVisibilityUntil=0, countdownTimer=null;
-
-    const REQUIRED_STABLE_FRAMES = 10;
-
-    function allGoodNow() { return ovalEl && ovalEl.style.display !== 'none' && !ovalEl.classList.contains('warn'); }
-
-    async function detectLoop(ts){
-      if (!detectionActive || waitingForFlutter || !modelReady || !videoEl){ requestAnimationFrame(detectLoop); return; }
-      if (ts && lastInfer && ts-lastInfer<66){ requestAnimationFrame(detectLoop); return; }
-      lastInfer = ts || performance.now();
-      try{
-        const preds = await model.estimateFaces(videoEl, false);
-        const vw=videoEl.videoWidth, vh=videoEl.videoHeight;
-
-        if (!preds || !preds.length){
-          hideOval(); setStatus('Position your face in the camera',''); requestAnimationFrame(detectLoop); return;
-        }
-        const p=preds[0]; const [x,y]=p.topLeft, [xr,yb]=p.bottomRight;
-        const box={x:x/vw,y:y/vh,width:(xr-x)/vw,height:(yb-y)/vh, confidence:p.probability?p.probability[0]:0.9};
-        const pose=poseOK(p,vw,vh), center=boxOK(box), okAll=pose.ok && center;
-
-        setOval(videoEl, x,y, xr-x, yb-y, !okAll);
-        if (okAll) setStatus('Perfect! Hold still…','success'); else setStatus(hint(pose.ok?'face':pose.reason),'warning');
-
-        if (!captureInProgress && !waitingForFlutter){
-          if (okAll && !autoCapturing && !countdownActive){
-            stableFaceCount++;
-            if (stableFaceCount>=5) ignoreVisibilityUntil = Date.now()+10000;
-            if (stableFaceCount>=REQUIRED_STABLE_FRAMES) startAutoCapture();
-          } else if (!countdownActive && !criticalPhase) {
-            stableFaceCount = 0; if (autoCapturing) cancelAutoCapture();
-          }
-        }
-      } catch (_) { /* ignore frame errors */ }
-      requestAnimationFrame(detectLoop);
-    }
-
-    function startAutoCapture(){
-      if (autoCapturing || countdownActive || captureInProgress || waitingForFlutter) return;
-      criticalPhase=true; ignoreVisibilityUntil=Date.now()+15000;
-      autoCapturing=true; countdownActive=true; let n=3;
-      statusEl.className='fd-status countdown'; statusEl.textContent=String(n);
-      countdownTimer=setInterval(()=>{
-        if (!allGoodNow()){ criticalPhase=false; cancelAutoCapture(); return; }
-        n--;
-        if (n>0){ statusEl.textContent=String(n); }
-        else {
-          clearInterval(countdownTimer); countdownTimer=null; countdownActive=false;
-          if (allGoodNow()){ captureInProgress=true; captureFaceImage(); }
-          else { criticalPhase=false; autoCapturing=false; setStatus('Hold steady with both eyes, nose & cheeks visible','warning'); }
-        }
-      },1000);
-    }
-
-    function cancelAutoCapture(){
-      if (countdownTimer){ clearInterval(countdownTimer); countdownTimer=null; }
-      autoCapturing=false; countdownActive=false; stableFaceCount=0; criticalPhase=false;
-      setStatus('Position your face in the camera','');
-    }
-
-    function captureFaceImage(){
-      if (!videoEl){ captureInProgress=false; criticalPhase=false; return; }
-      setStatus('📸 Capturing…','success');
-      const c=document.createElement('canvas'); c.width=videoEl.videoWidth; c.height=videoEl.videoHeight;
-      const ctx=c.getContext('2d'); ctx.scale(-1,1); ctx.drawImage(videoEl,-c.width,0);
-      c.toBlob((blob)=>{
-        if(!blob){ captureInProgress=false; criticalPhase=false; return; }
-        setStatus('🔄 Processing…','success');
-        const r=new FileReader();
-        r.onload=()=>{ try{
-          const base64=String(r.result).split(',')[1];
-          sendToFlutter({type:'face_captured', imageData:base64, width:c.width, height:c.height, timestamp:Date.now(), success:true});
-          autoCapturing=false;
-        }catch(_){ captureInProgress=false; criticalPhase=false; setStatus('❌ Failed','warning'); } };
-        r.onerror=()=>{ captureInProgress=false; criticalPhase=false; setStatus('❌ Failed','warning'); };
-        r.readAsDataURL(blob);
-      },'image/jpeg',0.95);
-    }
-
-    /* -------------------------- Flutter bridge -------------------------- */
-    function sendToFlutter(message){
-      waitingForFlutter = true;
-      setTimeout(()=>{ if (waitingForFlutter) { waitingForFlutter=false; cleanup(); } }, 10000);
-      try{ window.postMessage(message,'*'); }catch(_){}
-      try{ if (window.parent && window.parent !== window) window.parent.postMessage(message,'*'); }catch(_){}
-      try{
-        window.flutterCaptureData = message;
-        localStorage.setItem('flutter_face_capture', JSON.stringify(message));
-        localStorage.setItem('flutter_capture_timestamp', Date.now().toString());
-        sessionStorage.setItem('flutter_face_capture', JSON.stringify(message));
-      }catch(_){}
-      try{
-        const ev=new CustomEvent('flutter_face_captured',{detail:message,bubbles:true,cancelable:true});
-        window.dispatchEvent(ev); document.dispatchEvent(ev);
-      }catch(_){}
-      try{ if (window.flutter_inappwebview?.callHandler) window.flutter_inappwebview.callHandler('face_captured', JSON.stringify(message)); }catch(_){}
-    }
-
-    function cleanup(){
-      detectionActive=false; detectionStarted=false; hideOval();
-      if (statusEl) statusEl.style.display='none';
-      captureInProgress=false; autoCapturing=false; countdownActive=false; criticalPhase=false;
-      try{
-        window.flutterCaptureData=null;
-        localStorage.removeItem('flutter_face_capture');
-        localStorage.removeItem('flutter_capture_timestamp');
-        sessionStorage.removeItem('flutter_face_capture');
-      }catch(_){}
-    }
-
-    /* ----------------------- Public message API ------------------------ */
-    async function initializeFaceDetection(){
-      injectStyles();
-      showLoading('Loading AI model');
-
-      // Don’t block first paint — start on idle
-      await new Promise(resolve => idle(resolve));
-
-      // Find the video lazily (Flutter adds it)
-      const waitVideo = new Promise((resolve, reject) => {
-        let tries=0, t=setInterval(()=>{
-          tries++; videoEl=document.querySelector('video');
-          if (videoEl && videoEl.videoWidth>0){ clearInterval(t); resolve(videoEl); }
-          else if (tries>120){ clearInterval(t); reject(new Error('Camera not available')); }
-        }, 100);
-      });
-
+  // preload model in background
+  window.addEventListener("load", () => {
+    setTimeout(async () => {
       try {
-        // Load model & find video in parallel (whichever waits, neither blocks UI)
-        const [m] = await Promise.all([loadModelWithTimeout(), waitVideo]);
-        model = m; modelReady = !!model;
+        preloadedModel = await loadModelWithTimeout();
+        console.log("✅ BlazeFace preloaded");
       } catch (e) {
-        stopLoading();
-        setStatus(e.message || 'Failed to initialize AI','warning');
+        console.warn("Preload failed", e);
+      }
+    }, 500);
+  });
+
+  /* ---------------- Face validation ---------------- */
+  const _norm = (pt, vw, vh) => ({x:pt[0]/vw,y:pt[1]/vh});
+  const _deg = rad => rad*(180/Math.PI);
+
+  function poseOK(pred, vw, vh){
+    const L = pred.landmarks || []; if (!L || L.length < 3) return false;
+    const rightEye=_norm(L[0],vw,vh), leftEye=_norm(L[1],vw,vh), nose=_norm(L[2],vw,vh);
+    if (!isFinite(rightEye.x) || !isFinite(leftEye.x)) return false;
+    const dx=leftEye.x-rightEye.x, dy=leftEye.y-rightEye.y;
+    const eyeDist=Math.hypot(dx,dy), roll=_deg(Math.atan2(dy,dx));
+    const levelOK=Math.abs(roll)<=8;
+    const eyesInBand = rightEye.y>0.20&&rightEye.y<0.60 && leftEye.y>0.20&&leftEye.y<0.60;
+    const scaleOK = eyeDist>0.10 && eyeDist<0.35;
+    if (!(eyesInBand && scaleOK && levelOK)) return false;
+    const midX=(leftEye.x+rightEye.x)/2, avgY=(leftEye.y+rightEye.y)/2;
+    const noseCenteredX=Math.abs(nose.x-midX)<=eyeDist*0.30;
+    const noseBelow = nose.y>avgY && nose.y<avgY+0.30;
+    return (noseCenteredX && noseBelow);
+  }
+  function boxOK(box){
+    const min=0.18,max=0.75,tol=0.20;
+    if (box.width<min||box.height<min||box.width>max||box.height>max) return false;
+    const cx=box.x+box.width/2, cy=box.y+box.height/2;
+    return Math.abs(cx-0.5)<=tol && Math.abs(cy-0.5)<=tol;
+  }
+
+  /* ---------------- UI helpers ---------------- */
+  function injectStyles() {
+    if (document.getElementById("fd-styles")) return;
+    const css = `
+      .fd-status{position:fixed;top:30px;left:50%;transform:translateX(-50%);
+        background:rgba(0,0,0,.9);color:#fff;padding:12px 20px;border-radius:25px;
+        font:600 16px system-ui;z-index:10000;display:none}
+      .fd-status.success{background:rgba(0,200,0,.9)}
+      .fd-status.warning{background:rgba(255,149,0,.9)}
+      .fd-status.countdown{background:rgba(0,150,255,.9);font-size:24px}
+      .fd-oval{position:fixed;border:3px solid #00c853;border-radius:50%;
+        background:rgba(0,200,83,.08);z-index:9999;pointer-events:none;display:none}
+      .fd-oval.warn{border-color:#ff9500;background:rgba(255,149,0,.07)}
+    `;
+    const s = document.createElement("style");
+    s.id = "fd-styles";
+    s.textContent = css;
+    document.head.appendChild(s);
+  }
+  function ensureStatus() { if (!statusEl) { statusEl=document.createElement("div"); statusEl.className="fd-status"; document.body.appendChild(statusEl); } }
+  function setStatus(text, tone) {
+    ensureStatus();
+    statusEl.textContent = text;
+    statusEl.className = "fd-status";
+    if (tone) statusEl.classList.add(tone);
+    statusEl.style.display = "block";
+  }
+  function ensureOval(){ if (!ovalEl){ ovalEl=document.createElement("div"); ovalEl.className="fd-oval"; document.body.appendChild(ovalEl); } }
+  function hideOval(){ if (ovalEl) ovalEl.style.display='none'; }
+  function setOval(videoEl, x, y, w, h, warn) {
+    ensureOval();
+    const r = videoEl.getBoundingClientRect();
+    const vw = videoEl.videoWidth || 1, vh = videoEl.videoHeight || 1;
+    const scale = Math.max(r.width / vw, r.height / vh);
+    const cx = (x + w / 2) * scale, cy = (y + h / 2) * scale;
+    const ow = w * scale * 1.18, oh = h * scale * 1.26;
+    const left = r.left + cx - ow / 2, top = r.top + cy - oh / 2;
+    ovalEl.style.left = left + "px"; ovalEl.style.top = top + "px";
+    ovalEl.style.width = ow + "px"; ovalEl.style.height = oh + "px";
+    ovalEl.classList.toggle("warn", !!warn);
+    ovalEl.style.display = "block";
+  }
+
+  /* ---------------- Detection ---------------- */
+  async function detectLoop() {
+    if (!detectionActive || !modelReady || !videoEl) {
+      requestAnimationFrame(detectLoop);
+      return;
+    }
+    try {
+      const preds = await model.estimateFaces(videoEl, false);
+      const vw=videoEl.videoWidth, vh=videoEl.videoHeight;
+      if (!preds || !preds.length) {
+        hideOval(); setStatus("Position your face","warning");
+        stableFaceCount = 0; lastOkAll = false;
+      } else {
+        const p=preds[0]; const [x,y]=p.topLeft, [xr,yb]=p.bottomRight;
+        const box={x:x/vw,y:y/vh,width:(xr-x)/vw,height:(yb-y)/vh};
+        const okAll = poseOK(p,vw,vh) && boxOK(box);
+        lastOkAll = okAll; // track last validity
+        setOval(videoEl, x,y, xr-x, yb-y, !okAll);
+
+        if (okAll) {
+          setStatus("Perfect! Hold still…","success");
+          if (!captureInProgress && !countdownActive) {
+            stableFaceCount++;
+            if (stableFaceCount >= REQUIRED_STABLE_FRAMES) startCountdown();
+          }
+        } else {
+          setStatus("Adjust your position","warning");
+          stableFaceCount = 0;
+        }
+      }
+    } catch (e) {}
+    requestAnimationFrame(detectLoop);
+  }
+
+  function startCountdown() {
+    countdownActive = true;
+    let n = 3;
+    statusEl.className = "fd-status countdown";
+    statusEl.textContent = String(n);
+
+    countdownTimer = setInterval(() => {
+      if (!lastOkAll) { // cancel if face moved
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+        countdownActive = false;
+        stableFaceCount = 0;
+        setStatus("Adjust your position","warning");
         return;
       }
+      n--;
+      if (n > 0) statusEl.textContent = String(n);
+      else {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+        countdownActive = false;
+        captureFaceImage();
+      }
+    }, 1000);
+  }
 
-      stopLoading();
-      setStatus('Position your face in the frame','');
-      detectionStarted = true;
-      detectionActive  = true;
-      requestAnimationFrame(detectLoop);
+  function captureFaceImage() {
+    if (!videoEl) return;
+    captureInProgress = true;
+    setStatus("📸 Capturing…","success");
+    const c=document.createElement("canvas"); c.width=videoEl.videoWidth; c.height=videoEl.videoHeight;
+    const ctx=c.getContext("2d"); ctx.scale(-1,1); ctx.drawImage(videoEl,-c.width,0);
+    c.toBlob((blob)=>{
+      if(!blob) return;
+      const r=new FileReader();
+      r.onload=()=>{ try{
+        const base64=String(r.result).split(",")[1];
+        sendToFlutter({type:"face_captured", imageData:base64, width:c.width, height:c.height, timestamp:Date.now(), success:true});
+        cleanup();
+      }catch(_){} };
+      r.readAsDataURL(blob);
+    },"image/jpeg",0.95);
+  }
+
+  function sendToFlutter(message){ 
+    try{window.postMessage(message,"*"); if(window.parent&&window.parent!==window)window.parent.postMessage(message,"*");}catch(_){} 
+  }
+
+  function cleanup(){
+    detectionActive=false; hideOval();
+    if (statusEl) statusEl.style.display="none";
+    captureInProgress=false; countdownActive=false; stableFaceCount=0; lastOkAll=false;
+  }
+
+  /* ---------------- API ---------------- */
+  async function initializeFaceDetection(){
+    injectStyles();
+    setStatus("Loading AI model…");
+    try {
+      model = preloadedModel || await loadModelWithTimeout();
+      modelReady = true;
+    } catch(e){ setStatus("Model failed","warning"); return; }
+
+    let tries=0;
+    const timer=setInterval(()=>{
+      tries++; videoEl=document.querySelector("video");
+      if(videoEl && videoEl.videoWidth>0){
+        clearInterval(timer);
+        setStatus("Position your face in frame","");
+        detectionActive=true;
+        requestAnimationFrame(detectLoop);
+      } else if(tries>100){
+        clearInterval(timer); setStatus("Camera not available","warning");
+      }
+    },200);
+  }
+
+  window.addEventListener("message",(e)=>{
+    const msg=e.data||{}; if(!msg.type) return;
+    switch(msg.type){
+      case "start_face_detection": initializeFaceDetection(); break;
+      case "stop_face_detection": cleanup(); break;
+      case "capture_now": if(!captureInProgress) captureFaceImage(); break;
     }
-
-    window.addEventListener('message', (e)=>{
-      const msg = e.data || {}; if (!msg.type) return;
-      switch (msg.type) {
-        case 'start_face_detection': initializeFaceDetection(); break;
-        case 'stop_face_detection':
-          detectionActive=false; detectionStarted=false; hideOval();
-          if (statusEl) statusEl.style.display='none';
-          captureInProgress=false; waitingForFlutter=false; criticalPhase=false;
-          break;
-        case 'capture_now':
-          if (!captureInProgress && !waitingForFlutter) {
-            autoCapturing=false; countdownActive=false; captureInProgress=true; criticalPhase=true;
-            ignoreVisibilityUntil = Date.now()+10000;
-            captureFaceImage();
-          }
-          break;
-        case 'flutter_processing_started':
-          setStatus('✅ Flutter processing…','success'); break;
-        case 'flutter_processing_complete':
-          waitingForFlutter=false; setTimeout(cleanup,500); break;
-      }
-    });
-
-    // Minimal visibility guard
-    document.addEventListener('visibilitychange', (ev)=>{
-      const protect = Date.now() < ignoreVisibilityUntil;
-      if (protect || criticalPhase || stableFaceCount>=5) {
-        ev.preventDefault(); ev.stopImmediatePropagation();
-        if (!detectionActive && detectionStarted && modelReady && videoEl) {
-          detectionActive = true; requestAnimationFrame(detectLoop);
-        }
-        return false;
-      }
-      if (captureInProgress || waitingForFlutter) { ev.preventDefault(); ev.stopPropagation(); return false; }
-      if (document.hidden) {
-        detectionActive=false; if (statusEl) statusEl.style.display='none'; hideOval();
-      } else if (modelReady && videoEl && detectionStarted && !captureInProgress) {
-        detectionActive=true; setStatus('Position your face in the frame',''); requestAnimationFrame(detectLoop);
-      }
-    });
-  })();
+  });
+})();
 </script>
 
-  </body>
+</body>
 </html>

@@ -1325,8 +1325,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                 title: const Text('Share on WhatsApp'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await launchUrl(Uri.parse(waShare),
+                  final ok = await launchUrl(Uri.parse(waShare),
                       mode: LaunchMode.platformDefault);
+                  if (!ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not launch')),
+                    );
+                  }
                 },
               ),
               ListTile(
@@ -1334,8 +1339,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                 title: const Text('Share on Facebook'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await launchUrl(Uri.parse(fbShare),
+                  final ok = await launchUrl(Uri.parse(waShare),
                       mode: LaunchMode.platformDefault);
+                  if (!ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not launch')),
+                    );
+                  }
                 },
               ),
               ListTile(
@@ -1345,8 +1355,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                     'We downloaded the image for you — add it to your post or story.'),
                 onTap: () async {
                   Navigator.pop(context);
-                  await launchUrl(Uri.parse(instaOpen),
+                  final ok = await launchUrl(Uri.parse(waShare),
                       mode: LaunchMode.platformDefault);
+                  if (!ok) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Could not launch')),
+                    );
+                  }
                 },
               ),
               const SizedBox(height: 8),

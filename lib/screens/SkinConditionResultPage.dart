@@ -1326,7 +1326,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                 onTap: () async {
                   Navigator.pop(context);
                   await launchUrl(Uri.parse(waShare),
-                      mode: LaunchMode.externalApplication);
+                      mode: LaunchMode.platformDefault);
                 },
               ),
               ListTile(
@@ -1335,7 +1335,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                 onTap: () async {
                   Navigator.pop(context);
                   await launchUrl(Uri.parse(fbShare),
-                      mode: LaunchMode.externalApplication);
+                      mode: LaunchMode.platformDefault);
                 },
               ),
               ListTile(
@@ -1346,7 +1346,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                 onTap: () async {
                   Navigator.pop(context);
                   await launchUrl(Uri.parse(instaOpen),
-                      mode: LaunchMode.externalApplication);
+                      mode: LaunchMode.platformDefault);
                 },
               ),
               const SizedBox(height: 8),

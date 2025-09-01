@@ -286,7 +286,7 @@ class _LoginPageState extends State<LoginPage> {
                               listener: (context, state) {
                                 if (state is AuthAuthenticated) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('${state.message}')),
+                                    SnackBar(content: Text(state.message)),
                                   );
                                   Navigator.pushReplacementNamed(
                                       context, AppRoutes.start);

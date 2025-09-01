@@ -1339,7 +1339,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                 title: const Text('Share on Facebook'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final ok = await launchUrl(Uri.parse(waShare),
+                  final ok = await launchUrl(Uri.parse(fbShare),
                       mode: LaunchMode.platformDefault);
                   if (!ok) {
                     ScaffoldMessenger.of(context).showSnackBar(
@@ -1355,7 +1355,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                     'We downloaded the image for you — add it to your post or story.'),
                 onTap: () async {
                   Navigator.pop(context);
-                  final ok = await launchUrl(Uri.parse(waShare),
+                  final ok = await launchUrl(Uri.parse(instaOpen),
                       mode: LaunchMode.platformDefault);
                   if (!ok) {
                     ScaffoldMessenger.of(context).showSnackBar(

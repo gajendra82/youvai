@@ -129,19 +129,31 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
   Future<void> _startCamera() async {
     if (_cameras == null || _cameras!.isEmpty) return;
-    _cameraController?.dispose();
-    _cameraController = CameraController(
-      _cameras!.firstWhere(
-        (c) => c.lensDirection == CameraLensDirection.front,
-        orElse: () => _cameras!.first,
-      ),
-      ResolutionPreset.high,
-      enableAudio: false,
-    );
-    _initializeControllerFuture = _cameraController!.initialize();
-    setState(() {
-      _showCamera = true;
-    });
+
+    try {
+      _cameraController?.dispose();
+      _cameraController = CameraController(
+        _cameras!.firstWhere(
+          (c) => c.lensDirection == CameraLensDirection.front,
+          orElse: () => _cameras!.first,
+        ),
+        ResolutionPreset.high,
+        enableAudio: false,
+      );
+
+      // Initialize and wait
+      await _cameraController!.initialize();
+
+      setState(() {
+        _initializeControllerFuture = Future.value(); // mark ready
+        _showCamera = true;
+      });
+    } catch (e) {
+      print("Error starting camera: $e");
+      setState(() {
+        _showCamera = false;
+      });
+    }
   }
 
   Future<void> _captureAndAnalyze() async {
@@ -274,106 +286,108 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   Widget _buildCameraOverlay(BuildContext context) {
-    return FutureBuilder<void>(
-      future: _initializeControllerFuture,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.done &&
-            _cameraController != null) {
-          double cameraHeight = kIsWeb
-              ? html.window.innerHeight?.toDouble() ??
-                  MediaQuery.of(context).size.height
-              : MediaQuery.of(context).size.height;
+    // If controller is null or not initialized yet → show loader
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator());
+    }
 
-          return Container(
-            width: double.infinity,
-            height: cameraHeight,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: CameraPreview(_cameraController!),
+    double cameraHeight = kIsWeb
+        ? html.window.innerHeight?.toDouble() ??
+            MediaQuery.of(context).size.height
+        : MediaQuery.of(context).size.height;
+
+    return Container(
+      width: double.infinity,
+      height: cameraHeight,
+      child: Stack(
+        children: [
+          // Camera preview
+          Positioned.fill(
+            child: CameraPreview(_cameraController!),
+          ),
+
+          // Circular overlay
+          CustomPaint(
+            painter: OverlayPainter(),
+            child: Container(),
+          ),
+
+          // Top instructions
+          Positioned(
+            left: 0,
+            right: 0,
+            top: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.0),
+                  ],
                 ),
-                CustomPaint(
-                  painter: OverlayPainter(),
-                  child: Container(),
+              ),
+              child: const Text(
+                'Set your face in the center of the circle',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
                 ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 42, horizontal: 24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.0),
-                        ],
-                      ),
-                    ),
-                    child: const Text(
-                      'Set your face in the center of the circle',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 42, horizontal: 24),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.85),
-                          Colors.black.withOpacity(0.0),
-                          Colors.black.withOpacity(0.0),
-                        ],
-                      ),
-                    ),
-                    child: SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          minimumSize: const Size.fromHeight(54),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                        ),
-                        onPressed: _captureAndAnalyze,
-                        child: const Text(
-                          'Capture & Analyze',
-                          style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.w600),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
+                textAlign: TextAlign.center,
+              ),
             ),
-          );
-        } else {
-          return const Center(child: CircularProgressIndicator());
-        }
-      },
+          ),
+
+          // Capture button at bottom
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Container(
+              padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.85),
+                    Colors.black.withOpacity(0.0),
+                    Colors.black.withOpacity(0.0),
+                  ],
+                ),
+              ),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
+                    minimumSize: const Size.fromHeight(54),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                  ),
+                  onPressed: _captureAndAnalyze,
+                  child: const Text(
+                    'Capture & Analyze',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

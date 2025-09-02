@@ -8,21 +8,12 @@ import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:skin_assessment/screens/SkinConditionResultPage.dart';
 import 'package:skin_assessment/screens/scan_face_screen.dart';
-import '../widgets/skin_analysis_view.dart';
 import '../models/skin_analysis_model.dart';
 import 'package:http/http.dart' as http;
-import 'package:http_parser/http_parser.dart';
 import 'package:path/path.dart';
 import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
-
-// Helper class to return bytes and size together
-class ZoomResult {
-  final Uint8List bytes;
-  final Size size;
-  ZoomResult(this.bytes, this.size);
-}
 
 class SkinAnalysisScreen extends StatefulWidget {
   final Uint8List? initialImageBytes;
@@ -41,14 +32,14 @@ class SkinAnalysisScreen extends StatefulWidget {
 class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     with SingleTickerProviderStateMixin {
   CameraController? _cameraController;
-  Future<void>? _initializeControllerFuture;
   List<CameraDescription>? _cameras;
   bool _showCamera = false;
+  bool _isCameraInitializing = false; // 🚀 show loader when opening camera
   XFile? _capturedImage;
 
   ImageProvider? _imageProvider;
   Size? _originalImageSize;
-  bool _loading = false;
+  bool _loading = false; // 🚀 loader when analyzing
   String? _error;
   SkinIssueType? _selectedIssueType;
   File? _lastImageFile;
@@ -62,8 +53,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   bool _removingBg = false;
   bool _showScanning = false;
 
-  // // This will hold the response from your single API call
-  // Map<String, dynamic>? _skinAnalysisResult = {"error":false,"status":200,"message":"Skin analysis completed successfully.","data":[{"file_name":"skin_6899c7cb4533c9.18545488.","url":"https:\/\/aestheticai.globalspace.in\/youvai\/youvai_backend\/public\/skin\/skin_6899c7cb4533c9.18545488.png","media_url":"https:\/\/aestheticai.globalspace.in\/youvai\/youvai_backend\/public\/skin\/skin_6899c7cb4533c9.18545488.","uploaded_date":"2025-08-11 10:37:06","analysis":["Normal (90.61%)","Eye Bags (10.11%)","Acne: 8.81%\nBlackheads: 0.03%\nDark Spots: 0.04%\nWrinkles: 10.21%\nSkin Redness: 25.80%\npores: 0.01%\nEye Bags: 55.11%"],"output":"Pdf will be generated soon."}]};
   Map<String, dynamic>? _skinAnalysisResult;
 
   @override
@@ -109,6 +98,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   @override
   void dispose() {
     _cameraController?.dispose();
+    _cameraController = null;
     _scanController.dispose();
     super.dispose();
   }
@@ -128,24 +118,33 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 
   Future<void> _startCamera() async {
+    if (_isCameraInitializing) return;
     if (_cameras == null || _cameras!.isEmpty) return;
 
+    setState(() {
+      _isCameraInitializing = true;
+    });
+
     try {
-      _cameraController?.dispose();
+      if (_cameraController != null) {
+        await _cameraController!.dispose();
+        _cameraController = null;
+      }
+
+      final frontCamera = _cameras!.firstWhere(
+        (c) => c.lensDirection == CameraLensDirection.front,
+        orElse: () => _cameras!.first,
+      );
+
       _cameraController = CameraController(
-        _cameras!.firstWhere(
-          (c) => c.lensDirection == CameraLensDirection.front,
-          orElse: () => _cameras!.first,
-        ),
+        frontCamera,
         ResolutionPreset.high,
         enableAudio: false,
       );
 
-      // Initialize and wait
       await _cameraController!.initialize();
 
       setState(() {
-        _initializeControllerFuture = Future.value(); // mark ready
         _showCamera = true;
       });
     } catch (e) {
@@ -153,92 +152,128 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       setState(() {
         _showCamera = false;
       });
+    } finally {
+      setState(() {
+        _isCameraInitializing = false;
+      });
     }
   }
 
+  Future<void> _closeCamera() async {
+    try {
+      if (_cameraController != null) {
+        await _cameraController!.dispose();
+        _cameraController = null;
+      }
+    } catch (e) {
+      print("Error closing camera: $e");
+    }
+    setState(() {
+      _showCamera = false;
+    });
+  }
+
   Future<void> _captureAndAnalyze() async {
-    if (_cameraController == null || !_cameraController!.value.isInitialized)
+    if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
+    }
     final image = await _cameraController!.takePicture();
+    await _closeCamera();
     setState(() {
       _capturedImage = image;
-      _showCamera = false;
     });
     await _processPickedImage(image, fromCamera: true);
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
-      body: SafeArea(
-        child: Stack(
-          children: [
-            Column(
-              children: [
-                Expanded(
-                  child: _showCamera
-                      ? _buildCameraOverlay(context)
-                      : _buildImageArea(context),
-                ),
-              ],
-            ),
-            if (_loading &&
-                _scanningImageBytes != null &&
-                _originalImageSize != null)
-              Positioned.fill(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Stack(
+    return WillPopScope(
+      onWillPop: () async {
+        if (_showCamera) {
+          await _closeCamera();
+          return false;
+        }
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
+        body: SafeArea(
+          child: Stack(
+            children: [
+              Column(
+                children: [
+                  Expanded(
+                    child: _showCamera
+                        ? _buildCameraOverlay(context)
+                        : _buildImageArea(context),
+                  ),
+                ],
+              ),
+
+              // 🚀 Loader when opening camera
+              if (_isCameraInitializing)
+                Container(
+                  color: Colors.black.withOpacity(0.6),
+                  child: const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Center(
-                          child: Image.memory(
-                            _scanningImageBytes!,
-                            fit: BoxFit.contain,
-                            width: constraints.maxWidth,
-                            height: constraints.maxHeight,
+                        CircularProgressIndicator(color: Colors.white),
+                        SizedBox(height: 16),
+                        Text(
+                          "Opening camera...",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                        AnimatedBuilder(
-                          animation: _scanController,
-                          builder: (context, child) {
-                            return CustomPaint(
-                              painter:
-                                  ScanningLinePainter(_scanAnimation.value),
-                              size: Size(
-                                constraints.maxWidth,
-                                constraints.maxHeight,
-                              ),
-                            );
-                          },
-                        ),
                       ],
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              ),
-            if (_loading)
-              Container(
-                color: Colors.black.withOpacity(0.7),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
+
+              // 🚀 Loader when analyzing
+              if (_loading && _imageProvider != null)
+                Positioned.fill(
+                  child: Stack(
                     children: [
-                      const CircularProgressIndicator(color: Colors.white),
-                      SizedBox(height: 18),
-                      Text(
-                        "Processing...",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w500,
+                      // 🔴 Show full image
+                      Positioned.fill(
+                        child: Image(
+                          image: _imageProvider!,
+                          fit: BoxFit.contain, // keep aspect ratio
+                        ),
+                      ),
+
+                      // 🔴 Dark overlay
+                      Container(
+                        color: Colors.black.withOpacity(0.6),
+                      ),
+
+                      // 🔴 Spinner + Text
+                      Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: const [
+                            CircularProgressIndicator(color: Colors.white),
+                            SizedBox(height: 18),
+                            Text(
+                              "Processing...",
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -256,37 +291,17 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     if (_faceImageBytes != null &&
         _originalImageSize != null &&
         _skinAnalysisResult != null) {
-      // Show only the result from your main API, no predict/zoom_face calls
-      // return SkinAnalysisView(
-      //   analysisJson: _skinAnalysisResult!,
-      //   inputImage: MemoryImage(_faceImageBytes!),
-      //   originalImageSize: _originalImageSize!,
-      //   selectedType: _selectedIssueType,
-      //   // Remove gradioResult and onGradioResult, and any predict/zoom_face logic
-      //   // Pass only your main analysisJson
-      // );
       return SkinConditionResultPage(
         gradioResult: _skinAnalysisResult!,
       );
     }
     return ScanFaceScreen(
       onCameraPressed: _startCamera,
-      // onCameraPressed: () async {
-      //   Navigator.of(context).push(
-      //     MaterialPageRoute(
-      //       builder: (context) => SkinConditionResultPage(
-      //         gradioResult: _skinAnalysisResult!,
-      //       ),
-      //     ),
-      //   );
-      // },
-
       onGalleryPressed: _pickImage,
     );
   }
 
   Widget _buildCameraOverlay(BuildContext context) {
-    // If controller is null or not initialized yet → show loader
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -301,18 +316,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       height: cameraHeight,
       child: Stack(
         children: [
-          // Camera preview
-          Positioned.fill(
-            child: CameraPreview(_cameraController!),
-          ),
+          Positioned.fill(child: CameraPreview(_cameraController!)),
 
-          // Circular overlay
-          CustomPaint(
-            painter: OverlayPainter(),
-            child: Container(),
-          ),
+          // Overlay painter
+          CustomPaint(painter: OverlayPainter(), child: Container()),
 
-          // Top instructions
+          // Instructions
           Positioned(
             left: 0,
             right: 0,
@@ -343,7 +352,17 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
             ),
           ),
 
-          // Capture button at bottom
+          // Back button
+          Positioned(
+            top: 40,
+            left: 16,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
+              onPressed: _closeCamera,
+            ),
+          ),
+
+          // Capture button
           Positioned(
             left: 0,
             right: 0,
@@ -427,12 +446,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       }
       size = await _getImageSizeMobileBytes(bytes);
     }
-
     setState(() {
       _scanningImageBytes = bytes;
       _originalImageSize = size;
       _loading = true;
-      _imageProvider = null;
+      _imageProvider = MemoryImage(bytes!); // ✅ keep preview visible
       _faceImageBytes = bytes;
       _removingBg = false;
       _showScanning = false;
@@ -452,12 +470,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     Map<String, dynamic>? resultJson;
 
     try {
-      // final uri = Uri.parse(
-      //     'https://aestheticai.globalspace.in/dev/aesthetic_backend/public/api/v3/uploadImageFromDoc');
       final uri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
       var request = http.MultipartRequest('POST', uri);
-      // Generate guest_id if not present and store in SharedPreferences
 
       SharedPreferences prefs = await SharedPreferences.getInstance();
       String? guestId = prefs.getString('guest_id');
@@ -471,37 +486,27 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         await prefs.setString('guest_id', guestId);
         request.fields['guest_id'] = guestId;
       }
-      // request.fields['doctor_id'] = "70690";
-      // request.fields['patient_id'] = "42";
-      // request.fields['patient_number'] = "8600285374";
+
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
-          previewBytes!,
-          filename: basename(picked!.path),
+          previewBytes,
+          filename: picked != null ? basename(picked.path) : 'upload.jpg',
         ),
       );
+
       var streamedResponse = await request.send();
       var response = await http.Response.fromStream(streamedResponse);
       if (response.statusCode == 200) {
-        print(response.body);
         final decoded = json.decode(response.body);
-
         resultJson = decoded;
-        if (resultJson == null) {
-          print("No valid data found");
-          return decoded;
-        }
       } else {
-        print("Error: ${response.statusCode} - ${response.body}");
         setState(() {
           _error = "API failed with status ${response.statusCode}";
         });
-        return null;
       }
     } catch (e) {
       print("Error occurred: $e");
-      return null;
     }
 
     setState(() {
@@ -534,6 +539,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   }
 }
 
+// --- Overlay Painter ---
 class OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
@@ -546,7 +552,6 @@ class OverlayPainter extends CustomPainter {
       height: ovalHeight,
     );
 
-    // Draw transparent outside the oval, and slightly black transparent overlay
     final overlayPaint = Paint()..color = Colors.black.withOpacity(0.35);
     final overlayPath = Path()..addRect(Offset.zero & size);
     final ovalPath = Path()..addOval(rect);
@@ -554,11 +559,9 @@ class OverlayPainter extends CustomPainter {
         Path.combine(PathOperation.difference, overlayPath, ovalPath);
     canvas.drawPath(maskPath, overlayPaint);
 
-    // Draw transparent inside the oval
     final clearPaint = Paint()..blendMode = BlendMode.clear;
     canvas.drawOval(rect, clearPaint);
 
-    // Draw dashed white border for the oval
     final dashPaint = Paint()
       ..color = Colors.white
       ..style = PaintingStyle.stroke
@@ -583,9 +586,9 @@ class OverlayPainter extends CustomPainter {
   bool shouldRepaint(CustomPainter oldDelegate) => false;
 }
 
+// --- Scanning Line Painter ---
 class ScanningLinePainter extends CustomPainter {
   final double progress;
-
   ScanningLinePainter(this.progress);
 
   @override

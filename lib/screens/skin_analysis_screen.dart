@@ -33,13 +33,14 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     with SingleTickerProviderStateMixin {
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
+  bool _camerasReady = false; // 🚀 track readiness
   bool _showCamera = false;
-  bool _isCameraInitializing = false; // 🚀 show loader when opening camera
+  bool _isCameraInitializing = false;
   XFile? _capturedImage;
 
   ImageProvider? _imageProvider;
   Size? _originalImageSize;
-  bool _loading = false; // 🚀 loader when analyzing
+  bool _loading = false;
   String? _error;
   SkinIssueType? _selectedIssueType;
   File? _lastImageFile;
@@ -109,10 +110,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       final cameras = await availableCameras();
       setState(() {
         _cameras = cameras;
+        _camerasReady = true; // 🚀 ready
       });
     } catch (e) {
       setState(() {
         _cameras = [];
+        _camerasReady = true; // 🚀 still mark ready (no cameras)
       });
     }
   }
@@ -198,82 +201,89 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       child: Scaffold(
         backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
         body: SafeArea(
-          child: Stack(
-            children: [
-              Column(
-                children: [
-                  Expanded(
-                    child: _showCamera
-                        ? _buildCameraOverlay(context)
-                        : _buildImageArea(context),
+          child: !_camerasReady
+              ? const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator(),
+                      SizedBox(height: 16),
+                      Text("Loading camera...", style: TextStyle(fontSize: 16)),
+                    ],
                   ),
-                ],
-              ),
-
-              // 🚀 Loader when opening camera
-              if (_isCameraInitializing)
-                Container(
-                  color: Colors.black.withOpacity(0.6),
-                  child: const Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
+                )
+              : Stack(
+                  children: [
+                    Column(
                       children: [
-                        CircularProgressIndicator(color: Colors.white),
-                        SizedBox(height: 16),
-                        Text(
-                          "Opening camera...",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.w500,
-                          ),
+                        Expanded(
+                          child: _showCamera
+                              ? _buildCameraOverlay(context)
+                              : _buildImageArea(context),
                         ),
                       ],
                     ),
-                  ),
-                ),
 
-              // 🚀 Loader when analyzing
-              if (_loading && _imageProvider != null)
-                Positioned.fill(
-                  child: Stack(
-                    children: [
-                      // 🔴 Show full image
-                      Positioned.fill(
-                        child: Image(
-                          image: _imageProvider!,
-                          fit: BoxFit.contain, // keep aspect ratio
+                    // 🚀 Loader when opening camera
+                    if (_isCameraInitializing)
+                      Container(
+                        color: Colors.black.withOpacity(0.6),
+                        child: const Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              CircularProgressIndicator(color: Colors.white),
+                              SizedBox(height: 16),
+                              Text(
+                                "Opening camera...",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
 
-                      // 🔴 Dark overlay
-                      Container(
-                        color: Colors.black.withOpacity(0.6),
-                      ),
-
-                      // 🔴 Spinner + Text
-                      Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: const [
-                            CircularProgressIndicator(color: Colors.white),
-                            SizedBox(height: 18),
-                            Text(
-                              "Processing...",
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w500,
+                    // 🚀 Loader when analyzing
+                    if (_loading && _imageProvider != null)
+                      Positioned.fill(
+                        child: Stack(
+                          children: [
+                            Positioned.fill(
+                              child: Image(
+                                image: _imageProvider!,
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                            Container(
+                              color: Colors.black.withOpacity(0.6),
+                            ),
+                            Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: const [
+                                  CircularProgressIndicator(
+                                      color: Colors.white),
+                                  SizedBox(height: 18),
+                                  Text(
+                                    "Processing...",
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ],
                         ),
                       ),
-                    ],
-                  ),
+                  ],
                 ),
-            ],
-          ),
         ),
       ),
     );
@@ -298,6 +308,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     return ScanFaceScreen(
       onCameraPressed: _startCamera,
       onGalleryPressed: _pickImage,
+      isCameraInitializing: _isCameraInitializing,
     );
   }
 
@@ -317,11 +328,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       child: Stack(
         children: [
           Positioned.fill(child: CameraPreview(_cameraController!)),
-
-          // Overlay painter
           CustomPaint(painter: OverlayPainter(), child: Container()),
-
-          // Instructions
           Positioned(
             left: 0,
             right: 0,
@@ -351,8 +358,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
               ),
             ),
           ),
-
-          // Back button
           Positioned(
             top: 40,
             left: 16,
@@ -361,8 +366,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
               onPressed: _closeCamera,
             ),
           ),
-
-          // Capture button
           Positioned(
             left: 0,
             right: 0,
@@ -450,7 +453,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _scanningImageBytes = bytes;
       _originalImageSize = size;
       _loading = true;
-      _imageProvider = MemoryImage(bytes!); // ✅ keep preview visible
+      _imageProvider = MemoryImage(bytes!);
       _faceImageBytes = bytes;
       _removingBg = false;
       _showScanning = false;

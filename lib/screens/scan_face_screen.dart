@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/screens/skin_analysis_screen.dart';
 
 class ScanFaceScreen extends StatelessWidget {
-  const ScanFaceScreen(
-      {super.key, this.onCameraPressed, this.onGalleryPressed});
+  const ScanFaceScreen({
+    super.key,
+    this.onCameraPressed,
+    this.onGalleryPressed,
+    this.isCameraInitializing = false, // 🚀 new
+  });
 
   final Function? onCameraPressed;
   final Function? onGalleryPressed;
+  final bool isCameraInitializing; // 🚀 new
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +195,7 @@ class ScanFaceScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 28),
-                    // Scan Now Button
+                    // Scan Now Buttons
                     Row(
                       children: [
                         Expanded(
@@ -205,20 +209,21 @@ class ScanFaceScreen extends StatelessWidget {
                             ),
                             icon: const Icon(Icons.camera_alt,
                                 color: Colors.white),
-                            label: const Text(
-                              "Camera",
-                              style: TextStyle(
+                            label: Text(
+                              isCameraInitializing ? "Opening..." : "Camera",
+                              style: const TextStyle(
                                 fontSize: 16,
                                 color: Colors.white,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
-                            onPressed: () {
-                              if (onCameraPressed != null) {
-                                print("Camera button pressed");
-                                onCameraPressed!();
-                              }
-                            },
+                            onPressed: (isCameraInitializing ||
+                                    onCameraPressed == null)
+                                ? null // 🚀 disabled during init
+                                : () {
+                                    print("Camera button pressed");
+                                    onCameraPressed!();
+                                  },
                           ),
                         ),
                         const SizedBox(width: 16),

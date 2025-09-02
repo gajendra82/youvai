@@ -33,7 +33,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     with SingleTickerProviderStateMixin {
   CameraController? _cameraController;
   List<CameraDescription>? _cameras;
-  bool _camerasReady = false; // 🚀 track readiness
+  bool _camerasReady = false;
   bool _showCamera = false;
   bool _isCameraInitializing = false;
   XFile? _capturedImage;
@@ -63,7 +63,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
     _scanController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 1),
+      duration: const Duration(seconds: 2),
     );
     _scanAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _scanController, curve: Curves.linear),
@@ -110,12 +110,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       final cameras = await availableCameras();
       setState(() {
         _cameras = cameras;
-        _camerasReady = true; // 🚀 ready
+        _camerasReady = true;
       });
     } catch (e) {
       setState(() {
         _cameras = [];
-        _camerasReady = true; // 🚀 still mark ready (no cameras)
+        _camerasReady = true;
       });
     }
   }
@@ -198,20 +198,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         }
         return true;
       },
-      child: Scaffold(  
-        appBar: (_imageProvider == null) ? AppBar(
-          backgroundColor: Colors.white,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Colors.black,
-            ),
-            onPressed: () {
-              Navigator.of(context).pop();
-            },
-          ),
-        ) : null,
+      child: Scaffold(
         backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
         body: SafeArea(
           child: !_camerasReady
@@ -237,7 +224,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                       ],
                     ),
 
-                    // 🚀 Loader when opening camera
+                    // Loader when opening camera
                     if (_isCameraInitializing)
                       Container(
                         color: Colors.black.withOpacity(0.6),
@@ -260,7 +247,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                         ),
                       ),
 
-                    // 🚀 Loader when analyzing
+                    // Loader when analyzing
                     if (_loading && _imageProvider != null)
                       Positioned.fill(
                         child: Stack(
@@ -271,9 +258,21 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                                 fit: BoxFit.contain,
                               ),
                             ),
-                            Container(
-                              color: Colors.black.withOpacity(0.6),
+                            Container(color: Colors.black.withOpacity(0.6)),
+
+                            // Scanning line
+                            AnimatedBuilder(
+                              animation: _scanController,
+                              builder: (context, child) {
+                                return CustomPaint(
+                                  painter:
+                                      ScanningLinePainter(_scanAnimation.value),
+                                  size: MediaQuery.of(context).size,
+                                );
+                              },
                             ),
+
+                            // Spinner + text
                             Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
@@ -342,43 +341,40 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         children: [
           Positioned.fill(child: CameraPreview(_cameraController!)),
           CustomPaint(painter: OverlayPainter(), child: Container()),
+
+          // 🔙 Back button (top left)
           Positioned(
-            left: 0,
-            right: 0,
-            top: 0,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                  colors: [
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.85),
-                    Colors.black.withOpacity(0.0),
-                  ],
-                ),
-              ),
-              child: const Text(
-                'Set your face in the center of the circle',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                ),
-                textAlign: TextAlign.center,
-              ),
-            ),
-          ),
-          Positioned(
-            top: 40,
+            top: 16,
             left: 16,
             child: IconButton(
               icon: const Icon(Icons.arrow_back, color: Colors.white, size: 28),
               onPressed: _closeCamera,
             ),
           ),
+
+          // 📝 Instructions (stay fixed at top center)
+          Positioned(
+            top: 16,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: const Text(
+                  'Set your face in the center of the circle',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+          ),
+
+          // 📸 Capture button
           Positioned(
             left: 0,
             right: 0,

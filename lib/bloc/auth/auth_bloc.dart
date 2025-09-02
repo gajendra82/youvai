@@ -373,7 +373,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final userInfoString = prefs.getString('userInfo');
       if (userInfoString != null) {
         final userData = json.decode(userInfoString);
-        userData['policy_accept'] = true;
+        userData['policy_accept'] = 1;
         prefs.setString('userInfo', json.encode(userData));
       }
       emit(PolicyAccepted('Policy acceptance updated successfully'));

@@ -46,6 +46,14 @@ class _LoginPageState extends State<LoginPage> {
     final primaryColor = Theme.of(context).primaryColor;
 
     return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        elevation: 0,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
       backgroundColor: Colors.white,
       body: BlocConsumer<AuthBloc, AuthState>(
         listener: (context, state) {
@@ -259,209 +267,210 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
                 // Bottom section
-                Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 18.0, top: 8),
-                      child: Row(
-                        children: const [
-                          Expanded(child: Divider(thickness: 1.2)),
-                          SizedBox(width: 12),
-                          Text(
-                            "Or continue with",
-                            style: TextStyle(
-                              color: Color(0xFFB0A4BA),
-                              fontSize: 13,
-                            ),
-                          ),
-                          SizedBox(width: 12),
-                          Expanded(child: Divider(thickness: 1.2)),
-                        ],
-                      ),
-                    ),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () {
-                          BlocProvider(
-                            create: (_) => AuthBloc(),
-                            child: BlocListener<AuthBloc, AuthState>(
-                              listener: (context, state) {
-                                if (state is AuthAuthenticated) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('${state.message}')),
-                                  );
+                // Column(
+                //   children: [
+                //     Padding(
+                //       padding: const EdgeInsets.only(bottom: 18.0, top: 8),
+                //       child: Row(
+                //         children: const [
+                //           Expanded(child: Divider(thickness: 1.2)),
+                //           SizedBox(width: 12),
+                //           Text(
+                //             "Or continue with",
+                //             style: TextStyle(
+                //               color: Color(0xFFB0A4BA),
+                //               fontSize: 13,
+                //             ),
+                //           ),
+                //           SizedBox(width: 12),
+                //           Expanded(child: Divider(thickness: 1.2)),
+                //         ],
+                //       ),
+                //     ),
+                //     SizedBox(
+                //       width: double.infinity,
+                //       child: OutlinedButton.icon(
+                //         onPressed: () {
+                //           BlocProvider(
+                //             create: (_) => AuthBloc(),
+                //             child: BlocListener<AuthBloc, AuthState>(
+                //               listener: (context, state) {
+                //                 if (state is AuthAuthenticated) {
+                //                   ScaffoldMessenger.of(context).showSnackBar(
+                //                     SnackBar(content: Text('${state.message}')),
+                //                   );
                                
-                                    () async {
-                                      final prefs = await SharedPreferences.getInstance();
-                                        String? gender;
-                                        String? dob;
-                                        final userId = prefs.getString('userId'); 
-                                        final userInfoString = prefs.getString('userInfo');
-                                        if (userInfoString != null) {
-                                          final userInfo = jsonDecode(userInfoString);
-                                          gender = userInfo['gender'] as String?;
-                                          dob = userInfo['dob'] as String?;
-                                        } else {
-                                        gender = prefs.getString('gender');
-                                        dob = prefs.getString('dob');
-                                        }
+                //                     () async {
+                //                       final prefs = await SharedPreferences.getInstance();
+                //                         String? gender;
+                //                         String? dob;
+                //                         final userId = prefs.getString('userId'); 
+                //                         final userInfoString = prefs.getString('userInfo');
+                //                         if (userInfoString != null) {
+                //                           final userInfo = jsonDecode(userInfoString);
+                //                           gender = userInfo['gender'] as String?;
+                //                           dob = userInfo['dob'] as String?;
+                //                         } else {
+                //                         gender = prefs.getString('gender');
+                //                         dob = prefs.getString('dob');
+                //                         }
 
-                                      if (gender == null || dob == null) {
-                                        // Show popup to get gender and dob
-                                        await showDialog(
-                                          context: context,
-                                          barrierDismissible: false,
-                                          builder: (BuildContext context) {
-                                            String selectedGender = '';
-                                            String selectedDob = '';
-                                            return AlertDialog(
-                                              title: const Text('Complete Profile'),
-                                              content: StatefulBuilder(
-                                                builder: (context, setState) {
-                                                  return Column(
-                                                    mainAxisSize: MainAxisSize.min,
-                                                    children: [
-                                                      DropdownButtonFormField<String>(
-                                                        value: selectedGender.isEmpty ? null : selectedGender,
-                                                        items: ['Male', 'Female', 'Other']
-                                                            .map((g) => DropdownMenuItem(
-                                                                  value: g,
-                                                                  child: Text(g),
-                                                                ))
-                                                            .toList(),
-                                                        onChanged: (val) {
-                                                          setState(() {
-                                                            selectedGender = val ?? '';
-                                                          });
-                                                        },
-                                                        decoration: const InputDecoration(
-                                                          labelText: 'Gender',
-                                                        ),
-                                                      ),
-                                                      TextField(
-                                                        readOnly: true,
-                                                        decoration: InputDecoration(
-                                                          labelText: 'Date of Birth',
-                                                          hintText: selectedDob.isEmpty ? 'Select DOB' : selectedDob,
-                                                        ),
-                                                        onTap: () async {
-                                                          final picked = await showDatePicker(
-                                                            context: context,
-                                                            initialDate: DateTime(2000),
-                                                            firstDate: DateTime(1900),
-                                                            lastDate: DateTime.now(),
-                                                          );
-                                                          if (picked != null) {
-                                                            setState(() {
-                                                              selectedDob = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
-                                                            });
-                                                          }
-                                                        },
-                                                      ),
-                                                    ],
-                                                  );
-                                                },
-                                              ),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () {
-                                                    if (selectedGender.isNotEmpty && selectedDob.isNotEmpty) {
-                                                      gender = selectedGender;
-                                                      dob = selectedDob;
-                                                      Navigator.of(context).pop();
-                                                    }
-                                                  },
-                                                  child: const Text('Submit'),
-                                                ),
-                                              ],
-                                            );
-                                          },
-                                        );
+                //                       if (gender == null || dob == null) {
+                //                         // Show popup to get gender and dob
+                //                         await showDialog(
+                //                           context: context,
+                //                           barrierDismissible: false,
+                //                           builder: (BuildContext context) {
+                //                             String selectedGender = '';
+                //                             String selectedDob = '';
+                //                             return AlertDialog(
+                //                               title: const Text('Complete Profile'),
+                //                               content: StatefulBuilder(
+                //                                 builder: (context, setState) {
+                //                                   return Column(
+                //                                     mainAxisSize: MainAxisSize.min,
+                //                                     children: [
+                //                                       DropdownButtonFormField<String>(
+                //                                         value: selectedGender.isEmpty ? null : selectedGender,
+                //                                         items: ['Male', 'Female', 'Other']
+                //                                             .map((g) => DropdownMenuItem(
+                //                                                   value: g,
+                //                                                   child: Text(g),
+                //                                                 ))
+                //                                             .toList(),
+                //                                         onChanged: (val) {
+                //                                           setState(() {
+                //                                             selectedGender = val ?? '';
+                //                                           });
+                //                                         },
+                //                                         decoration: const InputDecoration(
+                //                                           labelText: 'Gender',
+                //                                         ),
+                //                                       ),
+                //                                       TextField(
+                //                                         readOnly: true,
+                //                                         decoration: InputDecoration(
+                //                                           labelText: 'Date of Birth',
+                //                                           hintText: selectedDob.isEmpty ? 'Select DOB' : selectedDob,
+                //                                         ),
+                //                                         onTap: () async {
+                //                                           final picked = await showDatePicker(
+                //                                             context: context,
+                //                                             initialDate: DateTime(2000),
+                //                                             firstDate: DateTime(1900),
+                //                                             lastDate: DateTime.now(),
+                //                                           );
+                //                                           if (picked != null) {
+                //                                             setState(() {
+                //                                               selectedDob = "${picked.year}-${picked.month.toString().padLeft(2, '0')}-${picked.day.toString().padLeft(2, '0')}";
+                //                                             });
+                //                                           }
+                //                                         },
+                //                                       ),
+                //                                     ],
+                //                                   );
+                //                                 },
+                //                               ),
+                //                               actions: [
+                //                                 TextButton(
+                //                                   onPressed: () {
+                //                                     if (selectedGender.isNotEmpty && selectedDob.isNotEmpty) {
+                //                                       gender = selectedGender;
+                //                                       dob = selectedDob;
+                //                                       Navigator.of(context).pop();
+                //                                     }
+                //                                   },
+                //                                   child: const Text('Submit'),
+                //                                 ),
+                //                               ],
+                //                             );
+                //                           },
+                //                         );
 
-                                        // Save to SharedPreferences
-                                        if (gender != null && dob != null) {
-                                          await prefs.setString('userInfo', jsonEncode({
-                                            'gender': gender,
-                                            'dob': dob,
-                                          }));
+                //                         // Save to SharedPreferences
+                //                         if (gender != null && dob != null) {
+                //                           await prefs.setString('userInfo', jsonEncode({
+                //                             'gender': gender,
+                //                             'dob': dob,
+                //                           }));
 
-                                          // Profile update will be handled by ProfileCompletionChecker widget
-                                        }
-                                      }
-                                    }();
+                //                           // Profile update will be handled by ProfileCompletionChecker widget
+                //                         }
+                //                       }
+                //                     }();
 
-                                  // Profile completion check will be handled by ProfileCompletionChecker widget
-                                  Navigator.pushReplacementNamed(
-                                      context, AppRoutes.start);
+                //                   // Profile completion check will be handled by ProfileCompletionChecker widget
+                //                   Navigator.pushReplacementNamed(
+                //                       context, AppRoutes.start);
 
-                                  // Or: Navigator.push(...);
-                                } else if (state is AuthError) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text(state.error)),
-                                  );
-                                }
-                              },
-                              child: GoogleSignInButton(),
-                            ),
-                          );
-                        },
-                        icon: Image.asset(
-                          'assets/google_logo.png',
-                          height: 22,
-                          width: 22,
-                        ),
-                        label: const Text(
-                          'Login with Google',
-                          style: TextStyle(
-                            color: Color(0xFF444444),
-                            fontWeight: FontWeight.w600,
-                            fontSize: 16,
-                          ),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 13),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          side: const BorderSide(
-                            color: Color(0xFFE2E2E2),
-                            width: 1.2,
-                          ),
-                          backgroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Text(
-                          "Don't have an account yet? ",
-                          style: TextStyle(
-                            color: Color(0xFF444444),
-                            fontSize: 14,
-                          ),
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            // TODO: Navigate to registration
-                            Navigator.pushNamed(context, AppRoutes.register);
-                          },
-                          child: Text(
-                            "do Registration",
-                            style: TextStyle(
-                              color: primaryColor,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 14,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-                ),
+                //                   // Or: Navigator.push(...);
+                //                 } else if (state is AuthError) {
+                //                   ScaffoldMessenger.of(context).showSnackBar(
+                //                     SnackBar(content: Text(state.error)),
+                //                   );
+                //                 }
+                //               },
+                //               child: GoogleSignInButton(),
+                //             ),
+                //           );
+                //         },
+                //         icon: Image.asset(
+                //           'assets/google_logo.png',
+                //           height: 22,
+                //           width: 22,
+                //         ),
+                //         label: const Text(
+                //           'Login with Google',
+                //           style: TextStyle(
+                //             color: Color(0xFF444444),
+                //             fontWeight: FontWeight.w600,
+                //             fontSize: 16,
+                //           ),
+                //         ),
+                //         style: OutlinedButton.styleFrom(
+                //           padding: const EdgeInsets.symmetric(vertical: 13),
+                //           shape: RoundedRectangleBorder(
+                //             borderRadius: BorderRadius.circular(12),
+                //           ),
+                //           side: const BorderSide(
+                //             color: Color(0xFFE2E2E2),
+                //             width: 1.2,
+                //           ),
+                //           backgroundColor: Colors.white,
+                //         ),
+                //       ),
+                //     ),
+                //     const SizedBox(height: 18),
+                //     Row(
+                //       mainAxisAlignment: MainAxisAlignment.center,
+                //       children: [
+                //         const Text(
+                //           "Don't have an account yet? ",
+                //           style: TextStyle(
+                //             color: Color(0xFF444444),
+                //             fontSize: 14,
+                //           ),
+                //         ),
+                //         GestureDetector(
+                //           onTap: () {
+                //             // TODO: Navigate to registration
+                //             Navigator.pushNamed(context, AppRoutes.register);
+                //           },
+                //           child: Text(
+                //             "do Registration",
+                //             style: TextStyle(
+                //               color: primaryColor,
+                //               fontWeight: FontWeight.bold,
+                //               fontSize: 14,
+                //             ),
+                //           ),
+                //         ),
+                //       ],
+                //     ),
+                //     const SizedBox(height: 16),
+                //   ],
+                // ),
+              
               ],
             ),
           ),

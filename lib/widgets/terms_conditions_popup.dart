@@ -53,6 +53,47 @@ Welcome to our Skin Analysis Application. By using this application, you agree t
 If you have any questions about these terms, please contact our support team.
 ''';
 
+  Widget _buildFormattedText(String text) {
+    final List<TextSpan> spans = [];
+    final RegExp boldRegex = RegExp(r'\*\*(.*?)\*\*');
+    
+    int lastIndex = 0;
+    
+    for (final Match match in boldRegex.allMatches(text)) {
+      // Add text before the bold section
+      if (match.start > lastIndex) {
+        spans.add(TextSpan(
+          text: text.substring(lastIndex, match.start),
+        ));
+      }
+      
+      // Add the bold text
+      spans.add(TextSpan(
+        text: match.group(1),
+        style: const TextStyle(fontWeight: FontWeight.bold),
+      ));
+      
+      lastIndex = match.end;
+    }
+    
+    // Add any remaining text after the last bold section
+    if (lastIndex < text.length) {
+      spans.add(TextSpan(
+        text: text.substring(lastIndex),
+      ));
+    }
+    
+    return RichText(
+      text: TextSpan(
+        children: spans,
+        style: const TextStyle(
+          fontSize: 14,
+          height: 1.5,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
@@ -70,13 +111,7 @@ If you have any questions about these terms, please contact our support team.
           children: [
             Expanded(
               child: SingleChildScrollView(
-                child: Text(
-                  _staticTermsContent,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.5,
-                  ),
-                ),
+                child: _buildFormattedText(_staticTermsContent),
               ),
             ),
             const SizedBox(height: 16),

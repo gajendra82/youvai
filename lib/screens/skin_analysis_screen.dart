@@ -195,7 +195,20 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         }
         return true;
       },
-      child: Scaffold(
+      child: Scaffold(  
+        appBar: (_imageProvider == null) ? AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          leading: IconButton(
+            icon: Icon(
+              Icons.arrow_back,
+              color: Colors.black,
+            ),
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+          ),
+        ) : null,
         backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
         body: SafeArea(
           child: Stack(

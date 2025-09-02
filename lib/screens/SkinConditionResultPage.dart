@@ -561,6 +561,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           style: TextStyle(
             fontFamily: 'SansSerif',
           ),
+          
+        ),
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.of(context).pop();
+          },
         ),
       ),
       body: summaries.isEmpty

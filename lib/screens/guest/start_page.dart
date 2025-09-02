@@ -67,11 +67,11 @@ class _StartPageState extends State<StartPage> {
       
       if (userInfoString != null) {
         final userData = json.decode(userInfoString);
-        final user = UserModel.fromJson(userData);
+        final user = UserModel.fromJson(userData['user']);
         
         // Check if policy_accept is null or false
         print('user.policyAccept: ${user.policyAccept}');
-        if (user.policyAccept == null || user.policyAccept == false) {
+        if (user.policyAccept == null || user.policyAccept == 0) {
           if (mounted) {
             // Wait a bit for the screen to load
             await Future.delayed(const Duration(milliseconds: 500));

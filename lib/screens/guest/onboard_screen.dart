@@ -371,35 +371,44 @@ class GoogleSignInButton extends StatelessWidget {
                       context.read<AuthBloc>().emit(AuthLoading());
                       final GoogleAuthProvider googleProvider =
                           GoogleAuthProvider();
-                      await FirebaseAuth.instance
+                      final userCredential = await FirebaseAuth.instance
                           .signInWithPopup(googleProvider);
-                      print(FirebaseAuth.instance.currentUser?.email);
-                      print(FirebaseAuth.instance.currentUser?.displayName);
-                      print(FirebaseAuth.instance.currentUser?.uid);
-                      print(FirebaseAuth.instance.currentUser?.photoURL);
-                      print(FirebaseAuth.instance.currentUser?.photoURL);
-                      print(
-                          "Signed in: ${FirebaseAuth.instance.currentUser?.displayName}");
-                      context.read<AuthBloc>().add(
-                            GoogleLoginRequested(
-                              googleToken:
-                                  FirebaseAuth.instance.currentUser?.uid ?? '',
-                              email: FirebaseAuth.instance.currentUser?.email ??
-                                  '',
-                              displayName: FirebaseAuth
-                                      .instance.currentUser?.displayName ??
-                                  '',
-                              uid: FirebaseAuth.instance.currentUser?.uid ?? '',
-                              photoURL:
-                                  FirebaseAuth.instance.currentUser?.photoURL ??
-                                      '',
-                              phoneNumber: FirebaseAuth
-                                      .instance.currentUser?.phoneNumber ??
-                                  '',
-                            ),
-                          );
+                      
+                      // Check if sign-in was successful and user exists
+                      if (userCredential.user != null) {
+                        // print(FirebaseAuth.instance.currentUser?.email);
+                        // print(FirebaseAuth.instance.currentUser?.displayName);
+                        // print(FirebaseAuth.instance.currentUser?.uid);
+                        // print(FirebaseAuth.instance.currentUser?.photoURL);
+                        // print(FirebaseAuth.instance.currentUser?.photoURL);
+                        print(
+                            "Signed in: ${FirebaseAuth.instance.currentUser?.displayName}");
+                        context.read<AuthBloc>().add(
+                              GoogleLoginRequested(
+                                googleToken:
+                                    FirebaseAuth.instance.currentUser?.uid ?? '',
+                                email: FirebaseAuth.instance.currentUser?.email ??
+                                    '',
+                                displayName: FirebaseAuth
+                                        .instance.currentUser?.displayName ??
+                                    '',
+                                uid: FirebaseAuth.instance.currentUser?.uid ?? '',
+                                photoURL:
+                                    FirebaseAuth.instance.currentUser?.photoURL ??
+                                        '',
+                                phoneNumber: FirebaseAuth
+                                        .instance.currentUser?.phoneNumber ??
+                                    '',
+                              ),
+                            );
+                      } else {
+                        // Sign-in was cancelled or popup was closed
+                        context.read<AuthBloc>().emit(AuthError('Sign-in was cancelled'));
+                      }
                     } catch (e) {
-                      print("Error signing in on web: $e");
+                      // print("Error signing in on web: $e");
+                      // Set loading to false and show error message when popup is closed or error occurs
+                      context.read<AuthBloc>().emit(AuthError('Sign-in failed'));
                     }
                   },
             icon: state is AuthLoading

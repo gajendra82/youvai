@@ -561,7 +561,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           style: TextStyle(
             fontFamily: 'SansSerif',
           ),
-          
         ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),

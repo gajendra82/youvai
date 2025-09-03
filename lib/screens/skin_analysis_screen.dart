@@ -67,11 +67,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     );
     _scanAnimation = Tween<double>(begin: 0, end: 1).animate(
       CurvedAnimation(parent: _scanController, curve: Curves.linear),
-    )..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          _scanController.repeat();
-        }
-      });
+    );
 
     if (widget.initialImageBytes != null && widget.initialImageSize != null) {
       _faceImageBytes = widget.initialImageBytes;
@@ -84,11 +80,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
           _showScanning = true;
           _loading = true;
         });
-        _scanController.reset();
-        _scanController.repeat();
+        _scanController
+          ..reset()
+          ..repeat();
         await _analyzeImageDirectAPI(
             null, _faceImageBytes!, _originalImageSize!);
-        _scanController.reset();
+        _scanController.stop();
         setState(() {
           _showScanning = false;
         });
@@ -223,8 +220,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                         ),
                       ],
                     ),
-
-                    // Loader when opening camera
                     if (_isCameraInitializing)
                       Container(
                         color: Colors.black.withOpacity(0.6),
@@ -246,8 +241,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                           ),
                         ),
                       ),
-
-                    // Loader when analyzing
                     if (_loading && _imageProvider != null)
                       Positioned.fill(
                         child: Stack(
@@ -260,7 +253,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                             ),
                             Container(color: Colors.black.withOpacity(0.6)),
 
-                            // Scanning line
+                            // 🔥 Scanning line
                             AnimatedBuilder(
                               animation: _scanController,
                               builder: (context, child) {
@@ -272,7 +265,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                               },
                             ),
 
-                            // Spinner + text
                             Center(
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
@@ -281,7 +273,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                                       color: Colors.white),
                                   SizedBox(height: 18),
                                   Text(
-                                    "Processing...",
+                                    "Your skin is being analyzed by our AI model. Please wait a few seconds while we process your photo...",
                                     style: TextStyle(
                                       color: Colors.white,
                                       fontSize: 20,
@@ -342,7 +334,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
           Positioned.fill(child: CameraPreview(_cameraController!)),
           CustomPaint(painter: OverlayPainter(), child: Container()),
 
-          // 🔙 Back button (top left)
+          // 🔙 Back button - positioned at top left
           Positioned(
             top: 16,
             left: 16,
@@ -352,9 +344,9 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
             ),
           ),
 
-          // 📝 Instructions (stay fixed at top center)
+          // 📝 Instructions at center top - positioned below back button
           Positioned(
-            top: 16,
+            top: 60, // Moved down to avoid overlap with back button
             left: 0,
             right: 0,
             child: Center(
@@ -468,7 +460,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _showScanning = false;
     });
 
+    _scanController
+      ..reset()
+      ..repeat();
+
     await _analyzeImageDirectAPI(picked, bytes!, size!);
+
+    _scanController.stop();
 
     setState(() {
       _showScanning = false;

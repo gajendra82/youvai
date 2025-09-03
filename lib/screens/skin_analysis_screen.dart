@@ -266,21 +266,112 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                             ),
 
                             Center(
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: const [
-                                  CircularProgressIndicator(
-                                      color: Colors.white),
-                                  SizedBox(height: 18),
-                                  Text(
-                                    "Your skin is being analyzed by our AI model. Please wait a few seconds while we process your photo...",
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.w500,
+                              child: Container(
+                                margin:
+                                    const EdgeInsets.symmetric(horizontal: 32),
+                                padding: const EdgeInsets.all(32),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.95),
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 15,
+                                      spreadRadius: 2,
+                                      offset: const Offset(0, 8),
                                     ),
-                                  ),
-                                ],
+                                  ],
+                                ),
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    // AI Brain Icon with Animation
+                                    Container(
+                                      width: 80,
+                                      height: 80,
+                                      decoration: BoxDecoration(
+                                        color: Colors.blue.shade50,
+                                        shape: BoxShape.circle,
+                                        border: Border.all(
+                                          color: Colors.blue.shade100,
+                                          width: 2,
+                                        ),
+                                      ),
+                                      child: AnimatedBuilder(
+                                        animation: _scanController,
+                                        builder: (context, child) {
+                                          return Transform.scale(
+                                            scale: 0.9 +
+                                                (_scanAnimation.value * 0.1),
+                                            child: Icon(
+                                              Icons.psychology,
+                                              size: 40,
+                                              color: Colors.blue.shade600,
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+
+                                    // Progress indicator
+                                    SizedBox(
+                                      width: 40,
+                                      height: 40,
+                                      child: CircularProgressIndicator(
+                                        strokeWidth: 3,
+                                        valueColor:
+                                            AlwaysStoppedAnimation<Color>(
+                                          Colors.blue.shade600,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 24),
+
+                                    // Main title
+                                    Text(
+                                      "AI Analysis in Progress",
+                                      style: TextStyle(
+                                        color: Colors.grey.shade800,
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 12),
+
+                                    // Subtitle
+                                    Text(
+                                      "Our advanced AI model is carefully analyzing your skin condition. This will take just a few moments...",
+                                      style: TextStyle(
+                                        color: Colors.grey.shade600,
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w400,
+                                        height: 1.4,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                    const SizedBox(height: 20),
+
+                                    // Status indicators
+                                    Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        _buildStatusDot(true),
+                                        const SizedBox(width: 8),
+                                        _buildStatusDot(
+                                            _scanAnimation.value > 0.3),
+                                        const SizedBox(width: 8),
+                                        _buildStatusDot(
+                                            _scanAnimation.value > 0.6),
+                                        const SizedBox(width: 8),
+                                        _buildStatusDot(
+                                            _scanAnimation.value > 0.9),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           ],
@@ -289,6 +380,18 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   ],
                 ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStatusDot(bool isActive) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      width: 8,
+      height: 8,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: isActive ? Colors.blue.shade600 : Colors.grey.shade300,
       ),
     );
   }

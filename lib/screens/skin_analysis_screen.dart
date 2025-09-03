@@ -14,6 +14,10 @@ import 'package:path/path.dart';
 import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
+import 'package:skin_assessment/bloc/auth/auth_state.dart';
+import 'package:skin_assessment/utils/app_routes.dart';
 
 class SkinAnalysisScreen extends StatefulWidget {
   final Uint8List? initialImageBytes;
@@ -187,202 +191,204 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        if (_showCamera) {
-          await _closeCamera();
-          return false;
+    // ADD BLOC LISTENER HERE
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthLogout) {
+          if (ModalRoute.of(context)?.isCurrent == true) {
+            Navigator.pushNamedAndRemoveUntil(
+                context, AppRoutes.onboard, (route) => false);
+          }
         }
-        return true;
       },
-      child: Scaffold(
-        backgroundColor: (_imageProvider == null) ? Colors.white : Colors.black,
-        body: SafeArea(
-          child: !_camerasReady
-              ? const Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      CircularProgressIndicator(),
-                      SizedBox(height: 16),
-                      Text("Loading camera...", style: TextStyle(fontSize: 16)),
-                    ],
-                  ),
-                )
-              : Stack(
-                  children: [
-                    Column(
+      child: WillPopScope(
+        onWillPop: () async {
+          if (_showCamera) {
+            await _closeCamera();
+            return false;
+          }
+          return true;
+        },
+        child: Scaffold(
+          backgroundColor:
+              (_imageProvider == null) ? Colors.white : Colors.black,
+          body: SafeArea(
+            child: !_camerasReady
+                ? const Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: _showCamera
-                              ? _buildCameraOverlay(context)
-                              : _buildImageArea(context),
-                        ),
+                        CircularProgressIndicator(),
+                        SizedBox(height: 16),
+                        Text("Loading camera...",
+                            style: TextStyle(fontSize: 16)),
                       ],
                     ),
-                    if (_isCameraInitializing)
-                      Container(
-                        color: Colors.black.withOpacity(0.6),
-                        child: const Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
+                  )
+                : Stack(
+                    children: [
+                      Column(
+                        children: [
+                          Expanded(
+                            child: _showCamera
+                                ? _buildCameraOverlay(context)
+                                : _buildImageArea(context),
+                          ),
+                        ],
+                      ),
+                      if (_isCameraInitializing)
+                        Container(
+                          color: Colors.black.withOpacity(0.6),
+                          child: const Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(color: Colors.white),
+                                SizedBox(height: 16),
+                                Text(
+                                  "Opening camera...",
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      if (_loading && _imageProvider != null)
+                        Positioned.fill(
+                          child: Stack(
                             children: [
-                              CircularProgressIndicator(color: Colors.white),
-                              SizedBox(height: 16),
-                              Text(
-                                "Opening camera...",
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w500,
+                              Positioned.fill(
+                                child: Image(
+                                  image: _imageProvider!,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                              Container(color: Colors.black.withOpacity(0.6)),
+                              AnimatedBuilder(
+                                animation: _scanController,
+                                builder: (context, child) {
+                                  return CustomPaint(
+                                    painter: ScanningLinePainter(
+                                        _scanAnimation.value),
+                                    size: MediaQuery.of(context).size,
+                                  );
+                                },
+                              ),
+                              Center(
+                                child: Container(
+                                  margin: const EdgeInsets.symmetric(
+                                      horizontal: 32),
+                                  padding: const EdgeInsets.all(32),
+                                  decoration: BoxDecoration(
+                                    color: Colors.white.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(
+                                      color: Colors.white.withOpacity(0.3),
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 20,
+                                        spreadRadius: 2,
+                                        offset: const Offset(0, 8),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Container(
+                                        width: 80,
+                                        height: 80,
+                                        decoration: BoxDecoration(
+                                          color: Colors.white.withOpacity(0.2),
+                                          shape: BoxShape.circle,
+                                          border: Border.all(
+                                            color:
+                                                Colors.white.withOpacity(0.4),
+                                            width: 2,
+                                          ),
+                                        ),
+                                        child: AnimatedBuilder(
+                                          animation: _scanController,
+                                          builder: (context, child) {
+                                            return Transform.scale(
+                                              scale: 0.9 +
+                                                  (_scanAnimation.value * 0.1),
+                                              child: const Icon(
+                                                Icons.psychology,
+                                                size: 40,
+                                                color: Colors.white,
+                                              ),
+                                            );
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      const SizedBox(
+                                        width: 40,
+                                        height: 40,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 3,
+                                          valueColor:
+                                              AlwaysStoppedAnimation<Color>(
+                                            Colors.white,
+                                          ),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 24),
+                                      const Text(
+                                        "AI Analysis in Progress",
+                                        style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 22,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 12),
+                                      Text(
+                                        "Our advanced AI model is carefully analyzing your skin condition. This will take just a few moments...",
+                                        style: TextStyle(
+                                          color: Colors.white.withOpacity(0.9),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w400,
+                                          height: 1.4,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                      const SizedBox(height: 20),
+                                      Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          _buildStatusDot(true),
+                                          const SizedBox(width: 8),
+                                          _buildStatusDot(
+                                              _scanAnimation.value > 0.3),
+                                          const SizedBox(width: 8),
+                                          _buildStatusDot(
+                                              _scanAnimation.value > 0.6),
+                                          const SizedBox(width: 8),
+                                          _buildStatusDot(
+                                              _scanAnimation.value > 0.9),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                      ),
-                    if (_loading && _imageProvider != null)
-                      Positioned.fill(
-                        child: Stack(
-                          children: [
-                            Positioned.fill(
-                              child: Image(
-                                image: _imageProvider!,
-                                fit: BoxFit.contain,
-                              ),
-                            ),
-                            Container(color: Colors.black.withOpacity(0.6)),
-
-                            // 🔥 Scanning line
-                            AnimatedBuilder(
-                              animation: _scanController,
-                              builder: (context, child) {
-                                return CustomPaint(
-                                  painter:
-                                      ScanningLinePainter(_scanAnimation.value),
-                                  size: MediaQuery.of(context).size,
-                                );
-                              },
-                            ),
-
-                            Center(
-                              child: Container(
-                                margin:
-                                    const EdgeInsets.symmetric(horizontal: 32),
-                                padding: const EdgeInsets.all(32),
-                                decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.15),
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                    color: Colors.white.withOpacity(0.3),
-                                    width: 1,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.2),
-                                      blurRadius: 20,
-                                      spreadRadius: 2,
-                                      offset: const Offset(0, 8),
-                                    ),
-                                  ],
-                                ),
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    // AI Brain Icon with Animation
-                                    Container(
-                                      width: 80,
-                                      height: 80,
-                                      decoration: BoxDecoration(
-                                        color: Colors.white.withOpacity(0.2),
-                                        shape: BoxShape.circle,
-                                        border: Border.all(
-                                          color: Colors.white.withOpacity(0.4),
-                                          width: 2,
-                                        ),
-                                      ),
-                                      child: AnimatedBuilder(
-                                        animation: _scanController,
-                                        builder: (context, child) {
-                                          return Transform.scale(
-                                            scale: 0.9 +
-                                                (_scanAnimation.value * 0.1),
-                                            child: const Icon(
-                                              Icons.psychology,
-                                              size: 40,
-                                              color: Colors.white,
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                    const SizedBox(height: 24),
-
-                                    // Progress indicator
-                                    const SizedBox(
-                                      width: 40,
-                                      height: 40,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 3,
-                                        valueColor:
-                                            AlwaysStoppedAnimation<Color>(
-                                          Colors.white,
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(height: 24),
-
-                                    // Main title
-                                    const Text(
-                                      "AI Analysis in Progress",
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 22,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 12),
-
-                                    // Subtitle
-                                    Text(
-                                      "Our advanced AI model is carefully analyzing your skin condition. This will take just a few moments...",
-                                      style: TextStyle(
-                                        color: Colors.white.withOpacity(0.9),
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w400,
-                                        height: 1.4,
-                                      ),
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 20),
-
-                                    // Status indicators
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.center,
-                                      children: [
-                                        _buildStatusDot(true),
-                                        const SizedBox(width: 8),
-                                        _buildStatusDot(
-                                            _scanAnimation.value > 0.3),
-                                        const SizedBox(width: 8),
-                                        _buildStatusDot(
-                                            _scanAnimation.value > 0.6),
-                                        const SizedBox(width: 8),
-                                        _buildStatusDot(
-                                            _scanAnimation.value > 0.9),
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                  ],
-                ),
+                    ],
+                  ),
+          ),
         ),
       ),
     );
@@ -412,6 +418,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     if (_faceImageBytes != null &&
         _originalImageSize != null &&
         _skinAnalysisResult != null) {
+      // SkinConditionResultPage is also wrapped with BlocListener inside its file
       return SkinConditionResultPage(
         gradioResult: _skinAnalysisResult!,
       );
@@ -440,8 +447,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         children: [
           Positioned.fill(child: CameraPreview(_cameraController!)),
           CustomPaint(painter: OverlayPainter(), child: Container()),
-
-          // 🔙 Back button - positioned at top left
           Positioned(
             top: 16,
             left: 16,
@@ -450,10 +455,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
               onPressed: _closeCamera,
             ),
           ),
-
-          // 📝 Instructions at center top - positioned below back button
           Positioned(
-            top: 60, // Moved down to avoid overlap with back button
+            top: 60,
             left: 0,
             right: 0,
             child: Center(
@@ -472,8 +475,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
               ),
             ),
           ),
-
-          // 📸 Capture button
           Positioned(
             left: 0,
             right: 0,

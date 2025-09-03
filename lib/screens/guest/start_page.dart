@@ -17,36 +17,26 @@ class StartPage extends StatefulWidget {
 }
 
 class _StartPageState extends State<StartPage> {
-  late final SharedPreferences prefs;
+  late SharedPreferences prefs;
   bool isLogin = false;
   String _username = '';
   bool _hasCheckedTerms = false;
 
   void _initPrefs() async {
-    print("Initializing preferences");
     prefs = await SharedPreferences.getInstance();
     setState(() {
       isLogin = prefs.getBool('isLogin') ?? false;
-      // Try to extract username from userInfo JSON string if available
       final userInfoStr = prefs.getString('userInfo');
       if (userInfoStr != null && userInfoStr.isNotEmpty) {
         try {
-          final userInfo = Map<String, dynamic>.from(
-            (userInfoStr.startsWith('{'))
-                ? (userInfoStr == '{}'
-                    ? {}
-                    : (userInfoStr.contains('"')
-                        ? (userInfoStr.contains('name')
-                            ? {
-                                'name': userInfoStr
-                                    .split('"name":"')[1]
-                                    .split('"')[0]
-                              }
-                            : {})
-                        : {}))
-                : {},
-          );
-          _username = userInfo['name'] ?? '';
+          final userInfo = json.decode(userInfoStr);
+          if (userInfo is Map && userInfo.containsKey('user')) {
+            _username = userInfo['user']['name'] ?? '';
+          } else if (userInfo is Map && userInfo.containsKey('name')) {
+            _username = userInfo['name'] ?? '';
+          } else {
+            _username = '';
+          }
         } catch (_) {
           _username = '';
         }
@@ -54,26 +44,17 @@ class _StartPageState extends State<StartPage> {
         _username = '';
       }
     });
-    print("Is user logged in: $isLogin");
-    print("Username: $_username");
-    
-    // Check terms and conditions after initializing preferences
     _checkTermsAndConditions();
   }
 
   Future<void> _checkTermsAndConditions() async {
     try {
       final userInfoString = prefs.getString('userInfo');
-      
       if (userInfoString != null) {
         final userData = json.decode(userInfoString);
-        final user = UserModel.fromJson(userData['user']);
-        
-        // Check if policy_accept is null or false
-        print('user.policyAccept: ${user.policyAccept}');
+        final user = UserModel.fromJson(userData['user'] ?? userData);
         if (user.policyAccept == null || user.policyAccept == 0) {
           if (mounted) {
-            // Wait a bit for the screen to load
             await Future.delayed(const Duration(milliseconds: 500));
             if (mounted) {
               _showTermsConditionsPopup();
@@ -101,21 +82,15 @@ class _StartPageState extends State<StartPage> {
           onAccept: (accepted) async {
             try {
               if (accepted) {
-                // Call the policy acceptance event
                 context.read<AuthBloc>().add(
-                  AcceptPolicyRequested(accepted: true),
-                );
-                
-                // Wait for the update to complete
+                      AcceptPolicyRequested(accepted: true),
+                    );
                 await Future.delayed(const Duration(milliseconds: 500));
-                
-                // Close the popup
                 if (mounted && Navigator.of(context).canPop()) {
                   Navigator.of(context).pop();
                 }
               }
             } catch (e) {
-              print('Error in terms acceptance: $e');
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(
@@ -141,8 +116,7 @@ class _StartPageState extends State<StartPage> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isWeb = Theme.of(context).platform == TargetPlatform.fuchsia ||
-        identical(
-            0, 0.0); // Fallback for web (since kIsWeb is not available here)
+        identical(0, 0.0);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -154,14 +128,13 @@ class _StartPageState extends State<StartPage> {
             );
           }
           if (state is AuthLogout) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("Logged out successfully")),
-            );
-            Navigator.pushNamedAndRemoveUntil(
-              context,
-              AppRoutes.onboard,
-              (route) => false,
-            );
+            if (ModalRoute.of(context)?.isCurrent == true) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("Logged out successfully")),
+              );
+              Navigator.pushNamedAndRemoveUntil(
+                  context, AppRoutes.onboard, (route) => false);
+            }
           }
           if (state is PolicyAccepted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -174,8 +147,6 @@ class _StartPageState extends State<StartPage> {
         },
         child: Stack(
           children: [
-            // Top right Login button
-
             Positioned(
               top: isWeb ? 24 : 40,
               right: isWeb ? 40 : 20,
@@ -186,10 +157,10 @@ class _StartPageState extends State<StartPage> {
                     showMenu(
                       context: context,
                       position: RelativeRect.fromLTRB(
-                        MediaQuery.of(context).size.width - 60, // right
-                        isWeb ? 64 : 80, // top
-                        20, // left
-                        0, // bottom
+                        MediaQuery.of(context).size.width - 60,
+                        isWeb ? 64 : 80,
+                        20,
+                        0,
                       ),
                       items: [
                         PopupMenuItem(
@@ -198,19 +169,16 @@ class _StartPageState extends State<StartPage> {
                                 const Icon(Icons.logout, color: Colors.red),
                             title: Text('Logout'),
                             onTap: () async {
+                              Navigator.of(context).pop(); // close the menu
                               context.read<AuthBloc>().add(LogoutRequested());
                             },
                           ),
                         ),
                       ],
                     );
-                    // Navigate to profile or home
-                    // Navigator.pushNamed(context, AppRoutes.profile);
                   } else {
-                    // Navigate to login/registration
                     Navigator.pushNamed(context, AppRoutes.login);
                   }
-                  // Navigator.pushNamed(context, AppRoutes.onboard);
                 },
                 child: Text(
                   isLogin ? "Hello, $_username" : 'Login/Registration',
@@ -222,22 +190,16 @@ class _StartPageState extends State<StartPage> {
                 ),
               ),
             ),
-            // Center content
             Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Animated background behind logo
                   SizedBox(
                     width: isWeb ? 400 : 348,
                     height: isWeb ? 400 : 348,
                     child: Stack(
                       alignment: Alignment.center,
                       children: [
-                        // Animated "snookte" effect
-                        // if (!isWeb)
-                        //   Positioned.fill(child: AnimatedSnookte()),
-                        // Logo image
                         Container(
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
@@ -257,7 +219,6 @@ class _StartPageState extends State<StartPage> {
                 ],
               ),
             ),
-
             Positioned(
               bottom: isWeb ? 120 : 90,
               left: 0,
@@ -299,7 +260,6 @@ class _StartPageState extends State<StartPage> {
                           minimumSize: const Size(double.infinity, 48),
                         ),
                         onPressed: () {
-                          // Navigate directly to skin analysis
                           Navigator.pushNamed(context, AppRoutes.skinAnalysis);
                         },
                         child: const Text(

@@ -2,6 +2,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
+import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/themes/app_theme.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 
@@ -31,12 +32,22 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => AuthBloc(),
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Skin Analysis',
-        theme: AppTheme.lightTheme,
-        initialRoute: AppRoutes.onboard,
-        routes: AppRoutes.getRoutes(),
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, state) {
+          if (state is AuthLogout) {
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              AppRoutes.onboard,
+              (route) => false,
+            );
+          }
+        },
+        child: MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Skin Analysis',
+          theme: AppTheme.lightTheme,
+          initialRoute: AppRoutes.onboard,
+          routes: AppRoutes.getRoutes(),
+        ),
       ),
     );
   }

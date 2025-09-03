@@ -271,12 +271,16 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                                     const EdgeInsets.symmetric(horizontal: 32),
                                 padding: const EdgeInsets.all(32),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withOpacity(0.95),
+                                  color: Colors.white.withOpacity(0.15),
                                   borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.3),
+                                    width: 1,
+                                  ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 15,
+                                      color: Colors.black.withOpacity(0.2),
+                                      blurRadius: 20,
                                       spreadRadius: 2,
                                       offset: const Offset(0, 8),
                                     ),
@@ -290,10 +294,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                                       width: 80,
                                       height: 80,
                                       decoration: BoxDecoration(
-                                        color: Colors.blue.shade50,
+                                        color: Colors.white.withOpacity(0.2),
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: Colors.blue.shade100,
+                                          color: Colors.white.withOpacity(0.4),
                                           width: 2,
                                         ),
                                       ),
@@ -303,10 +307,10 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                                           return Transform.scale(
                                             scale: 0.9 +
                                                 (_scanAnimation.value * 0.1),
-                                            child: Icon(
+                                            child: const Icon(
                                               Icons.psychology,
                                               size: 40,
-                                              color: Colors.blue.shade600,
+                                              color: Colors.white,
                                             ),
                                           );
                                         },
@@ -315,24 +319,24 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                                     const SizedBox(height: 24),
 
                                     // Progress indicator
-                                    SizedBox(
+                                    const SizedBox(
                                       width: 40,
                                       height: 40,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 3,
                                         valueColor:
                                             AlwaysStoppedAnimation<Color>(
-                                          Colors.blue.shade600,
+                                          Colors.white,
                                         ),
                                       ),
                                     ),
                                     const SizedBox(height: 24),
 
                                     // Main title
-                                    Text(
+                                    const Text(
                                       "AI Analysis in Progress",
                                       style: TextStyle(
-                                        color: Colors.grey.shade800,
+                                        color: Colors.white,
                                         fontSize: 22,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -344,7 +348,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                                     Text(
                                       "Our advanced AI model is carefully analyzing your skin condition. This will take just a few moments...",
                                       style: TextStyle(
-                                        color: Colors.grey.shade600,
+                                        color: Colors.white.withOpacity(0.9),
                                         fontSize: 16,
                                         fontWeight: FontWeight.w400,
                                         height: 1.4,
@@ -391,7 +395,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       height: 8,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isActive ? Colors.blue.shade600 : Colors.grey.shade300,
+        color: isActive ? Colors.white : Colors.white.withOpacity(0.3),
       ),
     );
   }

@@ -17,39 +17,52 @@ class StartPage extends StatefulWidget {
 }
 
 class _StartPageState extends State<StartPage> {
-  late SharedPreferences prefs;
+  SharedPreferences? prefs;
   bool isLogin = false;
   String _username = '';
   bool _hasCheckedTerms = false;
 
-  void _initPrefs() async {
+  @override
+  void initState() {
+    super.initState();
+    _checkLoginStateAndInitPrefs();
+  }
+
+  Future<void> _checkLoginStateAndInitPrefs() async {
     prefs = await SharedPreferences.getInstance();
-    setState(() {
-      isLogin = prefs.getBool('isLogin') ?? false;
-      final userInfoStr = prefs.getString('userInfo');
-      if (userInfoStr != null && userInfoStr.isNotEmpty) {
-        try {
-          final userInfo = json.decode(userInfoStr);
-          if (userInfo is Map && userInfo.containsKey('user')) {
-            _username = userInfo['user']['name'] ?? '';
-          } else if (userInfo is Map && userInfo.containsKey('name')) {
-            _username = userInfo['name'] ?? '';
-          } else {
-            _username = '';
-          }
-        } catch (_) {
-          _username = '';
+    final login = prefs?.getBool('isLogin') ?? false;
+    if (!login) {
+      // If not logged in, navigate to login page.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, AppRoutes.login);
+      });
+      return;
+    }
+    // If logged in, continue initialization
+    String username = '';
+    final userInfoStr = prefs?.getString('userInfo');
+    if (userInfoStr != null && userInfoStr.isNotEmpty) {
+      try {
+        final userInfo = json.decode(userInfoStr);
+        if (userInfo is Map && userInfo.containsKey('user')) {
+          username = userInfo['user']['name'] ?? '';
+        } else if (userInfo is Map && userInfo.containsKey('name')) {
+          username = userInfo['name'] ?? '';
         }
-      } else {
-        _username = '';
+      } catch (_) {
+        username = '';
       }
+    }
+    setState(() {
+      isLogin = login;
+      _username = username;
     });
     _checkTermsAndConditions();
   }
 
   Future<void> _checkTermsAndConditions() async {
     try {
-      final userInfoString = prefs.getString('userInfo');
+      final userInfoString = prefs?.getString('userInfo');
       if (userInfoString != null) {
         final userData = json.decode(userInfoString);
         final user = UserModel.fromJson(userData['user'] ?? userData);
@@ -106,10 +119,13 @@ class _StartPageState extends State<StartPage> {
     );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    _initPrefs();
+  Future<void> _logout() async {
+    if (prefs != null) {
+      await prefs!.setBool('isLogin', false);
+      await prefs!.remove('userInfo');
+      await prefs!.remove('_token');
+    }
+    context.read<AuthBloc>().add(LogoutRequested());
   }
 
   @override
@@ -128,13 +144,11 @@ class _StartPageState extends State<StartPage> {
             );
           }
           if (state is AuthLogout) {
-            if (ModalRoute.of(context)?.isCurrent == true) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("Logged out successfully")),
-              );
-              Navigator.pushNamedAndRemoveUntil(
-                  context, AppRoutes.onboard, (route) => false);
-            }
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("Logged out successfully")),
+            );
+            Navigator.pushNamedAndRemoveUntil(
+                context, AppRoutes.onboard, (route) => false);
           }
           if (state is PolicyAccepted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -153,7 +167,6 @@ class _StartPageState extends State<StartPage> {
               child: TextButton(
                 onPressed: () {
                   if (isLogin) {
-                    // Show a dropdown menu with logout option
                     showMenu(
                       context: context,
                       position: RelativeRect.fromLTRB(
@@ -169,8 +182,8 @@ class _StartPageState extends State<StartPage> {
                                 const Icon(Icons.logout, color: Colors.red),
                             title: Text('Logout'),
                             onTap: () async {
-                              Navigator.of(context).pop(); // close the menu
-                              context.read<AuthBloc>().add(LogoutRequested());
+                              Navigator.of(context).pop(); // close menu
+                              await _logout();
                             },
                           ),
                         ),

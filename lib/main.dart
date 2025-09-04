@@ -1,12 +1,13 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/themes/app_theme.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await Firebase.initializeApp(
@@ -22,11 +23,17 @@ void main() async {
   } catch (e) {
     print("Firebase initialization error: $e");
   }
-  runApp(const MyApp());
+
+  // Check login status before running the app
+  final prefs = await SharedPreferences.getInstance();
+  final bool isLogin = prefs.getBool('isLogin') ?? false;
+
+  runApp(MyApp(isLogin: isLogin));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final bool isLogin;
+  const MyApp({super.key, required this.isLogin});
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +52,7 @@ class MyApp extends StatelessWidget {
           debugShowCheckedModeBanner: false,
           title: 'Skin Analysis',
           theme: AppTheme.lightTheme,
-          initialRoute: AppRoutes.onboard,
+          initialRoute: isLogin ? AppRoutes.start : AppRoutes.onboard,
           routes: AppRoutes.getRoutes(),
         ),
       ),

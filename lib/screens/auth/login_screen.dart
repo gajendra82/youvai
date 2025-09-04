@@ -6,6 +6,7 @@ import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -24,6 +25,15 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // This function persists login state to SharedPreferences
+  Future<void> persistLoginInfo({required String message}) async {
+    // You can also get userInfo/token from SharedPreferences if needed
+    final prefs = await SharedPreferences.getInstance();
+    prefs.setBool('isLogin', true);
+    // userInfo and _token are already saved in AuthBloc after API response
+    // Nothing else needed here unless you wish to save more info
+  }
+
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
@@ -40,8 +50,10 @@ class _LoginPageState extends State<LoginPage> {
       body: BlocProvider(
         create: (_) => AuthBloc(),
         child: BlocConsumer<AuthBloc, AuthState>(
-          listener: (context, state) {
+          listener: (context, state) async {
             if (state is AuthAuthenticated) {
+              // The AuthBloc already sets SharedPreferences for login, userInfo, _token
+              await persistLoginInfo(message: state.message);
               ScaffoldMessenger.of(context)
                   .showSnackBar(SnackBar(content: Text(state.message)));
               Navigator.pushNamedAndRemoveUntil(
@@ -56,6 +68,19 @@ class _LoginPageState extends State<LoginPage> {
             if (state is AuthMessage) {
               ScaffoldMessenger.of(context)
                   .showSnackBar(SnackBar(content: Text(state.message)));
+            }
+            if (state is AuthLogout) {
+              // On logout, remove login info
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('isLogin');
+              await prefs.remove('userInfo');
+              await prefs.remove('_token');
+              await prefs.remove('isSubscribe');
+              Navigator.pushNamedAndRemoveUntil(
+                context,
+                AppRoutes.onboard,
+                (route) => false,
+              );
             }
           },
           builder: (context, state) => SafeArea(

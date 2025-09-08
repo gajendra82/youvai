@@ -52,15 +52,15 @@ class ScanFaceScreen extends StatelessWidget {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
-                    const Text(
-                      "We use the results of your facial scan to find out problems and get product recommendations from us",
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
+                    // const Text(
+                    //   "We use the results of your facial scan to find out problems and get product recommendations from us",
+                    //   style: TextStyle(
+                    //     color: Colors.black54,
+                    //     fontSize: 14,
+                    //   ),
+                    //   textAlign: TextAlign.center,
+                    // ),
+                    // const SizedBox(height: 20),
                     // Face wireframe image
                     SizedBox(
                       height: 250,

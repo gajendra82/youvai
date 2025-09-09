@@ -5,11 +5,10 @@ import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/screens/TermAndCondition.dart';
-import 'package:skin_assessment/screens/TermAndCondition.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skin_assessment/widgets/terms_conditions_popup.dart';
+import 'dart:async';
 
 // Import your terms & conditions screen
 
@@ -214,7 +213,7 @@ class _LoginPageState extends State<LoginPage> {
                                       otp: otp,
                                     ),
                                   );
-                            });
+                            }, mobilel);
                           } else {
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -272,43 +271,14 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   void showOtpPopup(
-      BuildContext context, void Function(String otp) onOtpSubmit) {
+      BuildContext context, void Function(String otp) onOtpSubmit, String phoneNumber) {
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        String enteredOtp = "";
-        return AlertDialog(
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          title: const Text('Enter OTP'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Pinput(
-                length: 6,
-                onChanged: (value) => enteredOtp = value,
-                onCompleted: (value) => enteredOtp = value,
-                defaultPinTheme: PinTheme(
-                  width: 50,
-                  height: 60,
-                  textStyle: const TextStyle(fontSize: 20, color: Colors.black),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.grey),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  onOtpSubmit(enteredOtp);
-                },
-                child: const Text('Verify'),
-              ),
-            ],
-          ),
+        return _OtpPopupWidget(
+          onOtpSubmit: onOtpSubmit,
+          phoneNumber: phoneNumber,
         );
       },
     );
@@ -338,7 +308,6 @@ class GoogleSignInButton extends StatelessWidget {
                     return;
                   }
                   try {
-                    context.read<AuthBloc>().emit(AuthLoading());
                     final GoogleAuthProvider googleProvider =
                         GoogleAuthProvider();
                     final userCredential = await FirebaseAuth.instance
@@ -364,12 +333,14 @@ class GoogleSignInButton extends StatelessWidget {
                             ),
                           );
                     } else {
-                      context
-                          .read<AuthBloc>()
-                          .emit(AuthError('Sign-in was cancelled'));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Sign-in was cancelled')),
+                      );
                     }
                   } catch (e) {
-                    context.read<AuthBloc>().emit(AuthError('Sign-in failed'));
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Sign-in failed')),
+                    );
                   }
                 },
           icon: state is AuthLoading
@@ -407,5 +378,198 @@ class GoogleSignInButton extends StatelessWidget {
         ),
       );
     });
+  }
+}
+
+class _OtpPopupWidget extends StatefulWidget {
+  final void Function(String otp) onOtpSubmit;
+  final String phoneNumber;
+
+  const _OtpPopupWidget({
+    required this.onOtpSubmit,
+    required this.phoneNumber,
+  });
+
+  @override
+  State<_OtpPopupWidget> createState() => _OtpPopupWidgetState();
+}
+
+class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
+  String enteredOtp = "";
+  Timer? _timer;
+  int _countdown = 30;
+  bool _canResend = false;
+  bool _isVerifying = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _startTimer();
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _startTimer() {
+    _countdown = 30;
+    _canResend = false;
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (_countdown > 0) {
+        setState(() {
+          _countdown--;
+        });
+      } else {
+        setState(() {
+          _canResend = true;
+        });
+        timer.cancel();
+      }
+    });
+  }
+
+  void _resendOtp() {
+    if (_canResend) {
+      context.read<AuthBloc>().add(SendOtpRequested(phone: widget.phoneNumber));
+      _startTimer();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("OTP resent successfully!")),
+      );
+    }
+  }
+
+  void _verifyOtp() {
+    if (enteredOtp.length == 6) {
+      setState(() {
+        _isVerifying = true;
+      });
+      Navigator.of(context).pop();
+      widget.onOtpSubmit(enteredOtp);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Please enter a valid 6-digit OTP")),
+      );
+    }
+  }
+
+  void _cancelOtp() {
+    // Stop any loading state and close popup
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor = Theme.of(context).primaryColor;
+    
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is AuthError) {
+          setState(() {
+            _isVerifying = false;
+          });
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(state.error)),
+          );
+        }
+      },
+      child: AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        title: const Text('Enter OTP'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'We sent a 6-digit code to ${widget.phoneNumber}',
+              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 20),
+            Pinput(
+              length: 6,
+              onChanged: (value) => enteredOtp = value,
+              onCompleted: (value) {
+                enteredOtp = value;
+                _verifyOtp();
+              },
+              defaultPinTheme: PinTheme(
+                width: 45,
+                height: 55,
+                textStyle: const TextStyle(fontSize: 18, color: Colors.black),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+              ),
+              focusedPinTheme: PinTheme(
+                width: 45,
+                height: 55,
+                textStyle: const TextStyle(fontSize: 18, color: Colors.black),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: primaryColor, width: 2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: _canResend ? _resendOtp : null,
+                  child: Text(
+                    _canResend ? 'Resend OTP' : 'Resend in ${_countdown}s',
+                    style: TextStyle(
+                      color: _canResend ? primaryColor : Colors.grey,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed: _cancelOtp,
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(
+                      color: Colors.red,
+                      fontSize: 14,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isVerifying ? null : _verifyOtp,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primaryColor,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: _isVerifying
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                        ),
+                      )
+                    : const Text(
+                        'Verify',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

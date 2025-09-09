@@ -95,7 +95,70 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         });
       });
     }
+    // _showDisclaimerPopup();
   }
+  void _showDisclaimerPopup() {
+    showDialog(
+      context: this.context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text(
+            'Disclaimer',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20,
+            ),
+          ),
+          content: SizedBox(
+            width: double.maxFinite,
+            height: MediaQuery.of(context).size.height * 0.5,
+            child: SingleChildScrollView(
+              child: const Text(
+                'The Attractiveness Index and face/skin analysis provided by this application are AI-generated estimates for informational and entertainment purposes only.\n\n'
+                'Results do not represent a medical diagnosis, dermatological assessment, or professional beauty advice.\n\n'
+                'Factors such as lighting, camera quality, and environmental conditions may influence the outcome.\n\n'
+                'Users should not rely solely on this analysis for making decisions regarding skincare, medical treatments, or personal wellbeing.\n\n'
+                'For any medical or cosmetic concerns, please consult a qualified healthcare or skincare professional.\n\n'
+                'The Service Provider makes no guarantees regarding accuracy, completeness, or suitability of the AI analysis.',
+                style: TextStyle(
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // After closing disclaimer, navigate to results
+                // if (!_openedResultPage) {
+                //   _openedResultPage = true;
+                //   Navigator.of(context).pushReplacement(
+                //     MaterialPageRoute(
+                //       builder: (_) => SkinConditionResultPage(
+                //         gradioResult: widget.analysisJson,
+                //       ),
+                //     ),
+                //   );
+                // }
+
+              },
+              child: const Text(
+                'I Understand',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
 
   @override
   void dispose() {

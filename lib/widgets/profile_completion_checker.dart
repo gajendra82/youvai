@@ -45,15 +45,16 @@ class _ProfileCompletionCheckerState extends State<ProfileCompletionChecker> {
         
         // First check if policy_accept is null or false
         // //  // print('user.policyAccept: ${user.policyAccept}');
-        if (user.policyAccept == null || user.policyAccept == 0) {
-          if (widget.showPopup && mounted) {
+        // if (user.policyAccept == null || user.policyAccept == 0) {
+        
+          // if (widget.showPopup && mounted) {
             // Wait a bit for the screen to load
             await Future.delayed(const Duration(milliseconds: 500));
             if (mounted) {
               _showTermsConditionsPopup();
               return; // Don't check other profile fields until terms are accepted
-            }
-          }
+            // }
+          // }
         }
         
         // Check if gender or dateOfBirth is null

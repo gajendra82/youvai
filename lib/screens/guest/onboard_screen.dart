@@ -14,6 +14,7 @@ class OnboardScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: LayoutBuilder(
+          
           builder: (context, constraints) {
             return Column(
               children: [
@@ -24,22 +25,22 @@ class OnboardScreen extends StatelessWidget {
                         screenHeight,
                         screenWidth,
                         'assets/json/personal_care.json',
-                        'Personalized Care',
-                        'Recommendations for skincare treatments tailored to your unique skin needs.',
+                        'Attractiveness Index ',
+                        'Unlock Your Beauty Score with AI',
                       ),
                       buildOnboardPage(
                         screenHeight,
                         screenWidth,
                         'assets/json/skin_analysis.json',
                         'Skin Analysis',
-                        'Analyze your skin type and get instant feedback.',
+                        'Let AI Show You Your Glow',
                       ),
                       buildOnboardPage(
                         screenHeight,
                         screenWidth,
                         'assets/json/dermlogist.json',
-                        'AI Dermatologist',
-                        'Get expert advice powered by AI.',
+                        'See How Stunning You Are',
+                        'Through AI’s Eyes',
                       ),
                     ],
                   ),

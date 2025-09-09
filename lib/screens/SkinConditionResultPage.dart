@@ -507,7 +507,19 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     if (cond.contains('mole')) return Icons.adjust;
     if (cond.contains('comedone')) return Icons.bubble_chart;
     if (cond.contains('dark circle')) return Icons.remove_red_eye;
-    if (cond.contains('Pigmentation')) return Icons.warning;
+    if (cond.contains('pigmentation')) return Icons.palette;
+    if (cond.contains('eye pouch')) return Icons.visibility;
+    if (cond.contains('nasolabial fold')) return Icons.face;
+    if (cond.contains('skin redness')) return Icons.local_fire_department;
+    if (cond.contains('scar')) return Icons.healing;
+    if (cond.contains('scars')) return Icons.healing;
+    if (cond.contains('melasma')) return Icons.palette;
+    if (cond.contains('freckle')) return Icons.scatter_plot;
+    if (cond.contains('acne pustule')) return Icons.bubble_chart;
+    if (cond.contains('acne nodule')) return Icons.circle;
+    if (cond.contains('acne mark')) return Icons.radio_button_checked;
+    if (cond.contains('oiliness')) return Icons.water_drop;
+    if (cond.contains('dryness')) return Icons.dry;
     return Icons.info_outline;
   }
 
@@ -769,21 +781,21 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                   );
                                 },
                               ),
-                              const SizedBox(height: 20),
-                              Container(
-                                width: double.infinity,
-                                padding:
-                                    const EdgeInsets.symmetric(horizontal: 8.0),
-                                child: CustomSpiderChart(
-                                  data: chartData,
-                                  averageMap: averageMap,
-                                  chartRadius:
-                                      MediaQuery.of(context).size.width < 400
-                                          ? 80.0
-                                          : 120.0,
-                                  tickCount: 5,
-                                ),
-                              ),
+                              // const SizedBox(height: 20),
+                              // Container(
+                              //   width: double.infinity,
+                              //   padding:
+                              //       const EdgeInsets.symmetric(horizontal: 8.0),
+                              //   child: CustomSpiderChart(
+                              //     data: chartData,
+                              //     averageMap: averageMap,
+                              //     chartRadius:
+                              //         MediaQuery.of(context).size.width < 400
+                              //             ? 80.0
+                              //             : 120.0,
+                              //     tickCount: 5,
+                              //   ),
+                              // ),
                               const SizedBox(height: 24),
                               Padding(
                                 padding:
@@ -804,13 +816,32 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                           color: Colors.orange, size: 22),
                                       const SizedBox(width: 8),
                                       Expanded(
-                                        child: Text(
-                                          "This is an AI-generated analysis. Please consult a dermatologist for professional advice.",
-                                          style: const TextStyle(
-                                            color: Colors.black87,
-                                            fontWeight: FontWeight.w500,
-                                            fontSize: 14,
-                                          ),
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            const Text(
+                                              "Disclaimer",
+                                              style: TextStyle(
+                                                color: Colors.black87,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 16,
+                                              ),
+                                            ),
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              "• The Attractiveness Index and face/skin analysis provided by this application are AI-generated estimates for informational and entertainment purposes only.\n\n"
+                                              "• Results do not represent a medical diagnosis, dermatological assessment, or professional beauty advice.\n\n"
+                                              "• Factors such as lighting, camera quality, and environmental conditions may influence the outcome.\n\n"
+                                              "• Users should not rely solely on this analysis for making decisions regarding skincare, medical treatments, or personal wellbeing.\n\n"
+                                              "• For any medical or cosmetic concerns, please consult a qualified healthcare or skincare professional.\n\n"
+                                              "• The Service Provider makes no guarantees regarding accuracy, completeness, or suitability of the AI analysis.",
+                                              style: const TextStyle(
+                                                color: Colors.black87,
+                                                fontWeight: FontWeight.w500,
+                                                fontSize: 14,
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -906,7 +937,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
                                                 color:
-                                                    Colors.deepPurple.shade200,
+                                                    Theme.of(context).colorScheme.secondary,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -943,8 +974,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             BorderRadius
                                                                 .circular(8),
                                                         borderSide: BorderSide(
-                                                            color: Colors
-                                                                .deepPurple),
+                                                            color: Theme.of(context).colorScheme.primary),
                                                       ),
                                                     ),
                                                   ),

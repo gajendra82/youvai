@@ -56,6 +56,7 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
     });
   }
 
+
   void _parsePatches() {
     _patches = SkinPatch.fromJsonAll(widget.analysisJson);
   }

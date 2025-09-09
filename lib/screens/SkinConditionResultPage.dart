@@ -1003,7 +1003,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                     backgroundColor:
                                                         _couponApplied
                                                             ? Colors.green
-                                                            : Colors.deepPurple,
+                                                            : Theme.of(context)
+                                                                .colorScheme
+                                                                .primary,
                                                     foregroundColor:
                                                         Colors.white,
                                                     minimumSize: Size(90, 48),
@@ -1057,7 +1059,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                   : "Unlock Full Details (₹499)"),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor:
-                                                    Colors.deepPurple,
+                                                    Theme.of(context)
+                                                        .colorScheme
+                                                        .primary,
                                                 foregroundColor: Colors.white,
                                               ),
                                               onPressed: _startPayment,

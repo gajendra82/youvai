@@ -37,168 +37,173 @@ class _ScanFaceScreenState extends State<ScanFaceScreen> {
             child: Center(
               child: Container(
                 width: isWeb ? 600 : double.infinity,
-                alignment: Alignment.center,
-                margin: const EdgeInsets.symmetric(vertical: 32),
+                // alignment: Alignment.center,
+                // margin: const EdgeInsets.symmetric(vertical: 32),
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(
                   color: Colors.white,
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  // mainAxisSize: MainAxisSize.min,
+                  // mainAxisAlignment: MainAxisAlignment.center,
+                  // crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Back button
 
                     if (!_hasConsented) ...[
                       AnimatedContainer(
-                      duration: const Duration(milliseconds: 400),
-                      curve: Curves.easeOutBack,
-                      padding: const EdgeInsets.all(28),
-                      margin: const EdgeInsets.symmetric(vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.blue[200]!),
-                        boxShadow: [
-                        BoxShadow(
-                          color: Colors.blue.withOpacity(0.08),
-                          blurRadius: 12,
-                          offset: const Offset(0, 4),
-                        ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                        RichText(
-                          text: TextSpan(
-                            style: const TextStyle(
-                            fontSize: 16,
-                            color: Colors.black87,
-                            height: 1.5,
+                        duration: const Duration(milliseconds: 400),
+                        curve: Curves.easeOutBack,
+                        padding: const EdgeInsets.all(28),
+                        margin: const EdgeInsets.symmetric(vertical: 12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(18),
+                          border: Border.all(color: Colors.blue[200]!),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blue.withOpacity(0.08),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
-                            children: [
-                            const TextSpan(
-                              text:
-                                "By continuing, you agree to allow the app to capture and analyze your image using AI.\n"),
-                            const TextSpan(
-                              text:
-                                "Results are for fun and informational purposes only, not medical advice.\n"),
-                            const TextSpan(
-                              text:
-                                "With your consent, anonymized data may be used to improve our AI models.\n\n"),
-                            WidgetSpan(
-                              child: GestureDetector(
-                              onTap: () {
-                                Navigator.pushNamed(context,
-                                  AppRoutes.disclaimerPrivacy);
-                              },
-                              child: Text(
-                                "See full Disclaimer & Privacy Policy.",
-                                style: TextStyle(
-                                color:
-                                  Theme.of(context).primaryColor,
-                                decoration:
-                                  TextDecoration.underline,
-                                fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              ),
-                            ),
-                            ]),
-                        ),
-                        const SizedBox(height: 28),
-                        Row(
-                          children: [
-                          Expanded(
-                            child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.grey[300],
-                              foregroundColor: Colors.black87,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16),
-                              shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                              _hasConsented = false;
-                              });
-                              Navigator.of(context)
-                                .popAndPushNamed(AppRoutes.start);
-                            },
-                            child: const Text(
-                              "Decline",
-                              style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                Theme.of(context).primaryColor,
-                              foregroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 16),
-                              shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            onPressed: () {
-                              setState(() {
-                              _hasConsented = true;
-                              });
-                            },
-                            child: const Text(
-                              "Agree & Continue",
-                              style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            ),
-                          ),
                           ],
                         ),
-                        ],
-                      ),
+                        child: Column(
+                          children: [
+                            RichText(
+                              text: TextSpan(
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.black87,
+                                    height: 1.5,
+                                  ),
+                                  children: [
+                                    const TextSpan(
+                                        text:
+                                            "By continuing, you agree to allow the app to capture and analyze your image using AI.\n"),
+                                    const TextSpan(
+                                        text:
+                                            "Results are for fun and informational purposes only, not medical advice.\n"),
+                                    const TextSpan(
+                                        text:
+                                            "With your consent, anonymized data may be used to improve our AI models.\n\n"),
+                                    WidgetSpan(
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          Navigator.pushNamed(context,
+                                              AppRoutes.disclaimerPrivacy);
+                                        },
+                                        child: Text(
+                                          "See full Disclaimer & Privacy Policy.",
+                                          style: TextStyle(
+                                            color:
+                                                Theme.of(context).primaryColor,
+                                            decoration:
+                                                TextDecoration.underline,
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ]),
+                            ),
+                            const SizedBox(height: 28),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: Colors.grey[300],
+                                      foregroundColor: Colors.black87,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _hasConsented = false;
+                                      });
+                                      Navigator.of(context)
+                                          .popAndPushNamed(AppRoutes.start);
+                                    },
+                                    child: const Text(
+                                      "Decline",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                  child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor:
+                                          Theme.of(context).primaryColor,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 16),
+                                      shape: RoundedRectangleBorder(
+                                        borderRadius: BorderRadius.circular(10),
+                                      ),
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _hasConsented = true;
+                                      });
+                                    },
+                                    child: const Text(
+                                      "Agree & Continue",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 24),
                     ],
                     if (_hasConsented) ...[
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: IconButton(
-                          icon: const Icon(Icons.arrow_back),
-                          onPressed: () {
-                            Navigator.of(context).pop();
-                          },
-                        ),
-                      ),
-                      const SizedBox(height: 10),
                       // Title and Description
-                      const Text(
-                        "Scan your face",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 22,
-                        ),
-                        textAlign: TextAlign.center,
+                      Row(
+                        children: [
+                          Align(
+                            alignment: Alignment.topLeft,
+                            child: IconButton(
+                              icon: const Icon(Icons.arrow_back),
+                              onPressed: () {
+                                Navigator.of(context).pop();
+                              },
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          const Text(
+                            "Scan your face",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 22,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ],
                       ),
+
                       const SizedBox(height: 8),
-                      const Text(
-                        "Get your attractiveness Index in seconds\nYour Beauty, Measured by AI.",
-                        style: TextStyle(
-                          color: Colors.black54,
-                          fontSize: 14,
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
+                      // const Text(
+                      //   "Get your attractiveness Index in seconds\nYour Beauty, Measured by AI.",
+                      //   style: TextStyle(
+                      //     color: Colors.black54,
+                      //     fontSize: 14,
+                      //   ),
+                      //   textAlign: TextAlign.center,
+                      // ),
                       const SizedBox(height: 20),
 
                       // Consent Agreement Section

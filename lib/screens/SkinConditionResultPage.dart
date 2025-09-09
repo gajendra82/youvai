@@ -812,9 +812,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                   padding: const EdgeInsets.all(12),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.info_outline,
-                                          color: Colors.orange, size: 22),
-                                      const SizedBox(width: 8),
+                                      // const Icon(Icons.info_outline,
+                                      //     color: Colors.orange, size: 22),
+                                      // const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
                                           crossAxisAlignment: CrossAxisAlignment.start,

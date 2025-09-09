@@ -241,7 +241,7 @@ class _StartPageState extends State<StartPage> {
                 child: Column(
                   children: [
                     Text(
-                      'Get your attractiveness Index in seconds\nYour Beauty, Measured by AI.',
+                      'Get your attractiveness Index in seconds.',
 
                       style: TextStyle(
                         color: Colors.grey[700],

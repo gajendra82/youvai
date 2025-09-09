@@ -34,7 +34,6 @@ class _ScanFaceScreenState extends State<ScanFaceScreen> {
             constraints: BoxConstraints(
               minHeight: constraints.maxHeight,
             ),
-            
             child: Center(
               child: Container(
                 width: isWeb ? 600 : double.infinity,
@@ -51,328 +50,349 @@ class _ScanFaceScreenState extends State<ScanFaceScreen> {
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     // Back button
-                    Align(
-                      alignment: Alignment.topLeft,
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () {
-                          Navigator.of(context).pop();
-                        },
-                      ),
-                    ),
-                      const SizedBox(height: 10),
-                    // Title and Description
-                    const Text(
-                      "Scan your face",
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 22,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      "Get your attractiveness Index in seconds\nYour Beauty, Measured by AI.",
-                      style: TextStyle(
-                        color: Colors.black54,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 20),
 
-                    // Consent Agreement Section
-                    // Show face wireframe, tips, and buttons only after consent
-                    // Face wireframe image
-                    SizedBox(
-                      height: 250,
-                      child: Image.asset(
-                        'assets/face_wireframe.png',
-                        fit: BoxFit.contain,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                    // Tips Card
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 16),
+                    if (!_hasConsented) ...[
+                      AnimatedContainer(
+                      duration: const Duration(milliseconds: 400),
+                      curve: Curves.easeOutBack,
+                      padding: const EdgeInsets.all(28),
+                      margin: const EdgeInsets.symmetric(vertical: 12),
                       decoration: BoxDecoration(
-                        color: Colors.grey[100],
-                        borderRadius: BorderRadius.circular(14),
+                        color: Colors.blue[50],
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.blue[200]!),
                         boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.08),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
                         ],
                       ),
                       child: Column(
                         children: [
-                          // Tip 1
-                          const Text(
-                            'For the most accurate analysis, please:',
-                            style: TextStyle(
+                        RichText(
+                          text: TextSpan(
+                            style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.black87,
+                            height: 1.5,
+                            ),
+                            children: [
+                            const TextSpan(
+                              text:
+                                "By continuing, you agree to allow the app to capture and analyze your image using AI.\n"),
+                            const TextSpan(
+                              text:
+                                "Results are for fun and informational purposes only, not medical advice.\n"),
+                            const TextSpan(
+                              text:
+                                "With your consent, anonymized data may be used to improve our AI models.\n\n"),
+                            WidgetSpan(
+                              child: GestureDetector(
+                              onTap: () {
+                                Navigator.pushNamed(context,
+                                  AppRoutes.disclaimerPrivacy);
+                              },
+                              child: Text(
+                                "See full Disclaimer & Privacy Policy.",
+                                style: TextStyle(
+                                color:
+                                  Theme.of(context).primaryColor,
+                                decoration:
+                                  TextDecoration.underline,
+                                fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              ),
+                            ),
+                            ]),
+                        ),
+                        const SizedBox(height: 28),
+                        Row(
+                          children: [
+                          Expanded(
+                            child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.grey[300],
+                              foregroundColor: Colors.black87,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16),
+                              shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                              ),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                              _hasConsented = false;
+                              });
+                              Navigator.of(context)
+                                .popAndPushNamed(AppRoutes.start);
+                            },
+                            child: const Text(
+                              "Decline",
+                              style: TextStyle(
                               fontWeight: FontWeight.w600,
-                              fontSize: 15,
-                              color: Colors.black87,
+                              ),
+                            ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor:
-                                    Theme.of(context).colorScheme.secondary,
-                                child: const Text(
-                                  '1',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold),
-                                ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                Theme.of(context).primaryColor,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 16),
+                              shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
                               ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text(
-                                      'Remove Glasses',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    Text(
-                                      'Remove glasses or reflective accessories for accurate analysis.',
-                                      style: TextStyle(
-                                          fontSize: 13, color: Colors.black54),
-                                    ),
-                                  ],
-                                ),
+                            ),
+                            onPressed: () {
+                              setState(() {
+                              _hasConsented = true;
+                              });
+                            },
+                            child: const Text(
+                              "Agree & Continue",
+                              style: TextStyle(
+                              fontWeight: FontWeight.w600,
                               ),
-                            ],
+                            ),
+                            ),
                           ),
-                          const SizedBox(height: 16),
-                          // Tip 2
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Theme.of(context).primaryColor,
-                                child: const Text(
-                                  '2',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text(
-                                      'Clear Face',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    Text(
-                                      'Keep your face clear of hair or obstructions.',
-                                      style: TextStyle(
-                                          fontSize: 13, color: Colors.black54),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Theme.of(context).primaryColor,
-                                child: const Text(
-                                  '3',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text(
-                                      'Good Lighting',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    Text(
-                                      'Ensure good lighting (avoid shadows or bright backlight).',
-                                      style: TextStyle(
-                                          fontSize: 13, color: Colors.black54),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              CircleAvatar(
-                                radius: 16,
-                                backgroundColor: Theme.of(context).primaryColor,
-                                child: const Text(
-                                  '4',
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: const [
-                                    Text(
-                                      'Look Straight',
-                                      style: TextStyle(
-                                          fontWeight: FontWeight.bold),
-                                    ),
-                                    Text(
-                                      'Look straight at the camera with a neutral expression.',
-                                      style: TextStyle(
-                                          fontSize: 13, color: Colors.black54),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          )
+                          ],
+                        ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 28),
-                    // Scan Now Buttons
-                    if (!_hasConsented) ...[
+                      ),
+                      const SizedBox(height: 24),
+                    ],
+                    if (_hasConsented) ...[
+                      Align(
+                        alignment: Alignment.topLeft,
+                        child: IconButton(
+                          icon: const Icon(Icons.arrow_back),
+                          onPressed: () {
+                            Navigator.of(context).pop();
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      // Title and Description
+                      const Text(
+                        "Scan your face",
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 22,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        "Get your attractiveness Index in seconds\nYour Beauty, Measured by AI.",
+                        style: TextStyle(
+                          color: Colors.black54,
+                          fontSize: 14,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: 20),
+
+                      // Consent Agreement Section
+                      // Show face wireframe, tips, and buttons only after consent
+                      // Face wireframe image
+                      SizedBox(
+                        height: 180,
+                        child: Image.asset(
+                          'assets/face_wireframe.png',
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      // Tips Card
                       Container(
-                        padding: const EdgeInsets.all(20),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 18, horizontal: 16),
                         decoration: BoxDecoration(
-                          color: Colors.blue[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.blue[200]!),
+                          color: Colors.grey[100],
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.04),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
                         ),
                         child: Column(
                           children: [
-                             RichText(
-                              text:  TextSpan(
-                               style: TextStyle(
-                                fontSize: 14,
+                            // Tip 1
+                            const Text(
+                              'For the most accurate analysis, please:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
                                 color: Colors.black87,
-                                height: 1.4,
                               ),
-                              // textAlign: TextAlign.center,
-                               children: [
-
-                                TextSpan(text: "By continuing, you agree to allow the app to capture and analyze your image using AI.\n"),
-                                TextSpan(text: "Results are for fun and informational purposes only, not medical advice.\n"),
-                                TextSpan(text: "With your consent, anonymized data may be used to improve our AI models.\n\n"),
-                                WidgetSpan(
-                                  child: GestureDetector(
-                                    onTap: () {
-                                      Navigator.pushNamed(context, AppRoutes.disclaimerPrivacy);
-                                    },
-                                    child: Text(
-                                      "See full Disclaimer & Privacy Policy.",
-                                      style: TextStyle(
-                                        color: Theme.of(context).primaryColor,
-                                        decoration: TextDecoration.underline,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                                
-
-                               ] 
-                              ),
-                             
-                              ),
-                              
-                            
-                            const SizedBox(height: 20),
+                            ),
+                            const SizedBox(height: 16),
                             Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Expanded(
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.grey[300],
-                                      foregroundColor: Colors.black87,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                    ),
-                                    onPressed: () {
-                                      // Handle decline - don't show camera/gallery buttons
-                                      setState(() {
-                                        _hasConsented = false;
-                                      });
-                                      Navigator.of(context).popAndPushNamed(AppRoutes.start);
-                                    },
-                                    child: const Text(
-                                      "Decline",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor:
+                                      Theme.of(context).colorScheme.secondary,
+                                  child: const Text(
+                                    '1',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
                                   ),
                                 ),
                                 const SizedBox(width: 12),
                                 Expanded(
-                                  child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                      backgroundColor:
-                                          Theme.of(context).primaryColor,
-                                      foregroundColor: Colors.white,
-                                      padding: const EdgeInsets.symmetric(
-                                          vertical: 12),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(8),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: const [
+                                      Text(
+                                        'Remove Glasses',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
                                       ),
-                                    ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _hasConsented = true;
-                                      });
-                                    },
-                                    child: const Text(
-                                      "Agree & Continue",
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.w600,
+                                      Text(
+                                        'Remove glasses or reflective accessories for accurate analysis.',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black54),
                                       ),
-                                    ),
+                                    ],
                                   ),
                                 ),
                               ],
                             ),
+                            const SizedBox(height: 16),
+                            // Tip 2
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor:
+                                      Theme.of(context).primaryColor,
+                                  child: const Text(
+                                    '2',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: const [
+                                      Text(
+                                        'Clear Face',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'Keep your face clear of hair or obstructions.',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black54),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor:
+                                      Theme.of(context).primaryColor,
+                                  child: const Text(
+                                    '3',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: const [
+                                      Text(
+                                        'Good Lighting',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'Ensure good lighting (avoid shadows or bright backlight).',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black54),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor:
+                                      Theme.of(context).primaryColor,
+                                  child: const Text(
+                                    '4',
+                                    style: TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: const [
+                                      Text(
+                                        'Look Straight',
+                                        style: TextStyle(
+                                            fontWeight: FontWeight.bold),
+                                      ),
+                                      Text(
+                                        'Look straight at the camera with a neutral expression.',
+                                        style: TextStyle(
+                                            fontSize: 13,
+                                            color: Colors.black54),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                    ],
+                      const SizedBox(height: 28),
+                      // Scan Now Buttons
 
-
-
-                    if (_hasConsented) ...[
                       Row(
                         children: [
                           Expanded(

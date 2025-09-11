@@ -19,45 +19,45 @@ class OnboardScreen extends StatelessWidget {
             return Column(
               children: [
                 Expanded(
-                  child: PageView(
-                    children: [
-                      buildOnboardPage(
-                        screenHeight,
-                        screenWidth,
-                        'assets/json/personal_care.json',
-                        'Attractiveness Index ',
-                        'Unlock Your Beauty Score with AI',
-                      ),
-                      buildOnboardPage(
-                        screenHeight,
-                        screenWidth,
-                        'assets/json/skin_analysis.json',
-                        'Skin Analysis',
-                        'Let AI Show You Your Glow',
-                      ),
-                      buildOnboardPage(
-                        screenHeight,
-                        screenWidth,
-                        'assets/json/dermlogist.json',
-                        'See How Stunning You Are',
-                        'Through AI’s Eyes',
-                      ),
-                    ],
+                  child: _AutoSlidingPageView(
+                  children: [
+                    buildOnboardPage(
+                    screenHeight,
+                    screenWidth,
+                    'assets/app-slide-1.png',
+                    'Attractiveness Index ',
+                    'Unlock Your Beauty Score with AI',
+                    ),
+                    buildOnboardPage(
+                    screenHeight,
+                    screenWidth,
+                    'assets/app-slide-2.png',
+                    'Expert Consultation',
+                    'Access to pre premium service',
+                    ),
+                    buildOnboardPage(
+                    screenHeight,
+                    screenWidth,
+                    'assets/app-slide-3.png',
+                    'Detailed Report',
+                    'Get Link in your WhatsApp',
+                    ),
+                  ],
                   ),
                 ),
-                Padding(
-                  padding: EdgeInsets.only(top: screenHeight * 0.01),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      dot(0xFF7A7676, 12, 7),
-                      const SizedBox(width: 6),
-                      dot(0xFFE2E2E2, 7, 7),
-                      const SizedBox(width: 6),
-                      dot(0xFFE2E2E2, 7, 7),
-                    ],
-                  ),
-                ),
+                // Padding(
+                //   padding: EdgeInsets.only(top: screenHeight * 0.01),
+                //   child: Row(
+                //     mainAxisAlignment: MainAxisAlignment.center,
+                //     children: [
+                //       dot(0xFF7A7676, 12, 7),
+                //       const SizedBox(width: 6),
+                //       dot(0xFFE2E2E2, 7, 7),
+                //       const SizedBox(width: 6),
+                //       dot(0xFFE2E2E2, 7, 7),
+                //     ],
+                //   ),
+                // ),
                 Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: screenWidth * 0.06,
@@ -114,10 +114,11 @@ class OnboardScreen extends StatelessWidget {
       children: [
         SizedBox(
           height: screenHeight * 0.38,
-          child: Lottie.asset(
-            lottieAsset,
-            fit: BoxFit.contain,
-          ),
+          // child: Lottie.asset(
+          //   lottieAsset,
+          //   fit: BoxFit.contain,
+          // ),
+          child: Image.asset(lottieAsset),
         ),
         Padding(
           padding: EdgeInsets.symmetric(horizontal: screenWidth * 0.08),
@@ -138,7 +139,8 @@ class OnboardScreen extends StatelessWidget {
                 description,
                 style: const TextStyle(
                   fontSize: 15,
-                  color: Color(0xFF7A7676),
+                  // color: Color(0xFF7A7676),
+                  color: Colors.black,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -157,6 +159,59 @@ class OnboardScreen extends StatelessWidget {
         color: Color(color),
         borderRadius: BorderRadius.circular(4),
       ),
+    );
+  }
+}
+
+
+
+
+class _AutoSlidingPageView extends StatefulWidget {
+  final List<Widget> children;
+  const _AutoSlidingPageView({Key? key, required this.children}) : super(key: key);
+
+  @override
+  State<_AutoSlidingPageView> createState() => _AutoSlidingPageViewState();
+}
+
+
+
+
+class _AutoSlidingPageViewState extends State<_AutoSlidingPageView> {
+  final PageController _controller = PageController();
+  int _currentPage = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(seconds: 2), _autoSlide);
+  }
+
+  void _autoSlide() {
+    if (_controller.hasClients) {
+      int nextPage = (_currentPage + 1) % widget.children.length;
+      _controller.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeInOut,
+      );
+      setState(() {
+        _currentPage = nextPage;
+      });
+      Future.delayed(const Duration(seconds: 2), _autoSlide);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView(
+      controller: _controller,
+      children: widget.children,
+      onPageChanged: (index) {
+        setState(() {
+          _currentPage = index;
+        });
+      },
     );
   }
 }

@@ -689,8 +689,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             size: 28),
                                                         SizedBox(width: 6),
                                                         Text(
-                                                          "You're in the top 20 people!",
-                                                          style: TextStyle(
+                                                          "You’re in the top 20% of people!",
+                                                          style: TextStyle( 
                                                               color:
                                                                   Colors.green,
                                                               fontWeight:
@@ -715,7 +715,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             const SizedBox(
                                                                 width: 6),
                                                             const Text(
-                                                              "You're in the top 20 people!",
+                                                              "You’re in the top 20% of people!",
                                                               style: TextStyle(
                                                                   color: Colors
                                                                       .green,
@@ -1769,16 +1769,16 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
-                if (compareText != null)
-                  Text(
-                    compareText,
-                    overflow: TextOverflow.visible,
-                    style: TextStyle(
-                        color: Colors.grey,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13),
-                    maxLines: 1,
-                  ),
+                // if (compareText != null)
+                //   Text(
+                //     compareText,
+                //     overflow: TextOverflow.visible,
+                //     style: TextStyle(
+                //         color: Colors.grey,
+                //         fontWeight: FontWeight.w500,
+                //         fontSize: 13),
+                //     maxLines: 1,
+                //   ),
               ],
             ),
           )

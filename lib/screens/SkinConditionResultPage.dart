@@ -96,7 +96,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       final token = prefs.getString('_token') ?? '';
       prefs.setBool('isSubscribe', true);
       final uri = Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store');
+          'https://aestheticai.globalspace.in/youvai/dev/public/api/payment/store');
       final res = await http.post(
         uri,
         body: jsonEncode(paymentData),
@@ -137,7 +137,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('_token') ?? '';
       final uri = Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store');
+          'https://aestheticai.globalspace.in/youvai/dev/public/api/payment/store');
       await http.post(
         uri,
         body: jsonEncode(paymentData),
@@ -235,7 +235,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       final token = prefs.getString('_token') ?? '';
       final response = await http.post(
         Uri.parse(
-            'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/coupon/verify'),
+            'https://aestheticai.globalspace.in/youvai/dev/public/api/coupon/verify'),
         body: jsonEncode({"coupon_code": code}),
         headers: {
           'Content-Type': 'application/json',

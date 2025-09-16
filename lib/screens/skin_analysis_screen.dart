@@ -652,7 +652,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
     try {
       final uri = Uri.parse(
-          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
+          'https://aestheticai.globalspace.in/youvai/dev/public/api/analyze-skin');
       var request = http.MultipartRequest('POST', uri);
 
       SharedPreferences prefs = await SharedPreferences.getInstance();

@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+  static const String baseUrl = 'https://aestheticai.globalspace.in/youvai/dev/public/api';
 
   // Update user policy acceptance
   static Future<Map<String, dynamic>> updatePolicyAcceptance(bool accepted) async {

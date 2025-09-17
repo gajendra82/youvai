@@ -437,8 +437,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       return [];
     }
   }
-
-  double calculateAttractivenessScore(List<Map<String, String>> percentages) {
+double calculateAttractivenessScore(List<Map<String, String>> percentages) {
     double score = 8.0;
     double normalPercent = 0.0;
     double negativePercent = 0.0;
@@ -468,15 +467,21 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       }
     }
 
+    // You can also tweak these multipliers to tune more
     score += (normalPercent / 100) * 2.0;
     score -= (negativePercent / 100) * 2.5;
     score = score - 1.0;
-    if (score < 6.0) score = 6.0;
+
+    // Subtract 2 from the final score for your requirement
+    score = score - 2.0;
+
+    if (score < 5.0) score = 5.0;
     if (score > 9.0) score = 9.0;
 
     return double.parse(score.toStringAsFixed(2));
   }
-
+  
+  
   int getNormalPercentage(String condition) {
     final cond = condition.toLowerCase();
     if (cond.contains('normal')) return 100;

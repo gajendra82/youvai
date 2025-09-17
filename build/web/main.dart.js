@@ -99741,7 +99741,7 @@ n=n.h(o,"percent")
 k=A.lz(n==null?"0":n)
 if(k==null)k=0
 if(A.b56(l,"normal",0))r+=k
-else if(B.d.je(i,new A.b12(l)))q+=k}j=8+r/100*2-q/100*2.5-1-2
+else if(B.d.je(i,new A.b12(l)))q+=k}j=8+r/100*2-q/100*2.5-2
 if(j<5)j=5
 return A.b4o(B.j.ac(j>9?9:j,2))},
 a1Y(a){var s=a.toLowerCase()

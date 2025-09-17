@@ -470,10 +470,10 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
     // You can also tweak these multipliers to tune more
     score += (normalPercent / 100) * 2.0;
     score -= (negativePercent / 100) * 2.5;
-    score = score - 1.0;
+    score = score - 2.0;
 
     // Subtract 2 from the final score for your requirement
-    score = score - 2.0;
+    // score = score - 2.0;
 
     if (score < 5.0) score = 5.0;
     if (score > 9.0) score = 9.0;

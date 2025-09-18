@@ -100547,7 +100547,7 @@ Jw(a,b,c,d,e){var s=null,r=b*0.08,q=t.p
 return A.bT(A.e([new A.aQ(s,a*0.38,A.VF(c,s,s,s),s),new A.be(new A.an(r,0,r,0),A.bT(A.e([B.jb,A.aB(d,s,s,s,s,B.Yy,B.aO,s,s),B.aR,A.aB(e,s,s,s,s,B.XF,B.aO,s,s)],q),B.M,B.F,B.I),s)],q),B.M,B.bZ,B.I)}}
 A.aJn.prototype={
 $2(a,b){var s=null,r=this.a,q=this.b,p=this.c,o=t.p,n=p*0.06,m=q*0.03
-return A.bT(A.e([A.dh(new A.a5y(A.e([r.Jw(q,p,"assets/app-slide-1.png","Attractiveness Index ","Unlock Your Beauty Score with AI"),r.Jw(q,p,"assets/app-slide-2.png","Expert Consultation","Access to pre premium service"),r.Jw(q,p,"assets/app-slide-3.png","Detailed Report","Get Link in your WhatsApp")],o),s),1),new A.be(new A.an(n,m,n,m),A.ch(A.e([A.dh(A.k1(!1,B.a_L,s,s,s,s,s,s,new A.aJm(a),s,A.hJ(s,s,A.R(a).dx,s,s,s,s,s,s,s,s,B.To,s,s,new A.bU(A.bk(12),B.E),s,s,s,s,s)),1)],o),B.M,s,B.F,B.I),s)],o),B.M,B.F,B.I)},
+return A.bT(A.e([A.dh(new A.a5y(A.e([r.Jw(q,p,"assets/slide-1.jpg","Attractiveness Index ","Unlock Your Beauty Score with AI"),r.Jw(q,p,"assets/slide-2.jpg","Expert Consultation","Access to Premium Service"),r.Jw(q,p,"assets/slide-3.jpg","Detailed Report","Get Link in your WhatsApp")],o),s),1),new A.be(new A.an(n,m,n,m),A.ch(A.e([A.dh(A.k1(!1,B.a_L,s,s,s,s,s,s,new A.aJm(a),s,A.hJ(s,s,A.R(a).dx,s,s,s,s,s,s,s,s,B.To,s,s,new A.bU(A.bk(12),B.E),s,s,s,s,s)),1)],o),B.M,s,B.F,B.I),s)],o),B.M,B.F,B.I)},
 $S:645}
 A.aJm.prototype={
 $0(){var s=t.N
@@ -100664,7 +100664,7 @@ r=l.dx
 s=A.SF(m,A.nk(A.aB(s,m,m,m,m,A.bj(m,m,r,m,m,m,m,m,m,m,m,20,m,m,B.K,m,m,!0,m,m,m,m,m,m,m,m),m,m,m),new A.b1q(this,a,!0),m),m,m,m,40,24,m)
 q=t.p
 p=A.dQ(A.bT(A.e([new A.aQ(400,400,A.fD(B.a8,A.e([A.c3(m,A.dQ(A.VF("assets/logo.png",m,200,200),m,m),B.H,m,m,new A.bK(m,m,m,m,m,m,B.cI),m,m,m,m,m,m,m)],q),B.J,B.bn,m),m),B.jb],q),B.M,B.F,B.b5),m,m)
-o=A.aB("Get your attractiveness Index in seconds.",m,m,m,m,A.bj(m,m,B.dc,m,m,m,m,m,m,m,m,16,m,m,m,m,m,!0,m,m,m,m,m,m,m,m),B.aO,m,m)
+o=A.aB("Get your Attractiveness Index in seconds.",m,m,m,m,A.bj(m,m,B.dc,m,m,m,m,m,m,m,m,16,m,m,m,m,m,!0,m,m,m,m,m,m,m,m),B.aO,m,m)
 n=A.bk(15)
 r=A.e([r,l.ax.y],t.t_)
 return A.PD(m,B.t,A.Us(m,A.fD(B.bU,A.e([s,p,A.SF(120,new A.be(new A.an(80,0,80,0),A.bT(A.e([o,B.aR,A.c3(m,A.k1(!1,B.a_x,m,m,m,m,m,m,new A.b1r(a),m,A.hJ(m,m,B.Q,m,m,m,m,m,m,m,m,B.TH,m,B.Q,new A.bU(A.bk(15),B.E),m,m,m,m,m)),B.H,m,m,new A.bK(m,m,m,n,m,new A.mL(B.d9,B.nh,B.cA,r,m,m),B.a7),m,48,m,m,m,m,1/0)],q),B.M,B.F,B.I),m),m,m,0,0,m,m)],q),B.J,B.bn,m),m,new A.b1s(),t.d,t.FB))}}

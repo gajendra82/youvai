@@ -1749,7 +1749,8 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   label,
@@ -1764,16 +1765,16 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
-                if (status != null)
-                  Text(
-                    status,
-                    style: TextStyle(
-                        color: color ?? Colors.grey,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
+                // if (status != null)
+                //   Text(
+                //     status,
+                //     style: TextStyle(
+                //         color: color ?? Colors.grey,
+                //         fontWeight: FontWeight.w500,
+                //         fontSize: 13),
+                //     overflow: TextOverflow.ellipsis,
+                //     maxLines: 1,
+                //   ),
                 // if (compareText != null)
                 //   Text(
                 //     compareText,

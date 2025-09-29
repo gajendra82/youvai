@@ -19,6 +19,33 @@ import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 
+// === NEW: three-side enum & helpers ===
+enum PhotoSide { left, front, right }
+
+extension PhotoSideX on PhotoSide {
+  String get label {
+    switch (this) {
+      case PhotoSide.left:
+        return 'Left';
+      case PhotoSide.front:
+        return 'Front';
+      case PhotoSide.right:
+        return 'Right';
+    }
+  }
+
+  String get filename {
+    switch (this) {
+      case PhotoSide.left:
+        return 'left.jpg';
+      case PhotoSide.front:
+        return 'front.jpg';
+      case PhotoSide.right:
+        return 'right.jpg';
+    }
+  }
+}
+
 class SkinAnalysisScreen extends StatefulWidget {
   final Uint8List? initialImageBytes;
   final Size? initialImageSize;
@@ -59,6 +86,12 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   bool _showScanning = false;
 
   Map<String, dynamic>? _skinAnalysisResult;
+
+  // === NEW: multi-capture state ===
+  PhotoSide _currentSide = PhotoSide.front;
+  final Map<PhotoSide, Uint8List> _multiBytes = {};
+  final Map<PhotoSide, Size> _multiSizes = {};
+  bool _isMultiMode = false;
 
   @override
   void initState() {
@@ -127,6 +160,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
     setState(() {
       _isCameraInitializing = true;
+      // NEW: enable multi-capture mode and reset state
+      _isMultiMode = true;
+      _currentSide = PhotoSide.front;
+      _multiBytes.clear();
+      _multiSizes.clear();
     });
 
     try {
@@ -177,16 +215,87 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     });
   }
 
-  Future<void> _captureAndAnalyze() async {
+  // === NEW: capture per current side (keeps camera open) ===
+  Future<void> _captureCurrentSide() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
+
     final image = await _cameraController!.takePicture();
-    await _closeCamera();
+
+    Uint8List bytes;
+    Size size;
+
+    if (kIsWeb) {
+      bytes = await image.readAsBytes();
+      size = await _getImageSizeWeb(bytes);
+    } else {
+      bytes = await File(image.path).readAsBytes();
+      bytes = await fixImageOrientation(bytes);
+
+      // Mirror if using the front camera
+      if (_cameraController != null &&
+          _cameraController!.description.lensDirection ==
+              CameraLensDirection.front) {
+        final img.Image? oriented = img.decodeImage(bytes);
+        if (oriented != null) {
+          final img.Image flipped = img.flipHorizontal(oriented);
+          bytes = Uint8List.fromList(img.encodeJpg(flipped));
+        }
+      }
+
+      size = await _getImageSizeMobileBytes(bytes);
+    }
+
     setState(() {
-      _capturedImage = image;
+      _multiBytes[_currentSide] = bytes;
+      _multiSizes[_currentSide] = size;
+
+      // ---- NEW: auto-advance order Front -> Left -> Right ----
+      if (_currentSide == PhotoSide.front) {
+        _currentSide = PhotoSide.left;
+      } else if (_currentSide == PhotoSide.left) {
+        _currentSide = PhotoSide.right;
+      } // if Right, stay on Right
     });
-    await _processPickedImage(image, fromCamera: true);
+
+    // (Optional, nice UX): brief hint that we switched
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text('Captured ${PhotoSideX().label}. Next: ${_currentSide.label}'),
+    //     duration: const Duration(milliseconds: 900),
+    //     behavior: SnackBarBehavior.floating,
+    //   ),
+    // );
+  }
+
+  // === NEW: submit all three photos in one API call ===
+  Future<void> _submitAllThree() async {
+    if (!([PhotoSide.left, PhotoSide.front, PhotoSide.right]
+        .every((s) => _multiBytes.containsKey(s)))) {
+      return; // not all photos captured
+    }
+
+    await _closeCamera();
+
+    final frontBytes = _multiBytes[PhotoSide.front];
+    setState(() {
+      _imageProvider = (frontBytes != null) ? MemoryImage(frontBytes) : null;
+      _loading = true;
+      _showScanning = true;
+    });
+
+    _scanController
+      ..reset()
+      ..repeat();
+
+    await _analyzeMultiImageDirectAPI(_multiBytes, _multiSizes);
+
+    _scanController.stop();
+    setState(() {
+      _showScanning = false;
+      _isMultiMode = false;
+    });
   }
 
   @override
@@ -440,7 +549,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
             MediaQuery.of(context).size.height
         : MediaQuery.of(context).size.height;
 
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: cameraHeight,
       child: Stack(
@@ -475,12 +584,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
               ),
             ),
           ),
+          // === NEW: Multi-capture controls at bottom ===
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
@@ -493,27 +603,153 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   ],
                 ),
               ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    minimumSize: const Size.fromHeight(54),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Side selector + tiny previews
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: PhotoSide.values.map((side) {
+                      final isSelected = side == _currentSide;
+                      final hasShot = _multiBytes.containsKey(side);
+                      final preview = _multiBytes[side];
+
+                      return GestureDetector(
+                        onTap: () => setState(() => _currentSide = side),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 68,
+                              height: 68,
+                              clipBehavior: Clip.antiAlias,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white54,
+                                  width: isSelected ? 3 : 1.5,
+                                ),
+                              ),
+                              child: preview == null
+                                  ? Center(
+                                      child: Text(
+                                        side.label.substring(0, 1),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    )
+                                  : Image.memory(preview, fit: BoxFit.cover),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text(
+                                  side.label,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.white70,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                                if (hasShot) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.check_circle,
+                                      color: Colors.white, size: 16),
+                                ]
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
-                  onPressed: _captureAndAnalyze,
-                  child: const Text(
-                    'Capture & Analyze',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+
+                  const SizedBox(height: 16),
+
+                  // Capture/Retake for current side
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size.fromHeight(54),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: _captureCurrentSide,
+                      child: Text(
+                        _multiBytes.containsKey(_currentSide)
+                            ? 'Retake ${_currentSide.label}'
+                            : 'Capture ${_currentSide.label}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 12),
+
+                  // Analyze all 3 button (enabled only when all three present)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ([
+                          PhotoSide.left,
+                          PhotoSide.front,
+                          PhotoSide.right
+                        ].every((s) => _multiBytes.containsKey(s)))
+                            ? Colors.greenAccent
+                            : Colors.white24,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: ([
+                        PhotoSide.left,
+                        PhotoSide.front,
+                        PhotoSide.right
+                      ].every((s) => _multiBytes.containsKey(s)))
+                          ? _submitAllThree
+                          : null,
+                      child: const Text(
+                        'Analyze All 3 Photos',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // Back/Close row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: _closeCamera,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -640,6 +876,84 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       _lastImageBytes = previewBytes;
       if (!kIsWeb) {
         _lastImageFile = picked != null ? File(picked.path) : null;
+      } else {
+        _lastImageFile = null;
+      }
+    });
+  }
+
+  // === NEW: multi-image API ===
+  Future<void> _analyzeMultiImageDirectAPI(
+    Map<PhotoSide, Uint8List> images,
+    Map<PhotoSide, Size> sizes,
+  ) async {
+    Map<String, dynamic>? resultJson;
+
+    try {
+      final uri = Uri.parse(
+          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
+      var request = http.MultipartRequest('POST', uri);
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? guestId = prefs.getString('guest_id');
+      String? token = prefs.getString('_token');
+
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      } else if (guestId == null) {
+        guestId =
+            'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
+        await prefs.setString('guest_id', guestId);
+        request.fields['guest_id'] = guestId;
+      }
+
+      request.fields['multi_view'] = 'true';
+
+      for (final side in [PhotoSide.left, PhotoSide.front, PhotoSide.right]) {
+        final data = images[side];
+        if (data != null) {
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'files[]', // adjust if your backend expects 'file[]' or distinct keys
+              data,
+              filename: side.filename,
+            ),
+          );
+        }
+      }
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final decoded = json.decode(response.body);
+        resultJson = decoded;
+      } else {
+        setState(() {
+          _error = "API failed with status ${response.statusCode}";
+        });
+      }
+    } catch (e) {
+      print("Error occurred: $e");
+    }
+
+    final frontBytes = images[PhotoSide.front];
+
+    setState(() {
+      _skinAnalysisResult = resultJson;
+      _loading = false;
+      _error = (_skinAnalysisResult == null)
+          ? "API failed or returned no detections. Try again."
+          : null;
+      if (frontBytes != null) {
+        _imageProvider = MemoryImage(frontBytes);
+        _scanningImageBytes = null;
+        _faceImageBytes = frontBytes;
+        _originalImageSize = sizes[PhotoSide.front];
+        _lastImageBytes = frontBytes;
+      }
+      if (!kIsWeb) {
+        _lastImageFile = null;
       } else {
         _lastImageFile = null;
       }

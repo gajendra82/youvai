@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
+import 'package:skin_assessment/screens/dashboard.dart';
+import 'package:skin_assessment/screens/dashboard_screen.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -161,46 +163,66 @@ class _StartPageState extends State<StartPage> {
         },
         child: Stack(
           children: [
+            // Top-right: Username text button + Dashboard icon
             Positioned(
               top: isWeb ? 24 : 40,
               right: isWeb ? 40 : 20,
-              child: TextButton(
-                onPressed: () {
-                  if (isLogin) {
-                    showMenu(
-                      context: context,
-                      position: RelativeRect.fromLTRB(
-                        MediaQuery.of(context).size.width - 60,
-                        isWeb ? 64 : 80,
-                        20,
-                        0,
-                      ),
-                      items: [
-                        PopupMenuItem(
-                          child: ListTile(
-                            leading:
-                                const Icon(Icons.logout, color: Colors.red),
-                            title: Text('Logout'),
-                            onTap: () async {
-                              Navigator.of(context).pop(); // close menu
-                              await _logout();
-                            },
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextButton(
+                    onPressed: () {
+                      if (isLogin) {
+                        showMenu(
+                          context: context,
+                          position: RelativeRect.fromLTRB(
+                            MediaQuery.of(context).size.width - 60,
+                            isWeb ? 64 : 80,
+                            20,
+                            0,
                           ),
-                        ),
-                      ],
-                    );
-                  } else {
-                    Navigator.pushNamed(context, AppRoutes.login);
-                  }
-                },
-                child: Text(
-                  isLogin ? "Hello, $_username" : 'Login/Registration',
-                  style: TextStyle(
-                    color: theme.primaryColor,
-                    fontWeight: FontWeight.normal,
-                    fontSize: 20,
+                          items: [
+                            PopupMenuItem(
+                              child: ListTile(
+                                leading:
+                                    const Icon(Icons.logout, color: Colors.red),
+                                title: Text('Logout'),
+                                onTap: () async {
+                                  Navigator.of(context).pop(); // close menu
+                                  await _logout();
+                                },
+                              ),
+                            ),
+                          ],
+                        );
+                      } else {
+                        Navigator.pushNamed(context, AppRoutes.login);
+                      }
+                    },
+                    child: Text(
+                      isLogin ? "Hello, $_username" : 'Login/Registration',
+                      style: TextStyle(
+                        color: theme.primaryColor,
+                        fontWeight: FontWeight.normal,
+                        fontSize: 20,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 8),
+                  // Dashboard icon button
+                  IconButton(
+                    tooltip: 'Open History Dashboard',
+                    icon: Icon(Icons.dashboard, color: theme.primaryColor),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DashboardDetailedScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                ],
               ),
             ),
             Center(

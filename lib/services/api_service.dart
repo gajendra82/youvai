@@ -1,16 +1,45 @@
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_assessment/models/AttractivenessScoreRequest.dart';
 
 class ApiService {
-  static const String baseUrl = 'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
+  static const String baseUrl =
+      'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api';
 
-  // Update user policy acceptance
-  static Future<Map<String, dynamic>> updatePolicyAcceptance(bool accepted) async {
+  Future<bool> sendAttractivenessScore(
+      AttractivenessScoreRequest request) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('_token') ?? '';
-      
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/store-attractiveness-score'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(request.toJson()),
+      );
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        return responseData['success'] ?? false;
+      }
+      return false;
+    } catch (e) {
+      print('Error sending attractiveness score: $e');
+      return false;
+    }
+  }
+
+  // Update user policy acceptance
+  static Future<Map<String, dynamic>> updatePolicyAcceptance(
+      bool accepted) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('_token') ?? '';
+
       if (token.isEmpty) {
         throw Exception('User not authenticated');
       }
@@ -26,7 +55,8 @@ class ApiService {
       if (response.statusCode == 200) {
         return json.decode(response.body);
       } else {
-        throw Exception('Failed to update policy acceptance: ${response.statusCode}');
+        throw Exception(
+            'Failed to update policy acceptance: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error updating policy acceptance: $e');
@@ -38,7 +68,7 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       final userInfoString = prefs.getString('userInfo');
-      
+
       if (userInfoString != null) {
         final userData = json.decode(userInfoString);
         return userData['policy_accept'] == true;

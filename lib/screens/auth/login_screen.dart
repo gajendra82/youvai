@@ -4,9 +4,12 @@ import 'package:pinput/pinput.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_event.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
+import 'package:skin_assessment/screens/auth/TermsConditionsScreen.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Import your terms & conditions screen
 
 class LoginPage extends StatefulWidget {
   const LoginPage({Key? key}) : super(key: key);
@@ -17,7 +20,7 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   final TextEditingController _mobileController = TextEditingController();
-  bool _rememberMe = false;
+  bool _acceptedTerms = false; // Terms and Conditions checkbox
 
   @override
   void dispose() {
@@ -25,13 +28,9 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  // This function persists login state to SharedPreferences
   Future<void> persistLoginInfo({required String message}) async {
-    // You can also get userInfo/token from SharedPreferences if needed
     final prefs = await SharedPreferences.getInstance();
     prefs.setBool('isLogin', true);
-    // userInfo and _token are already saved in AuthBloc after API response
-    // Nothing else needed here unless you wish to save more info
   }
 
   @override
@@ -52,7 +51,6 @@ class _LoginPageState extends State<LoginPage> {
         child: BlocConsumer<AuthBloc, AuthState>(
           listener: (context, state) async {
             if (state is AuthAuthenticated) {
-              // The AuthBloc already sets SharedPreferences for login, userInfo, _token
               await persistLoginInfo(message: state.message);
               ScaffoldMessenger.of(context)
                   .showSnackBar(SnackBar(content: Text(state.message)));
@@ -70,7 +68,6 @@ class _LoginPageState extends State<LoginPage> {
                   .showSnackBar(SnackBar(content: Text(state.message)));
             }
             if (state is AuthLogout) {
-              // On logout, remove login info
               final prefs = await SharedPreferences.getInstance();
               await prefs.remove('isLogin');
               await prefs.remove('userInfo');
@@ -86,156 +83,184 @@ class _LoginPageState extends State<LoginPage> {
           builder: (context, state) => SafeArea(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 22.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const SizedBox(height: 55),
-                  Text(
-                    "Login / Register",
-                    style: TextStyle(
-                      fontSize: 36,
-                      fontWeight: FontWeight.w600,
-                      color: primaryColor,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    "Continue with mobile OTP or Google",
-                    style: TextStyle(
-                      fontSize: 15,
-                      color: Colors.black54,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 60),
-                  TextField(
-                    controller: _mobileController,
-                    keyboardType: TextInputType.phone,
-                    decoration: InputDecoration(
-                      prefixIcon:
-                          Icon(Icons.phone_android, color: primaryColor),
-                      hintText: "Phone Number",
-                      filled: true,
-                      fillColor: const Color(0xFFF6F6F6),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(10),
-                        borderSide: BorderSide.none,
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const SizedBox(height: 40),
+                    // Logo under ScrollView, bigger size
+                    Center(
+                      child: Image.asset(
+                        'assets/logo.png',
+                        height: 160, // Increased height
+                        width: 160, // Increased width
+                        fit: BoxFit.contain,
                       ),
-                      contentPadding: const EdgeInsets.symmetric(
-                          vertical: 18, horizontal: 0),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      Checkbox(
-                        value: _rememberMe,
-                        activeColor: primaryColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(5),
+                    const SizedBox(height: 28),
+                    Text(
+                      "Login / Register",
+                      style: TextStyle(
+                        fontSize: 36,
+                        fontWeight: FontWeight.w600,
+                        color: primaryColor,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      "Continue with mobile OTP or Google",
+                      style: TextStyle(
+                        fontSize: 15,
+                        color: Colors.black54,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                    const SizedBox(height: 40),
+                    TextField(
+                      controller: _mobileController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        prefixIcon:
+                            Icon(Icons.phone_android, color: primaryColor),
+                        hintText: "Phone Number",
+                        filled: true,
+                        fillColor: const Color(0xFFF6F6F6),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(10),
+                          borderSide: BorderSide.none,
                         ),
-                        onChanged: (val) {
-                          setState(() {
-                            _rememberMe = val ?? false;
-                          });
-                        },
+                        contentPadding: const EdgeInsets.symmetric(
+                            vertical: 18, horizontal: 0),
                       ),
-                      Text(
-                        "Remember me",
-                        style: TextStyle(
-                          color: primaryColor,
-                          fontWeight: FontWeight.w500,
-                          fontSize: 15,
+                    ),
+                    const SizedBox(height: 16),
+                    // Terms & Conditions checkbox ONLY
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _acceptedTerms,
+                          activeColor: primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          onChanged: (val) {
+                            setState(() {
+                              _acceptedTerms = val ?? false;
+                            });
+                          },
                         ),
-                      ),
-                      const Spacer(),
-                      TextButton(
-                        onPressed: () {
-                          // TODO: Add forgot password logic
-                        },
-                        child: Text(
-                          "Forget Password?",
-                          style: TextStyle(
-                            color: primaryColor,
-                            fontWeight: FontWeight.w600,
+                        Flexible(
+                          child: GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => TermsConditionsScreen(),
+                                ),
+                              );
+                            },
+                            child: RichText(
+                              text: TextSpan(
+                                text: "I accept the ",
+                                style: TextStyle(
+                                  color: primaryColor,
+                                  fontSize: 15,
+                                ),
+                                children: [
+                                  TextSpan(
+                                    text: "Terms and Conditions",
+                                    style: TextStyle(
+                                      color: Colors.blue,
+                                      decoration: TextDecoration.underline,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
                         ),
-                        style: TextButton.styleFrom(
-                          padding: EdgeInsets.zero,
-                          minimumSize: Size(0, 0),
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        final mobilel = _mobileController.text.trim();
-                        if (mobilel.isNotEmpty) {
-                          context.read<AuthBloc>().add(
-                                SendOtpRequested(phone: mobilel),
-                              );
-                          showOtpPopup(context, (otp) {
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final mobilel = _mobileController.text.trim();
+                          if (!_acceptedTerms) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text(
+                                    "Please accept Terms and Conditions to proceed."),
+                              ),
+                            );
+                            return;
+                          }
+                          if (mobilel.isNotEmpty) {
                             context.read<AuthBloc>().add(
-                                  VerifyLoginMobile(
-                                    name: "",
-                                    email: "",
-                                    phone: mobilel,
-                                    password: "",
-                                    otp: otp,
-                                  ),
+                                  SendOtpRequested(phone: mobilel),
                                 );
-                          });
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Please enter mobile number."),
-                            ),
-                          );
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: primaryColor,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
+                            showOtpPopup(context, (otp) {
+                              context.read<AuthBloc>().add(
+                                    VerifyLoginMobile(
+                                      name: "",
+                                      email: "",
+                                      phone: mobilel,
+                                      password: "",
+                                      otp: otp,
+                                    ),
+                                  );
+                            });
+                          } else {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text("Please enter mobile number."),
+                              ),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
-                      ),
-                      child: Text(
-                        state is AuthLoading
-                            ? "Processing..."
-                            : "Login / Register with OTP",
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Colors.white,
+                        child: Text(
+                          state is AuthLoading
+                              ? "Processing..."
+                              : "Login / Register with OTP",
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18,
+                            color: Colors.white,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 18),
-                  Row(
-                    children: const [
-                      Expanded(child: Divider(thickness: 1.2)),
-                      SizedBox(width: 12),
-                      Text(
-                        "Or continue with",
-                        style: TextStyle(
-                          color: Color(0xFFB0A4BA),
-                          fontSize: 13,
+                    const SizedBox(height: 18),
+                    Row(
+                      children: const [
+                        Expanded(child: Divider(thickness: 1.2)),
+                        SizedBox(width: 12),
+                        Text(
+                          "Or continue with",
+                          style: TextStyle(
+                            color: Color(0xFFB0A4BA),
+                            fontSize: 13,
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(child: Divider(thickness: 1.2)),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  GoogleSignInButton(),
-                  const SizedBox(height: 32),
-                ],
+                        SizedBox(width: 12),
+                        Expanded(child: Divider(thickness: 1.2)),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    GoogleSignInButton(
+                        acceptedTerms: _acceptedTerms), // Pass acceptedTerms
+                    const SizedBox(height: 32),
+                  ],
+                ),
               ),
             ),
           ),
@@ -288,7 +313,10 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
+/// GoogleSignInButton now checks acceptedTerms before proceeding
 class GoogleSignInButton extends StatelessWidget {
+  final bool acceptedTerms;
+  const GoogleSignInButton({super.key, required this.acceptedTerms});
   @override
   Widget build(BuildContext context) {
     return BlocBuilder<AuthBloc, AuthState>(builder: (context, state) {
@@ -298,6 +326,15 @@ class GoogleSignInButton extends StatelessWidget {
           onPressed: state is AuthLoading
               ? null
               : () async {
+                  if (!acceptedTerms) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            "Please accept Terms and Conditions to proceed."),
+                      ),
+                    );
+                    return;
+                  }
                   try {
                     context.read<AuthBloc>().emit(AuthLoading());
                     final GoogleAuthProvider googleProvider =

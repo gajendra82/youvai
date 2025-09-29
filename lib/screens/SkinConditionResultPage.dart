@@ -6,6 +6,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:razorpay_web/razorpay_web.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_assessment/models/AttractivenessScoreRequest.dart';
+import 'package:skin_assessment/services/api_service.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:skin_assessment/widgets/CustomSpiderChart.dart';
 import 'package:skin_assessment/widgets/doctor_card.dart';
@@ -38,6 +40,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   bool _couponChecking = false;
   String _couponError = "";
   String _appliedCoupon = "";
+  final ApiService _apiService = ApiService();
 
   @override
   void initState() {
@@ -470,11 +473,36 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
 
     score += (normalPercent / 100) * 2.0;
     score -= (negativePercent / 100) * 2.5;
-    score = score - 1.0;
-    if (score < 6.0) score = 6.0;
+    score = score - 2.0;
+
+    if (score < 5.0) score = 5.0;
     if (score > 9.0) score = 9.0;
 
-    return double.parse(score.toStringAsFixed(2));
+    final finalScore = double.parse(score.toStringAsFixed(2));
+
+    // Send score to backend
+    _sendScoreToBackend(finalScore);
+
+    return finalScore;
+  }
+
+  Future<void> _sendScoreToBackend(double score) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+
+      final request = AttractivenessScoreRequest(
+        attractivenessScore: score,
+      );
+
+      final success = await _apiService.sendAttractivenessScore(request);
+      if (success) {
+        print('Attractiveness score successfully sent to backend');
+      } else {
+        print('Failed to send attractiveness score to backend');
+      }
+    } catch (e) {
+      print('Error sending attractiveness score: $e');
+    }
   }
 
   int getNormalPercentage(String condition) {

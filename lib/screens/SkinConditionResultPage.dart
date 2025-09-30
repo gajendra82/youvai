@@ -468,10 +468,15 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       }
     }
 
+    // You can also tweak these multipliers to tune more
     score += (normalPercent / 100) * 2.0;
     score -= (negativePercent / 100) * 2.5;
-    score = score - 1.0;
-    if (score < 6.0) score = 6.0;
+    score = score - 2.0;
+
+    // Subtract 2 from the final score for your requirement
+    // score = score - 2.0;
+
+    if (score < 5.0) score = 5.0;
     if (score > 9.0) score = 9.0;
 
     return double.parse(score.toStringAsFixed(2));
@@ -690,7 +695,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                         SizedBox(width: 6),
                                                         Text(
                                                           "You’re in the top 20% of people!",
-                                                          style: TextStyle( 
+                                                          style: TextStyle(
                                                               color:
                                                                   Colors.green,
                                                               fontWeight:
@@ -817,7 +822,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                       // const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             const Text(
                                               "Disclaimer",
@@ -936,8 +942,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
-                                                color:
-                                                    Theme.of(context).colorScheme.secondary,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .secondary,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -974,7 +981,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             BorderRadius
                                                                 .circular(8),
                                                         borderSide: BorderSide(
-                                                            color: Theme.of(context).colorScheme.primary),
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .colorScheme
+                                                                .primary),
                                                       ),
                                                     ),
                                                   ),
@@ -1744,7 +1754,8 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
           const SizedBox(width: 10),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
                   label,
@@ -1753,22 +1764,23 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
                 Text(
                   value,
                   style: TextStyle(
-                      color: compareColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18),
+                    color: compareColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
-                if (status != null)
-                  Text(
-                    status,
-                    style: TextStyle(
-                        color: color ?? Colors.grey,
-                        fontWeight: FontWeight.w500,
-                        fontSize: 13),
-                    overflow: TextOverflow.ellipsis,
-                    maxLines: 1,
-                  ),
+                // if (status != null)
+                //   Text(
+                //     status,
+                //     style: TextStyle(
+                //         color: color ?? Colors.grey,
+                //         fontWeight: FontWeight.w500,
+                //         fontSize: 13),
+                //     overflow: TextOverflow.ellipsis,
+                //     maxLines: 1,
+                //   ),
                 // if (compareText != null)
                 //   Text(
                 //     compareText,

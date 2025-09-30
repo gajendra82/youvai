@@ -437,7 +437,8 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       return [];
     }
   }
-double calculateAttractivenessScore(List<Map<String, String>> percentages) {
+
+  double calculateAttractivenessScore(List<Map<String, String>> percentages) {
     double score = 8.0;
     double normalPercent = 0.0;
     double negativePercent = 0.0;
@@ -480,8 +481,7 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
 
     return double.parse(score.toStringAsFixed(2));
   }
-  
-  
+
   int getNormalPercentage(String condition) {
     final cond = condition.toLowerCase();
     if (cond.contains('normal')) return 100;
@@ -695,7 +695,7 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                                         SizedBox(width: 6),
                                                         Text(
                                                           "You’re in the top 20% of people!",
-                                                          style: TextStyle( 
+                                                          style: TextStyle(
                                                               color:
                                                                   Colors.green,
                                                               fontWeight:
@@ -822,7 +822,8 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                       // const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             const Text(
                                               "Disclaimer",
@@ -941,8 +942,9 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
-                                                color:
-                                                    Theme.of(context).colorScheme.secondary,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .secondary,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -979,7 +981,10 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                                             BorderRadius
                                                                 .circular(8),
                                                         borderSide: BorderSide(
-                                                            color: Theme.of(context).colorScheme.primary),
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .colorScheme
+                                                                .primary),
                                                       ),
                                                     ),
                                                   ),
@@ -1759,9 +1764,10 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
                 Text(
                   value,
                   style: TextStyle(
-                      color: compareColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18),
+                    color: compareColor,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 18,
+                  ),
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),

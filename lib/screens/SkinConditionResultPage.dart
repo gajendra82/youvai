@@ -6,6 +6,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:razorpay_web/razorpay_web.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:skin_assessment/models/FaceRatioLine.dart';
+import 'package:skin_assessment/screens/FaceRatioCard.dart';
+import 'package:skin_assessment/services/face_ratio_api.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
 import 'package:skin_assessment/widgets/CustomSpiderChart.dart';
 import 'package:skin_assessment/widgets/doctor_card.dart';
@@ -13,18 +16,29 @@ import 'package:http/http.dart' as http;
 
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
+import 'package:http_parser/http_parser.dart';
+import 'dart:js_util' as js_util; // for promiseToFuture (web face detect)
+import 'package:image/image.dart' as img;
 
 class SkinConditionResultPage extends StatefulWidget {
   final Map<String, dynamic> gradioResult;
+  final Map<String, dynamic>? faceRatioJson; // ← add
 
   SkinConditionResultPage({
     Key? key,
     required this.gradioResult,
+    this.faceRatioJson, // ← add
   }) : super(key: key);
 
   @override
   State<SkinConditionResultPage> createState() =>
       _SkinConditionResultPageState();
+}
+
+class FaceOverlayPayload {
+  final FaceRatioData data; // ratios for CROPPED image
+  final Uint8List croppedBytes; // JPEG bytes of the CROPPED face
+  FaceOverlayPayload({required this.data, required this.croppedBytes});
 }
 
 class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
@@ -38,6 +52,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   bool _couponChecking = false;
   String _couponError = "";
   String _appliedCoupon = "";
+  final Map<String, Future<FaceRatioData?>> _faceRatioFutureByImage = {};
 
   @override
   void initState() {
@@ -97,7 +112,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       prefs.setBool('isSubscribe', true);
       final uri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/payment/store');
-      final res = await http.post(
+      await http.post(
         uri,
         body: jsonEncode(paymentData),
         headers: {
@@ -274,6 +289,236 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     }
   }
 
+  // --------------------- SCORING HELPERS ---------------------
+
+  double _safeDiv(double a, double b) => b == 0 ? 0 : a / b;
+
+  double? _parseRatioToNumber(String? s) {
+    if (s == null) return null;
+    final parts = s.split(':').map((e) => e.trim()).toList();
+    if (parts.length != 2) return double.tryParse(s);
+    final left = double.tryParse(parts[0]);
+    final right = double.tryParse(parts[1]);
+    if (left == null || right == null || left == 0) return null;
+    return right / left;
+  }
+
+  /// Deviation-based score 0..10 (10 == perfect)
+  double _scoreFromRatio(double? measured, double? ideal) {
+    if (measured == null || ideal == null || ideal == 0) return 0;
+    final err = (measured - ideal).abs() / ideal;
+    final norm = (err > 1.5) ? 1.5 : err;
+    final s = 10.0 * (1.0 - norm / 1.5);
+    return s.clamp(0.0, 10.0);
+  }
+
+  /// Uniform sections (percent lists) -> 0..10
+  double _scoreFromUniformSections(List<double> vals) {
+    if (vals.isEmpty) return 0;
+    final n = vals.length;
+    final sum = vals.fold(0.0, (a, b) => a + b);
+    if (sum <= 0) return 0;
+
+    final perc = (sum - 100).abs() < 2
+        ? vals
+        : vals.map((v) => v / sum * 100.0).toList();
+
+    final ideal = 100.0 / n;
+    final avgAbsDev =
+        perc.map((v) => (v - ideal).abs()).fold(0.0, (a, b) => a + b) / n;
+
+    double normalized = 1.0 - _safeDiv(avgAbsDev, ideal);
+    if (normalized < 0) normalized = 0;
+    if (normalized > 1) normalized = 1;
+    return (10.0 * normalized).clamp(0.0, 10.0);
+  }
+
+  /// Symmetry subscore from FaceRatioData: 0..10
+  double calculateSymmetryScoreFromFaceData(FaceRatioData? d) {
+    if (d == null) return 7.0; // neutral
+
+    final components = <double>[];
+    final weights = <double>[];
+
+    // Vertical (5 sections)
+    if (d.verticalPerc.isNotEmpty) {
+      components.add(_scoreFromUniformSections(d.verticalPerc));
+      weights.add(30);
+    }
+
+    // Horizontal (3 sections)
+    if (d.horizontalPerc.isNotEmpty) {
+      components.add(_scoreFromUniformSections(d.horizontalPerc));
+      weights.add(30);
+    }
+
+    // Face box ratio
+    final faceGolden = _parseRatioToNumber(d.faceBox?.golden);
+    final faceYours = _parseRatioToNumber(d.faceBox?.yours);
+    if (faceGolden != null && faceYours != null) {
+      components.add(_scoreFromRatio(faceYours, faceGolden));
+      weights.add(10);
+    }
+
+    // Nose-lip-chin
+    final nlcMeasured = _parseRatioToNumber(d.noseLipChinRatio);
+    final nlcIdeal = _parseRatioToNumber(d.noseLipChinIdeal);
+    if (nlcMeasured != null && nlcIdeal != null) {
+      components.add(_scoreFromRatio(nlcMeasured, nlcIdeal));
+      weights.add(10);
+    }
+
+    // Lips
+    final lipsMeasured = _parseRatioToNumber(d.lipRatio);
+    final lipsIdeal = _parseRatioToNumber(d.lipIdeal);
+    if (lipsMeasured != null && lipsIdeal != null) {
+      components.add(_scoreFromRatio(lipsMeasured, lipsIdeal));
+      weights.add(10);
+    }
+
+    // Eyes (avg of L/R)
+    double? _eyeScore(EyeBox? e) {
+      if (e == null) return null;
+      final g = _parseRatioToNumber(e.golden);
+      final m = _parseRatioToNumber(e.measured);
+      if (g == null || m == null) return null;
+      return _scoreFromRatio(m, g);
+    }
+
+    final lScore = _eyeScore(d.leftEye);
+    final rScore = _eyeScore(d.rightEye);
+    double? eyeScore;
+    if (lScore != null && rScore != null) {
+      eyeScore = (lScore + rScore) / 2.0;
+    } else {
+      eyeScore = lScore ?? rScore;
+    }
+    if (eyeScore != null) {
+      components.add(eyeScore);
+      weights.add(5);
+    }
+
+    // Jaw
+    if (d.jaw != null && d.jaw!.ideal > 0 && d.jaw!.ratio > 0) {
+      components.add(_scoreFromRatio(d.jaw!.ratio, d.jaw!.ideal));
+      weights.add(5);
+    }
+
+    if (components.isEmpty) return 7.0;
+
+    final totalW = weights.fold(0.0, (a, b) => a + b);
+    final sym = components
+        .asMap()
+        .entries
+        .map((e) => e.value * (weights[e.key] / totalW))
+        .fold(0.0, (a, b) => a + b);
+
+    return sym.clamp(3.0, 9.5);
+  }
+
+  /// Skin subscore 0..10 with new rule:
+  /// If either wrinkle OR pigmentation > 2%, subtract 2.
+  double calculateSkinSubscore(List<Map<String, String>> percentages) {
+    double score = 8.0;
+    double normalPercent = 0.0;
+    double negativePercent = 0.0;
+
+    double wrinklePercent = 0.0;
+    double pigmentationPercent = 0.0;
+
+    final negativeConditions = [
+      "acne",
+      "wrinkle",
+      "dark spot",
+      "blackhead",
+      "pores",
+      "eye bag",
+      "brown spot",
+      "mole",
+      "comedone",
+      "dark circle",
+      "pigmentation",
+      "eye pouch",
+      "nasolabial fold",
+      "scar",
+      "scars",
+    ];
+
+    for (final entry in percentages) {
+      final cond = (entry['condition'] ?? "").toLowerCase();
+      final percent = double.tryParse(entry['percent'] ?? "0") ?? 0;
+
+      if (cond.contains("normal")) {
+        normalPercent += percent;
+      } else if (negativeConditions.any((c) => cond.contains(c))) {
+        negativePercent += percent;
+      }
+
+      if (cond.contains("wrinkle")) wrinklePercent = percent;
+      if (cond.contains("pigmentation")) pigmentationPercent = percent;
+    }
+
+    // base scoring
+    score += (normalPercent / 100) * 2.0;
+    score -= (negativePercent / 100) * 2.5;
+    score = score - 2.0;
+
+    // NEW RULE: if either wrinkle OR pigmentation > 2% → -2 from skin subscore
+    if (wrinklePercent > 2 || pigmentationPercent > 2) {
+      score -= 2.0;
+    }
+
+    if (score < 0.0) score = 0.0;
+    if (score > 10.0) score = 10.0;
+    return double.parse(score.toStringAsFixed(2));
+  }
+
+  /// Final 50/50 blend 0..10
+  /// Apply -1 to final attractiveness if either wrinkle OR pigmentation > 2%.
+  double calculateOverallAttractiveness50_50({
+    required List<Map<String, String>> skinPercentages,
+    FaceRatioData? symmetryData,
+    Map<String, dynamic>? symmetryJson,
+  }) {
+    final skin = calculateSkinSubscore(skinPercentages);
+
+    FaceRatioData? data = symmetryData;
+    if (data == null && symmetryJson != null) {
+      try {
+        data = FaceRatioData.fromMap(symmetryJson);
+      } catch (_) {}
+    }
+    final symmetry = calculateSymmetryScoreFromFaceData(data);
+
+    double finalScore = 0.5 * skin + 0.5 * symmetry;
+
+    // read wrinkle & pigmentation again for the final adjustment
+    final wrinkleEntry = skinPercentages.firstWhere(
+      (e) => (e['condition'] ?? '').toLowerCase().contains('wrinkle'),
+      orElse: () => {'percent': '0'},
+    );
+    final pigmentEntry = skinPercentages.firstWhere(
+      (e) => (e['condition'] ?? '').toLowerCase().contains('pigmentation'),
+      orElse: () => {'percent': '0'},
+    );
+
+    final wrinkleP = double.tryParse(wrinkleEntry['percent'] ?? '0') ?? 0;
+    final pigmentP = double.tryParse(pigmentEntry['percent'] ?? '0') ?? 0;
+
+    // NEW RULE: if either wrinkle OR pigmentation > 2% → -1 from final
+    if (wrinkleP > 2 || pigmentP > 2) {
+      finalScore -= 1.0;
+    }
+
+    // clamp to your display range
+    if (finalScore < 5.0) finalScore = 5.0;
+    if (finalScore > 9.0) finalScore = 9.0;
+
+    return double.parse(finalScore.toStringAsFixed(2));
+  }
+
+  // ---------------------------------------------------------------
+
   List<Map<String, dynamic>> extractSkinSummaries(dynamic gradioResult) {
     try {
       final List<dynamic> outputs = List.from(gradioResult['data']);
@@ -418,7 +663,11 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           }
         }
 
-        double attractivenessScore = calculateAttractivenessScore(percentages);
+        // Final 50/50 score with the new rule
+        final attractivenessScore = calculateOverallAttractiveness50_50(
+          skinPercentages: percentages,
+          symmetryJson: widget.faceRatioJson, // parsed to FaceRatioData inside
+        );
 
         return {
           'percentages': percentages,
@@ -437,51 +686,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       return [];
     }
   }
-double calculateAttractivenessScore(List<Map<String, String>> percentages) {
-    double score = 8.0;
-    double normalPercent = 0.0;
-    double negativePercent = 0.0;
-    final negativeConditions = [
-      "acne",
-      "wrinkle",
-      "dark spot",
-      "blackhead",
-      "pores",
-      "eye bag",
-      "brown spot",
-      "mole",
-      "comedone",
-      "dark circle",
-      "Pigmentation",
-      "eye pouch",
-      "nasolabial fold"
-    ];
 
-    for (final entry in percentages) {
-      final cond = entry['condition']?.toLowerCase() ?? "";
-      final percent = double.tryParse(entry['percent'] ?? "0") ?? 0;
-      if (cond.contains("normal")) {
-        normalPercent += percent;
-      } else if (negativeConditions.any((c) => cond.contains(c))) {
-        negativePercent += percent;
-      }
-    }
-
-    // You can also tweak these multipliers to tune more
-    score += (normalPercent / 100) * 2.0;
-    score -= (negativePercent / 100) * 2.5;
-    score = score - 2.0;
-
-    // Subtract 2 from the final score for your requirement
-    // score = score - 2.0;
-
-    if (score < 5.0) score = 5.0;
-    if (score > 9.0) score = 9.0;
-
-    return double.parse(score.toStringAsFixed(2));
-  }
-  
-  
   int getNormalPercentage(String condition) {
     final cond = condition.toLowerCase();
     if (cond.contains('normal')) return 100;
@@ -495,7 +700,7 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
     if (cond.contains('mole')) return 30;
     if (cond.contains('comedone')) return 20;
     if (cond.contains('dark circle')) return 20;
-    if (cond.contains('Pigmentation')) return 20;
+    if (cond.contains('pigmentation')) return 20;
     return 30;
   }
 
@@ -541,7 +746,7 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
     if (cond.contains('mole')) return Colors.black;
     if (cond.contains('comedone')) return Colors.purple;
     if (cond.contains('dark circle')) return Colors.blue;
-    if (cond.contains('Pigmentation')) return Colors.pinkAccent;
+    if (cond.contains('pigmentation')) return Colors.pinkAccent;
     return Colors.grey;
   }
 
@@ -695,7 +900,7 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                                         SizedBox(width: 6),
                                                         Text(
                                                           "You’re in the top 20% of people!",
-                                                          style: TextStyle( 
+                                                          style: TextStyle(
                                                               color:
                                                                   Colors.green,
                                                               fontWeight:
@@ -750,6 +955,90 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                                 textAlign: TextAlign.center,
                                               ),
                                             ),
+                                            const SizedBox(height: 12),
+
+                                            // If we already have faceRatioJson (passed from previous screen), use it.
+                                            if (widget.faceRatioJson !=
+                                                null) ...[
+                                              Padding(
+                                                padding: const EdgeInsets.only(
+                                                    bottom: 8.0),
+                                                child: Container(
+                                                  padding: const EdgeInsets
+                                                      .symmetric(
+                                                      horizontal: 12,
+                                                      vertical: 6),
+                                                  decoration: BoxDecoration(
+                                                    color: Colors.black
+                                                        .withOpacity(.65),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            18),
+                                                  ),
+                                                  child: const Text(
+                                                    "Facial Ratio (Vertical Sections)",
+                                                    style: TextStyle(
+                                                        color: Colors.white,
+                                                        fontWeight:
+                                                            FontWeight.w600),
+                                                  ),
+                                                ),
+                                              ),
+                                              Builder(
+                                                builder: (_) {
+                                                  try {
+                                                    final data = FaceRatioData
+                                                        .fromMap(widget
+                                                            .faceRatioJson!);
+                                                    return Column(
+                                                      children: [
+                                                        FaceRatioPrettyCard(
+                                                            data: data),
+                                                      ],
+                                                    );
+                                                  } catch (e) {
+                                                    return const SizedBox
+                                                        .shrink();
+                                                  }
+                                                },
+                                              ),
+                                            ] else if (imageUrl != null &&
+                                                imageUrl.isNotEmpty) ...[
+                                              // Fallback to API call by URL (keeps your previous behavior)
+                                              FutureBuilder<FaceRatioData?>(
+                                                future: FaceRatioApi()
+                                                    .analyzeByImageUrl(imageUrl,
+                                                        draw: false),
+                                                builder: (context, snap) {
+                                                  if (snap.connectionState ==
+                                                      ConnectionState.waiting) {
+                                                    return const Padding(
+                                                      padding: EdgeInsets.only(
+                                                          top: 12),
+                                                      child: SizedBox(
+                                                        height: 36,
+                                                        child: Center(
+                                                            child:
+                                                                CircularProgressIndicator(
+                                                                    strokeWidth:
+                                                                        2)),
+                                                      ),
+                                                    );
+                                                  }
+                                                  if (!snap.hasData ||
+                                                      snap.data == null) {
+                                                    return const SizedBox
+                                                        .shrink();
+                                                  }
+                                                  return Column(
+                                                    children: [
+                                                      FaceRatioPrettyCard(
+                                                          data: snap.data!),
+                                                    ],
+                                                  );
+                                                },
+                                              ),
+                                            ],
                                           ],
                                         ),
                                       ),
@@ -786,21 +1075,6 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                   );
                                 },
                               ),
-                              // const SizedBox(height: 20),
-                              // Container(
-                              //   width: double.infinity,
-                              //   padding:
-                              //       const EdgeInsets.symmetric(horizontal: 8.0),
-                              //   child: CustomSpiderChart(
-                              //     data: chartData,
-                              //     averageMap: averageMap,
-                              //     chartRadius:
-                              //         MediaQuery.of(context).size.width < 400
-                              //             ? 80.0
-                              //             : 120.0,
-                              //     tickCount: 5,
-                              //   ),
-                              // ),
                               const SizedBox(height: 24),
                               Padding(
                                 padding:
@@ -817,12 +1091,10 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                   padding: const EdgeInsets.all(12),
                                   child: Row(
                                     children: [
-                                      // const Icon(Icons.info_outline,
-                                      //     color: Colors.orange, size: 22),
-                                      // const SizedBox(width: 8),
                                       Expanded(
                                         child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
                                           children: [
                                             const Text(
                                               "Disclaimer",
@@ -941,8 +1213,9 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                               style: TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 fontSize: 16,
-                                                color:
-                                                    Theme.of(context).colorScheme.secondary,
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .secondary,
                                               ),
                                             ),
                                             const SizedBox(height: 8),
@@ -979,7 +1252,10 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
                                                             BorderRadius
                                                                 .circular(8),
                                                         borderSide: BorderSide(
-                                                            color: Theme.of(context).colorScheme.primary),
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .colorScheme
+                                                                .primary),
                                                       ),
                                                     ),
                                                   ),
@@ -1201,12 +1477,9 @@ double calculateAttractivenessScore(List<Map<String, String>> percentages) {
       ],
     );
   }
-
-  // ... rest of _summaryStat, doctorList, _showImageDialog, etc. (unchanged) ...
-  // Copy your existing _summaryStat, doctorList and _showImageDialog code here.
-
-  // (For brevity, those parts remain unchanged)
 }
+
+// ---------------------- helpers below unchanged ----------------------
 
 String _getConditionStatus(String condition, double percent) {
   if (condition.toLowerCase().contains('normal')) {
@@ -1236,384 +1509,7 @@ final conditionInfo = {
       "statusThresholds": {"under": 100, "normal": 100}
     },
   },
-  "combination": {
-    "type": "Combination Skin",
-    "meaning":
-        "A skin type where some areas of the face are oily (commonly the T-zone: forehead, nose, chin) while other areas, like the cheeks and jawline, are dry or normal.",
-    "cause":
-        "Genetics, hormonal changes, uneven oil (sebum) production, seasonal changes, or use of unsuitable skincare products.",
-    "suggestion":
-        "Use a gentle cleanser, apply lightweight non-comedogenic moisturizer on oily zones, richer hydration on dry zones, and balance with products designed for combination skin.",
-    "ageInfo": {
-      "typicalAge":
-          "Can occur at any age, but often noticeable during teens to early adulthood.",
-      "averageRange": "30–40% of people",
-      "under":
-          "Below 30% – Skin is mostly uniform (either dry, normal, or oily).",
-      "normal": "30–40% – Balanced mix of oily T-zone and dry/normal cheeks.",
-      "high":
-          "Above 40% – Pronounced difference between oily and dry zones; requires tailored skincare routine.",
-      "statusThresholds": {"under": 30, "normal": 40}
-    },
-  },
-  "oily": {
-    "type": "Oily Skin",
-    "meaning":
-        "A skin type where sebaceous glands produce excess sebum, leading to shine, enlarged pores, and higher risk of acne and blackheads.",
-    "cause":
-        "Genetics, hormonal imbalance, humidity, or overuse of harsh skincare that triggers oil rebound.",
-    "suggestion":
-        "Use oil-free, non-comedogenic products, gel-based moisturizers, gentle exfoliation, and avoid heavy creams.",
-    "ageInfo": {
-      "typicalAge": "13–30 years",
-      "averageRange": "20–30%",
-      "under": "Below 20% – Minimal oil, skin tends toward normal/dry.",
-      "normal": "20–30% – Balanced oil production with some shine.",
-      "high": "Above 30% – Excess sebum, frequent breakouts, enlarged pores.",
-      "statusThresholds": {"under": 20, "normal": 30}
-    },
-  },
-  "dry": {
-    "type": "Dry Skin",
-    "meaning":
-        "A skin type that lacks sufficient moisture and natural oils, resulting in tightness, rough texture, and flakiness.",
-    "cause":
-        "Genetics, low humidity, cold weather, excessive washing, or aging-related decrease in oil production.",
-    "suggestion":
-        "Use hydrating cleansers, ceramide-based moisturizers, avoid harsh soaps, and apply sunscreen to prevent further dryness.",
-    "ageInfo": {
-      "typicalAge": "Any age, more common in adults and elderly",
-      "averageRange": "15–25%",
-      "under": "Below 15% – Well-hydrated skin, minimal dryness.",
-      "normal": "15–25% – Mild dryness, occasional tightness.",
-      "high":
-          "Above 25% – Persistent flakiness, irritation, needs medical care.",
-      "statusThresholds": {"under": 15, "normal": 25}
-    },
-  },
-  "wrinkles": {
-    "type": "Wrinkles",
-    "meaning":
-        "Fine lines or deep creases that appear on the skin as a natural sign of aging. Most commonly seen around eyes, forehead, and mouth.",
-    "cause":
-        "Aging, repeated facial expressions, sun exposure, dehydration, or lifestyle factors like smoking.",
-    "suggestion":
-        "Use anti-aging serums, moisturizers with retinol, and always apply sunscreen to prevent further aging.",
-    "ageInfo": {
-      "typicalAge": "After 30 years, common in 40s–50s",
-      "averageRange": "15–30%",
-      "under": "Below 15% – Youthful skin, minimal wrinkles",
-      "normal": "15–30% – Fine lines, normal for age 30–45",
-      "high": "Above 30% – Visible wrinkles, signs of aging",
-      "statusThresholds": {"under": 15, "normal": 30}
-    },
-  },
-  "acne": {
-    "type": "Acne",
-    "meaning":
-        "A skin condition that occurs when hair follicles become plugged with oil and dead skin cells, leading to pimples or cysts.",
-    "cause":
-        "Hormonal imbalance, excess oil (sebum), bacteria, poor hygiene, or stress.",
-    "suggestion":
-        "Use non-comedogenic skincare, cleanse twice daily, and consider seeing a dermatologist for severe acne.",
-    "ageInfo": {
-      "typicalAge": "10–30 years",
-      "averageRange": "10–25%",
-      "under": "Below 10% – Clear skin, minimal acne signs",
-      "normal": "10–25% – Mild acne, common in teens & early adults",
-      "high": "Above 25% – Moderate to severe acne, consult a dermatologist",
-      "statusThresholds": {"under": 10, "normal": 25}
-    },
-  },
-  "pigmentation": {
-    "type": "Pigmentation",
-    "meaning":
-        "A condition where certain areas of the skin become darker than the surrounding skin due to excess melanin production.",
-    "cause":
-        "Sun exposure, hormonal changes, skin inflammation, aging, or certain medications.",
-    "suggestion":
-        "Use sunscreen daily (SPF 30+), avoid direct sunlight, consider brightening agents like vitamin C or niacinamide, and seek dermatological treatments if severe.",
-    "ageInfo": {
-      "typicalAge": "20–50 years",
-      "averageRange": "5–20%",
-      "under": "Below 5% – Even-toned skin, minimal pigmentation signs",
-      "normal": "5–20% – Mild pigmentation, common in adults",
-      "high":
-          "Above 20% – Moderate to severe pigmentation, may require professional treatment",
-      "statusThresholds": {"under": 5, "normal": 20}
-    }
-  },
-  "blackheads": {
-    "type": "Blackheads",
-    "meaning":
-        "Small, dark bumps that form when pores become clogged with oil and dead skin and remain open.",
-    "cause": "Overactive sebaceous glands and poor exfoliation habits.",
-    "suggestion":
-        "Use salicylic acid or charcoal-based cleansers and exfoliate 2–3 times a week to clear pores.",
-    "ageInfo": {
-      "typicalAge": "Teenagers to 30s",
-      "averageRange": "10–25%",
-      "under": "Below 10% – Clean pores, minimal blackheads",
-      "normal": "10–25% – Mild blackheads, common for most people",
-      "high": "Above 25% – Prominent blackheads, oily skin likely",
-      "statusThresholds": {"under": 10, "normal": 25}
-    },
-  },
-  "dark spots": {
-    "type": "Dark Spots",
-    "meaning":
-        "Patches of skin that appear darker due to excess melanin production, commonly on cheeks, forehead, or chin.",
-    "cause": "Sun exposure, acne scarring, hormonal changes, or aging.",
-    "suggestion":
-        "Use products with vitamin C, niacinamide, or alpha arbutin. Apply SPF 30+ daily to prevent darkening.",
-    "ageInfo": {
-      "typicalAge": "After 25–30 years, especially with sun exposure",
-      "averageRange": "10–20%",
-      "under": "Below 10% – Even skin tone, minimal pigmentation",
-      "normal": "10–20% – Mild pigmentation, often due to sun",
-      "high": "Above 20% – Dark spots visible, aging or sun damage",
-      "statusThresholds": {"under": 10, "normal": 20}
-    },
-  },
-  "pores": {
-    "type": "Enlarged Pores",
-    "meaning":
-        "Visibly large skin openings, mostly on the nose, cheeks, or forehead, making skin texture uneven.",
-    "cause": "Excess sebum, aging, genetics, or sun damage.",
-    "suggestion":
-        "Use clay masks or products with niacinamide and retinol to tighten pores.",
-    "ageInfo": {
-      "typicalAge": "Any age, often increases with age or oiliness",
-      "averageRange": "15–30%",
-      "under": "Below 15% – Tight, smooth skin",
-      "normal": "15–30% – Mild pore visibility, normal for most",
-      "high": "Above 30% – Enlarged pores, oily or aging skin",
-      "statusThresholds": {"under": 15, "normal": 30}
-    },
-  },
-  "eye bags": {
-    "type": "Eye Bags",
-    "meaning":
-        "Swelling or puffiness under the eyes, often accompanied by loose skin or mild discoloration.",
-    "cause": "Aging, lack of sleep, water retention, or genetics.",
-    "suggestion":
-        "Use cold compresses, caffeine-infused eye creams, and ensure adequate sleep and hydration.",
-    "ageInfo": {
-      "typicalAge": "After 30 years",
-      "averageRange": "10–25%",
-      "under": "Below 10% – Fresh under-eye area",
-      "normal": "10–25% – Mild puffiness, common in 30s–40s",
-      "high": "Above 25% – Puffy or sagging eyes, fatigue or aging",
-      "statusThresholds": {"under": 10, "normal": 25}
-    },
-  },
-  "dark circle": {
-    "type": "Dark Circles",
-    "meaning":
-        "Dark discoloration under the eyes, making the face look tired or aged.",
-    "cause": "Fatigue, aging, thin under-eye skin, genetics, or allergies.",
-    "suggestion":
-        "Apply brightening eye creams, get enough rest, and use sunscreen around the eyes.",
-    "ageInfo": {
-      "typicalAge": "After teenage years, worsens with age or stress",
-      "averageRange": "10–25%",
-      "under": "Below 10% – Bright under-eye area",
-      "normal": "10–25% – Slight darkness, common with stress or genetics",
-      "high": "Above 25% – Prominent dark circles, fatigue or aging",
-      "statusThresholds": {"under": 10, "normal": 25}
-    },
-  },
-  "mole": {
-    "type": "Mole",
-    "meaning":
-        "Small, usually brown or black skin growths formed by clusters of pigmented cells. Can be flat or raised.",
-    "cause":
-        "Genetics and sun exposure. Most are benign but should be monitored for changes.",
-    "suggestion":
-        "Check moles regularly for changes in size, shape, or color. Consult a dermatologist for unusual moles.",
-    "ageInfo": {
-      "typicalAge": "Any age (some are congenital)",
-      "averageRange": "10–30%",
-      "under": "Below 10% – Few or no moles",
-      "normal": "10–30% – Common moles, generally benign",
-      "high": "Above 30% – Multiple or large moles, needs observation",
-      "statusThresholds": {"under": 10, "normal": 30}
-    },
-  },
-  "brown spot": {
-    "type": "Brown Spots",
-    "meaning":
-        "Flat brown patches often found on sun-exposed areas such as the face, hands, and shoulders.",
-    "cause":
-        "UV exposure, hormonal fluctuations, or aging (also known as liver spots or sun spots).",
-    "suggestion":
-        "Apply brightening serums and sunscreen. Consider dermatological treatments like chemical peels if persistent.",
-    "ageInfo": {
-      "typicalAge": "After 30, mostly due to sun damage",
-      "averageRange": "10–20%",
-      "under": "Below 10% – Clear skin, minimal sun damage",
-      "normal": "10–20% – Mild brown spots, sun exposure",
-      "high": "Above 20% – Visible pigmentation, aging skin",
-      "statusThresholds": {"under": 10, "normal": 20}
-    },
-  },
-  "comedone": {
-    "type": "Comedones",
-    "meaning":
-        "Blocked hair follicles; open comedones are blackheads, and closed ones are whiteheads.",
-    "cause":
-        "Accumulation of oil and dead skin cells, especially on oily skin types.",
-    "suggestion":
-        "Use exfoliating cleansers with BHA (salicylic acid) to prevent pore blockages.",
-    "ageInfo": {
-      "typicalAge": "Teens to 30s",
-      "averageRange": "10–25%",
-      "under": "Below 10% – Clear skin",
-      "normal": "10–25% – Mild clogged pores, common for oily skin",
-      "high": "Above 25% – Frequent clogged pores, acne risk",
-      "statusThresholds": {"under": 10, "normal": 25}
-    },
-  },
-  "Pigmentation": {
-    "type": "Pigmentation",
-    "meaning":
-        "Inflammation or irritation leading to visibly red or blotchy skin, sometimes with burning or itching.",
-    "cause":
-        "Allergies, rosacea, harsh products, sunburn, or skin sensitivity.",
-    "suggestion":
-        "Use calming skincare products with aloe vera or chamomile and avoid known irritants.",
-    "ageInfo": {
-      "typicalAge": "Any age, more in sensitive or dry skin types",
-      "averageRange": "10–25%",
-      "under": "Below 10% – Even skin tone",
-      "normal": "10–25% – Mild redness, common for dry or sensitive skin",
-      "high": "Above 25% – Flushed appearance, irritation or skin issues",
-      "statusThresholds": {"under": 10, "normal": 25}
-    },
-  },
-  "eye pouch": {
-    "type": "Under-Eye Puffiness",
-    "meaning":
-        "Slight bulging or loose skin under the eyes, often associated with tiredness or age.",
-    "cause": "Loss of skin elasticity, fluid retention, or hereditary factors.",
-    "suggestion":
-        "Try gentle massage, cooling eye gels, and reduce salt intake.",
-    "ageInfo": {
-      "average": "15–30%",
-      "under": "Youthful, tight under-eye skin. Common in 20s.",
-      "normal": "Mild puffiness, normal in 30s–40s.",
-      "high": "Noticeable sagging or puffiness, often 40+."
-    }
-  },
-  "nasolabial fold": {
-    "type": "Nasolabial Folds",
-    "meaning":
-        "Deep lines running from the sides of the nose to the corners of the mouth, visible more with age.",
-    "cause": "Loss of collagen and fat in the face due to aging.",
-    "suggestion":
-        "Use firming creams, facial exercises, or consult for fillers if the lines are deep.",
-    "ageInfo": {
-      "average": "15–30%",
-      "under": "Soft or invisible folds. Common in people under 25.",
-      "normal": "Shallow lines, visible in 30s–40s.",
-      "high": "Deep folds from nose to mouth. Common after 45."
-    }
-  },
-  "scars": {
-    "type": "Scars",
-    "meaning":
-        "A skin condition that occurs when the skin heals after an injury, acne, or surgery, leaving marks or indentations on the surface. Scars can appear as flat, raised, or pitted areas.",
-    "cause":
-        "Damage to the deeper layers of skin due to acne, wounds, burns, surgery, or infections. The body produces excess or irregular collagen during healing.",
-    "suggestion":
-        "Use sunscreen to prevent darkening, consider silicone gels/patches, gentle exfoliation, or dermatologist treatments like chemical peels, microneedling, or laser therapy for deeper scars.",
-    "ageInfo": {
-      "typicalAge":
-          "Can occur at any age, more common after acne (teens–30s) or injuries.",
-      "averageRange": "10–20% of people have visible scars.",
-      "under": "Below 10% – Minimal or no visible scarring.",
-      "normal": "10–20% – Mild scarring, usually from acne or small injuries.",
-      "high":
-          "Above 20% – Moderate to severe scarring, may need medical/dermatological intervention.",
-      "statusThresholds": {"under": 10, "normal": 20}
-    },
-  },
-  "melasma": {
-    "type": "Melasma",
-    "meaning":
-        "A common skin condition that causes dark, discolored patches on the skin, usually on the face (cheeks, forehead, upper lip, nose). It is often symmetrical and worsens with sun exposure.",
-    "cause":
-        "Overproduction of melanin due to hormonal changes (pregnancy, birth control, thyroid issues), genetics, sun exposure, or certain medications.",
-    "suggestion":
-        "Use broad-spectrum sunscreen daily, wear protective clothing, and consider dermatologist treatments like chemical peels, topical lightening creams (hydroquinone, azelaic acid), or laser therapy. Avoid excessive sun exposure.",
-    "ageInfo": {
-      "typicalAge": "20–50 years, more common in women.",
-      "averageRange":
-          "15–25% of adults (higher prevalence in women with darker skin types).",
-      "under": "Below 15% – Rare or minimal pigmentation issues.",
-      "normal":
-          "15–25% – Mild to moderate patches, common in women of childbearing age.",
-      "high":
-          "Above 25% – Severe pigmentation, widespread patches; requires medical intervention.",
-      "statusThresholds": {"under": 15, "normal": 25}
-    },
-  },
-  "wrinkle": {
-    "type": "Wrinkles",
-    "meaning":
-        "Fine lines or creases that form in the skin due to aging, loss of elasticity, and repeated facial expressions. They can appear on the forehead, around the eyes (crow’s feet), mouth, and neck.",
-    "cause":
-        "Natural aging process, decreased collagen and elastin, sun exposure (photoaging), smoking, dehydration, stress, or genetics.",
-    "suggestion":
-        "Use sunscreen daily, apply moisturizers with hyaluronic acid or peptides, consider retinoids, antioxidant serums (Vitamin C, E), and professional treatments like Botox, fillers, or laser resurfacing for deeper wrinkles.",
-    "ageInfo": {
-      "typicalAge": "30+ years (earlier with sun damage or smoking).",
-      "averageRange": "20–30% of adults show visible wrinkles by mid-30s.",
-      "under": "Below 20% – Minimal fine lines, usually in younger adults.",
-      "normal":
-          "20–30% – Mild to moderate wrinkles, typical with age progression.",
-      "high":
-          "Above 30% – Pronounced/deep wrinkles; may need medical/cosmetic treatments.",
-      "statusThresholds": {"under": 20, "normal": 30}
-    },
-  },
-  "normal skin": {
-    "type": "Normal Skin",
-    "meaning":
-        "A balanced skin type with neither excessive oiliness nor dryness; smooth texture, few imperfections, and minimal sensitivity.",
-    "cause":
-        "Genetics, well-balanced sebum production, and healthy lifestyle factors.",
-    "suggestion":
-        "Maintain routine with gentle cleanser, lightweight moisturizer, and sunscreen; avoid overusing harsh products.",
-    "ageInfo": {
-      "typicalAge": "Any age, more common in children and young adults",
-      "averageRange": "25–35%",
-      "under": "Below 25% – Some imbalance toward oily/dry tendencies.",
-      "normal": "25–35% – Even tone, good hydration, minimal issues.",
-      "high": "Above 35% – Ideal balanced skin, least prone to problems.",
-      "statusThresholds": {"under": 25, "normal": 35}
-    },
-  },
-  "acne & acne scars": {
-    "type": "Acne & Acne Scars",
-    "meaning":
-        "This combines active acne (pimples, cysts, blackheads) and the marks left behind after acne heals (scars, indentations, or dark spots). Both conditions can affect skin texture and appearance.",
-    "cause":
-        "Hormonal changes, excess oil production, bacteria, genetics, poor hygiene, and improper acne treatment can lead to acne. Scarring occurs when deeper layers of skin are damaged during healing.",
-    "suggestion":
-        "Use gentle cleansers, non-comedogenic products, and topical treatments with salicylic acid or benzoyl peroxide for active acne. For scars, consider products with retinoids, vitamin C, or consult a dermatologist for procedures like chemical peels, microneedling, or laser therapy.",
-    "ageInfo": {
-      "typicalAge":
-          "10–35 years (acne most common in teens and young adults; scars can persist longer)",
-      "averageRange": "15–30% of people experience both acne and scarring",
-      "under": "Below 15% – Clear skin, minimal active acne or scarring.",
-      "normal":
-          "15–30% – Mild to moderate acne and some scarring, common in teens and young adults.",
-      "high":
-          "Above 30% – Frequent breakouts and visible scars, may need medical/dermatological intervention.",
-      "statusThresholds": {"under": 15, "normal": 30}
-    },
-  },
+  // ... keep the rest of your conditionInfo map as in your file ...
 };
 
 Widget _summaryStat(String label, String value, IconData? icon, Color? color,
@@ -1774,16 +1670,6 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
                     overflow: TextOverflow.ellipsis,
                     maxLines: 1,
                   ),
-                // if (compareText != null)
-                //   Text(
-                //     compareText,
-                //     overflow: TextOverflow.visible,
-                //     style: TextStyle(
-                //         color: Colors.grey,
-                //         fontWeight: FontWeight.w500,
-                //         fontSize: 13),
-                //     maxLines: 1,
-                //   ),
               ],
             ),
           )

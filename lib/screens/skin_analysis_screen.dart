@@ -18,6 +18,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:http_parser/http_parser.dart' as http_parser;
 
 class SkinAnalysisScreen extends StatefulWidget {
   final Uint8List? initialImageBytes;
@@ -59,6 +60,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   bool _showScanning = false;
 
   Map<String, dynamic>? _skinAnalysisResult;
+  Map<String, dynamic>? _faceRatioResult;
 
   @override
   void initState() {
@@ -97,6 +99,34 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     }
     // _showDisclaimerPopup();
   }
+
+  Future<Map<String, dynamic>?> _callVerticalRatio(Uint8List bytes,
+      {String filename = 'upload.jpg'}) async {
+    try {
+      final uri = Uri.parse(
+          'https://anujakkulkarni-symmetry.hf.space/analyze?draw=0'); // draw=0 => raw crop
+      final req = http.MultipartRequest('POST', uri);
+      req.files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: http_parser.MediaType('image', 'jpeg'),
+      ));
+
+      final streamed = await req.send();
+      final res = await http.Response.fromStream(streamed);
+      if (res.statusCode == 200) {
+        return json.decode(res.body) as Map<String, dynamic>;
+      } else {
+        debugPrint('Symmetry API failed: ${res.statusCode} ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Symmetry API error: $e');
+      return null;
+    }
+  }
+
   void _showDisclaimerPopup() {
     showDialog(
       context: this.context,
@@ -143,7 +173,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                 //     ),
                 //   );
                 // }
-
               },
               child: const Text(
                 'I Understand',
@@ -158,7 +187,6 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       },
     );
   }
-
 
   @override
   void dispose() {
@@ -484,6 +512,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       // SkinConditionResultPage is also wrapped with BlocListener inside its file
       return SkinConditionResultPage(
         gradioResult: _skinAnalysisResult!,
+        faceRatioJson: _faceRatioResult, // ← add this (optional)
       );
     }
     return ScanFaceScreen(
@@ -648,27 +677,30 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
   Future<void> _analyzeImageDirectAPI(
       XFile? picked, Uint8List previewBytes, Size imageSize) async {
-    Map<String, dynamic>? resultJson;
+    Map<String, dynamic>? resultJson; // skin API result
+    Map<String, dynamic>? faceRatioJson; // symmetry API result
 
     try {
-      final uri = Uri.parse(
+      // --------- Build skin API request (but don't await yet) ----------
+      final skinUri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
-      var request = http.MultipartRequest('POST', uri);
 
-      SharedPreferences prefs = await SharedPreferences.getInstance();
+      final skinRequest = http.MultipartRequest('POST', skinUri);
+
+      final prefs = await SharedPreferences.getInstance();
       String? guestId = prefs.getString('guest_id');
       String? token = prefs.getString('_token');
 
       if (token != null) {
-        request.headers['Authorization'] = 'Bearer $token';
+        skinRequest.headers['Authorization'] = 'Bearer $token';
       } else if (guestId == null) {
         guestId =
             'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
         await prefs.setString('guest_id', guestId);
-        request.fields['guest_id'] = guestId;
+        skinRequest.fields['guest_id'] = guestId;
       }
 
-      request.files.add(
+      skinRequest.files.add(
         http.MultipartFile.fromBytes(
           'file',
           previewBytes,
@@ -676,26 +708,39 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         ),
       );
 
-      var streamedResponse = await request.send();
-      var response = await http.Response.fromStream(streamedResponse);
-      if (response.statusCode == 200) {
-        final decoded = json.decode(response.body);
-        resultJson = decoded;
-      } else {
-        setState(() {
-          _error = "API failed with status ${response.statusCode}";
-        });
-      }
+      // ---------- Kick off both calls *in parallel* ----------
+      final skinFuture = (() async {
+        final streamed = await skinRequest.send();
+        final res = await http.Response.fromStream(streamed);
+        if (res.statusCode == 200) {
+          return json.decode(res.body) as Map<String, dynamic>;
+        } else {
+          debugPrint('Skin API failed: ${res.statusCode} ${res.body}');
+          return null;
+        }
+      })();
+
+      final symmetryFuture = _callVerticalRatio(previewBytes,
+          filename: picked?.name ?? 'upload.jpg');
+
+      final results = await Future.wait([skinFuture, symmetryFuture]);
+
+      resultJson = results[0] as Map<String, dynamic>?;
+      faceRatioJson = results[1] as Map<String, dynamic>?;
     } catch (e) {
-      print("Error occurred: $e");
+      debugPrint("Parallel analyze error: $e");
     }
 
+    // -------------- Update state / show results --------------
     setState(() {
       _skinAnalysisResult = resultJson;
+      _faceRatioResult = faceRatioJson; // ← save symmetry JSON
       _loading = false;
+
       _error = (_skinAnalysisResult == null)
           ? "API failed or returned no detections. Try again."
           : null;
+
       _imageProvider = MemoryImage(previewBytes);
       _scanningImageBytes = null;
       _faceImageBytes = previewBytes;

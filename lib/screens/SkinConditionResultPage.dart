@@ -423,9 +423,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     double normalPercent = 0.0;
     double negativePercent = 0.0;
 
-    double wrinklePercent = 0.0;
-    double pigmentationPercent = 0.0;
-
     final negativeConditions = [
       "acne",
       "wrinkle",
@@ -453,20 +450,12 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       } else if (negativeConditions.any((c) => cond.contains(c))) {
         negativePercent += percent;
       }
-
-      if (cond.contains("wrinkle")) wrinklePercent = percent;
-      if (cond.contains("pigmentation")) pigmentationPercent = percent;
     }
 
-    // base scoring
+    // base scoring (same as before)
     score += (normalPercent / 100) * 2.0;
     score -= (negativePercent / 100) * 2.5;
     score = score - 2.0;
-
-    // NEW RULE: if either wrinkle OR pigmentation > 2% → -2 from skin subscore
-    if (wrinklePercent > 2 || pigmentationPercent > 2) {
-      score -= 2.0;
-    }
 
     if (score < 0.0) score = 0.0;
     if (score > 10.0) score = 10.0;
@@ -492,7 +481,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
 
     double finalScore = 0.5 * skin + 0.5 * symmetry;
 
-    // read wrinkle & pigmentation again for the final adjustment
+    // --- New tiered penalty logic ---
     final wrinkleEntry = skinPercentages.firstWhere(
       (e) => (e['condition'] ?? '').toLowerCase().contains('wrinkle'),
       orElse: () => {'percent': '0'},
@@ -505,12 +494,25 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     final wrinkleP = double.tryParse(wrinkleEntry['percent'] ?? '0') ?? 0;
     final pigmentP = double.tryParse(pigmentEntry['percent'] ?? '0') ?? 0;
 
-    // NEW RULE: if either wrinkle OR pigmentation > 2% → -1 from final
-    if (wrinkleP > 2 || pigmentP > 2) {
-      finalScore -= 1.0;
+    double penalty = 0.0;
+
+    // Wrinkle: >2 ⇒ -1, >3 ⇒ -2
+    if (wrinkleP > 3) {
+      penalty += 2.0;
+    } else if (wrinkleP > 2) {
+      penalty += 1.0;
     }
 
-    // clamp to your display range
+    // Pigmentation: >3 ⇒ -1, >4 ⇒ -2
+    if (pigmentP > 4) {
+      penalty += 2.0;
+    } else if (pigmentP > 3) {
+      penalty += 1.0;
+    }
+
+    finalScore -= penalty;
+
+    // clamp to display range you’ve been using
     if (finalScore < 5.0) finalScore = 5.0;
     if (finalScore > 9.0) finalScore = 9.0;
 

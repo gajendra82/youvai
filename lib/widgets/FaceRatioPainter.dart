@@ -1,5 +1,3 @@
-// widgets/PrettyRatioPainter.dart
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:skin_assessment/models/FaceRatioLine.dart';
 
@@ -8,169 +6,197 @@ class PrettyRatioPainter extends CustomPainter {
   final RatioMode mode;
   PrettyRatioPainter(this.data, this.mode);
 
-  // ---------- text helpers ----------
-  TextPainter _txt(
-    String s, {
-    double fs = 14,
-    FontWeight fw = FontWeight.w700,
-    Color c = Colors.white,
-  }) {
-    final tp = TextPainter(
+  // ===== Brand palette (approx. from logo) =====
+  static const _rose = Color(0xFFE07B82); // primary
+  static const _roseDeep = Color(0xFFD56A73);
+  static const _mauve = Color(0xFFB15E66);
+  static const _plum = Color(0xFF8A4750); // dark stroke
+  static const _maroon = Color(0xFF6E3A40); // darkest accents
+  static const _veil = Color(0x0F000000); // 6% black
+  static const _pillBg = Color(0xCC1E1E1E); // pill back (80% dark)
+
+  // ===== Brand paints (thin, rounded) =====
+  Paint get _edge => Paint()
+    ..color = _plum.withOpacity(.95)
+    ..strokeWidth = 1.6
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..isAntiAlias = true;
+
+  Paint get _line => Paint()
+    ..color = _roseDeep
+    ..strokeWidth = 1.4
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..isAntiAlias = true;
+
+  Paint get _dash => Paint()
+    ..color = _mauve
+    ..strokeWidth = 1.4
+    ..style = PaintingStyle.stroke
+    ..strokeCap = StrokeCap.round
+    ..isAntiAlias = true;
+
+  Paint get _softFill => Paint()
+    ..color = _rose.withOpacity(.10)
+    ..style = PaintingStyle.fill;
+
+  Paint _bubblePaint(RRect r) => Paint()
+    ..shader = const LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [_rose, _mauve],
+    ).createShader(r.outerRect);
+
+  // ---- tiny helpers ----
+  TextPainter _tp(String s,
+      {double fs = 13,
+      FontWeight fw = FontWeight.w700,
+      Color c = Colors.white}) {
+    final t = TextPainter(
       text: TextSpan(
           text: s, style: TextStyle(fontSize: fs, fontWeight: fw, color: c)),
       textDirection: TextDirection.ltr,
-      maxLines: 1,
-      ellipsis: '…',
     );
-    tp.layout();
-    return tp;
+    t.layout();
+    return t;
   }
 
-  /// Two-line pill: title (big) + subtitle (small). Stays centered and inside the card.
-  void _pill2(
-    Canvas canvas,
-    Size size, {
-    required String title,
-    String? subtitle,
-  }) {
-    final titleTp = _txt(title, fs: 16, fw: FontWeight.w800);
-    final subTp = (subtitle != null && subtitle.trim().isNotEmpty)
-        ? _txt(subtitle,
-            fs: 12.5, fw: FontWeight.w600, c: Colors.white.withOpacity(.92))
+  void _pill(Canvas canvas, Size size, {required String your, String? golden}) {
+    final title = _tp(your, fs: 16, fw: FontWeight.w800);
+    final sub = golden != null && golden.trim().isNotEmpty
+        ? _tp(golden, fs: 13, fw: FontWeight.w700, c: Colors.white70)
         : null;
 
-    const padH = 18.0;
-    const padV = 8.0;
-    const gap = 3.0;
-
-    final w = math.max(titleTp.width, subTp?.width ?? 0) + padH * 2;
+    final w = sub == null
+        ? (title.width + 34)
+        : (title.width > (sub.width) ? title.width : sub.width) + 34;
     final h =
-        titleTp.height + (subTp == null ? 0 : gap + subTp.height) + padV * 2;
+        sub == null ? (title.height + 14) : (title.height + sub.height + 20);
 
-    final cx = size.width / 2;
-    final cy = 30.0;
-
-    final rect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset(cx, cy), width: w, height: h),
+    final r = RRect.fromRectAndRadius(
+      Rect.fromCenter(center: Offset(size.width / 2, 30), width: w, height: h),
       const Radius.circular(22),
     );
+    canvas.drawRRect(r, Paint()..color = _pillBg);
 
-    final bg = Paint()..color = Colors.black.withOpacity(.58);
-    canvas.drawRRect(rect, bg);
+    final topLeft = Offset(size.width / 2 - title.width / 2, 30 - (h / 2) + 10);
+    title.paint(canvas, topLeft);
 
-    final titleTop = cy - h / 2 + padV;
-    titleTp.paint(canvas, Offset(cx - titleTp.width / 2, titleTop));
-
-    if (subTp != null) {
-      final subTop = titleTop + titleTp.height + gap;
-      subTp.paint(canvas, Offset(cx - subTp.width / 2, subTop));
+    if (sub != null) {
+      final subTop =
+          topLeft + Offset((title.width - sub.width) / 2, title.height + 2);
+      sub.paint(canvas, subTop);
     }
   }
 
+  // dashed line helpers
+  void _dashedH(Canvas c, double x1, double x2, double y,
+      {double dash = 7, double gap = 5}) {
+    double x = x1;
+    while (x < x2) {
+      final x2c = (x + dash).clamp(x1, x2);
+      c.drawLine(Offset(x, y), Offset(x2c.toDouble(), y), _dash);
+      x += dash + gap;
+    }
+  }
+
+  void _dashedV(Canvas c, double x, double y1, double y2,
+      {double dash = 7, double gap = 5}) {
+    double y = y1;
+    while (y < y2) {
+      final y2c = (y + dash).clamp(y1, y2);
+      c.drawLine(Offset(x, y), Offset(x, y2c.toDouble()), _dash);
+      y += dash + gap;
+    }
+  }
+
+  void _arrowUp(Canvas c, Offset p) {
+    c.drawLine(p, p + const Offset(-5, 7), _dash);
+    c.drawLine(p, p + const Offset(5, 7), _dash);
+  }
+
+  void _arrowDown(Canvas c, Offset p) {
+    c.drawLine(p, p + const Offset(-5, -7), _dash);
+    c.drawLine(p, p + const Offset(5, -7), _dash);
+  }
+
+  void _arrowLeft(Canvas c, Offset p) {
+    c.drawLine(p, p + const Offset(7, -5), _dash);
+    c.drawLine(p, p + const Offset(7, 5), _dash);
+  }
+
+  void _arrowRight(Canvas c, Offset p) {
+    c.drawLine(p, p + const Offset(-7, -5), _dash);
+    c.drawLine(p, p + const Offset(-7, 5), _dash);
+  }
+
+  RRect _bubbleAt(Offset center, TextPainter txt) => RRect.fromRectAndRadius(
+        Rect.fromCenter(
+            center: center, width: txt.width + 16, height: txt.height + 9),
+        const Radius.circular(12),
+      );
+
   @override
   void paint(Canvas canvas, Size size) {
-    // scale server (full-image) coordinates -> canvas
+    // veil
+    canvas.drawRect(Offset.zero & size, Paint()..color = _veil);
+
+    // scale (full-image coordinates)
     final sx = size.width / (data.imageW == 0 ? size.width : data.imageW);
     final sy = size.height / (data.imageH == 0 ? size.height : data.imageH);
 
-    // veil
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = Colors.black.withOpacity(0.06),
-    );
-
-    // paints
-    final white = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2
-      ..isAntiAlias = true;
-    final edge = Paint()
-      ..color = Colors.white.withOpacity(.65)
-      ..strokeWidth = 2
-      ..isAntiAlias = true;
-    final dash = Paint()
-      ..color = Colors.white
-      ..strokeWidth = 2
-      ..isAntiAlias = true;
-    final pink = Paint()..color = const Color(0xFFE91E63);
-
-    // ================== VERTICAL ==================
+    // ================= VERTICAL =================
     if (mode == RatioMode.vertical) {
       if (data.verticalLines.isEmpty) return;
 
       final xs = <double>[];
-      double top = double.infinity, bottom = -double.infinity;
-
+      double top = 1e9, bot = -1e9;
       for (int i = 0; i < data.verticalLines.length; i++) {
         final l = data.verticalLines[i];
         final x = l.x1 * sx, y1 = l.y1 * sy, y2 = l.y2 * sy;
-        top = y1 < top ? y1 : top;
-        bottom = y2 > bottom ? y2 : bottom;
         xs.add(x);
-        canvas.drawLine(
-          Offset(x, y1),
-          Offset(x, y2),
-          (i == 0 || i == data.verticalLines.length - 1) ? edge : white,
-        );
+        top = y1 < top ? y1 : top;
+        bot = y2 > bot ? y2 : bot;
+        canvas.drawLine(Offset(x, y1), Offset(x, y2),
+            (i == 0 || i == data.verticalLines.length - 1) ? _edge : _line);
       }
       xs.sort();
 
       final vals = (data.verticalPerc.length >= 5)
           ? data.verticalPerc.take(5).toList()
-          : const [20.0, 20.0, 20.0, 20.0, 20.0];
+          : const [20, 20, 20, 20, 20];
+      _pill(canvas, size,
+          your:
+              "Your ${vals.map((e) => '${e.toStringAsFixed(0)}%').join(' : ')}",
+          golden: "Golden ${data.idealVertical}");
 
-      _pill2(
-        canvas,
-        size,
-        title:
-            "Your ${vals.map((e) => '${e.toStringAsFixed(0)}%').join(' : ')}",
-        subtitle: "Golden ${data.idealVertical}",
-      );
-
-      final baseY = (bottom - 14).clamp(0, size.height);
+      final baseY = (bot - 12).clamp(0, size.height).toDouble();
       for (int i = 0; i < 5 && i + 1 < xs.length; i++) {
         final left = xs[i], right = xs[i + 1];
+        _dashedH(canvas, left + 8, right - 8, baseY);
+        _arrowLeft(canvas, Offset(left + 8, baseY));
+        _arrowRight(canvas, Offset(right - 8, baseY));
 
-        // dashed ruler
-        const d = 8.0, g = 6.0;
-        double x = left + 10;
-        while (x < right - 10) {
-          final x2 = (x + d).clamp(left + 10, right - 10);
-          canvas.drawLine(
-              Offset(x, baseY.toDouble()), Offset(x2, baseY.toDouble()), dash);
-          x += d + g;
-        }
-
-        // value bubble
-        final cx = (left + right) / 2;
-        final t = _txt("${vals[i].toStringAsFixed(0)}%");
-        final rr = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(cx, ((baseY + 16).clamp(0, size.height) as double)),
-            width: t.width + 16,
-            height: t.height + 8,
-          ),
-          const Radius.circular(10),
-        );
-        canvas.drawRRect(rr, pink);
-        t.paint(canvas, Offset(cx - t.width / 2, (baseY + 16) - t.height / 2));
+        final txt = _tp("${vals[i].toStringAsFixed(0)}%", fs: 12);
+        final rr = _bubbleAt(Offset((left + right) / 2, baseY + 16), txt);
+        canvas.drawRRect(rr, _bubblePaint(rr));
+        txt.paint(
+            canvas,
+            Offset(rr.outerRect.center.dx - txt.width / 2,
+                rr.outerRect.center.dy - txt.height / 2));
       }
       return;
     }
 
-    // ================== HORIZONTAL ==================
+    // ================= HORIZONTAL =================
     if (mode == RatioMode.horizontal) {
       if (data.horizontalLines.isEmpty) return;
 
       final ys = data.horizontalLines.map((l) => l.y1 * sy).toList()..sort();
       if (ys.length < 4) return;
+      final topY = ys.first, mid1Y = ys[1], mid2Y = ys[2], botY = ys.last;
 
-      final topY = ys.first;
-      final mid1Y = ys[1];
-      final mid2Y = ys[2];
-      final botY = ys.last;
-
-      // Clamp to face bounds if possible
       double leftBound, rightBound;
       if (data.faceBox != null) {
         leftBound = data.faceBox!.rect.left * sx;
@@ -186,358 +212,161 @@ class PrettyRatioPainter extends CustomPainter {
 
       final vals = (data.horizontalPerc.length >= 3)
           ? data.horizontalPerc.take(3).toList()
-          : const [33.0, 33.0, 33.0];
+          : const [33, 33, 33];
+      _pill(canvas, size,
+          your:
+              "Your Ratio ${vals.map((e) => '${e.toStringAsFixed(0)}%').join(' : ')}",
+          golden: "Golden ${data.idealHorizontal}");
 
-      _pill2(
-        canvas,
-        size,
-        title:
-            "Your ${vals.map((e) => '${e.toStringAsFixed(0)}%').join(' : ')}",
-        subtitle: "Golden ${data.idealHorizontal}",
-      );
-
-      // horizontal band lines (bounded)
-      void hLine(double y, {required bool edgeLine}) {
+      void h(double y, bool edge) {
         canvas.drawLine(
-          Offset(leftBound, y),
-          Offset(rightBound, y),
-          edgeLine ? edge : white,
-        );
+            Offset(leftBound, y), Offset(rightBound, y), edge ? _edge : _line);
       }
 
-      hLine(topY, edgeLine: true);
-      hLine(mid1Y, edgeLine: false);
-      hLine(mid2Y, edgeLine: false);
-      hLine(botY, edgeLine: true);
+      h(topY, true);
+      h(mid1Y, false);
+      h(mid2Y, false);
+      h(botY, true);
 
-      // right-side vertical dashed ruler between top/bottom
       final guideX = rightBound - 12;
-      const dashLen = 8.0, gap = 6.0;
-      double y = topY + 2;
-      while (y < botY - 2) {
-        final y2 = (y + dashLen).clamp(topY + 2, botY - 2);
-        canvas.drawLine(Offset(guideX, y), Offset(guideX, y2), dash);
-        y += dashLen + gap;
-      }
-      // arrowheads
-      canvas.drawLine(
-          Offset(guideX, topY), Offset(guideX - 6, topY + 10), dash);
-      canvas.drawLine(
-          Offset(guideX, topY), Offset(guideX + 6, topY + 10), dash);
-      canvas.drawLine(
-          Offset(guideX, botY), Offset(guideX - 6, botY - 10), dash);
-      canvas.drawLine(
-          Offset(guideX, botY), Offset(guideX + 6, botY - 10), dash);
+      _dashedV(canvas, guideX, topY + 2, botY - 2);
+      _arrowUp(canvas, Offset(guideX, topY + 2));
+      _arrowDown(canvas, Offset(guideX, botY - 2));
 
-      // value bubbles per band
-      final bands = <(double, double, double)>[
+      final bands = <(double, double, num)>[
         (topY, mid1Y, vals[0]),
         (mid1Y, mid2Y, vals[1]),
-        (mid2Y, botY, vals[2]),
+        (mid2Y, botY, vals[2])
       ];
-      for (final (double a, double b, double pct) in bands) {
+      for (final (a, b, pct) in bands) {
         final cy = (a + b) / 2;
-        final txt = _txt("${pct.toStringAsFixed(0)}%", fs: 12);
-        final rr = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(guideX + 24, cy),
-            width: txt.width + 16,
-            height: txt.height + 8,
-          ),
-          const Radius.circular(10),
-        );
-        canvas.drawRRect(rr, pink);
+        final txt = _tp("${pct.toStringAsFixed(0)}%", fs: 12);
+        final rr = _bubbleAt(Offset(guideX + 24, cy), txt);
+        canvas.drawRRect(rr, _bubblePaint(rr));
         txt.paint(
-          canvas,
-          Offset(rr.outerRect.center.dx - txt.width / 2,
-              rr.outerRect.center.dy - txt.height / 2),
-        );
+            canvas,
+            Offset(rr.outerRect.center.dx - txt.width / 2,
+                rr.outerRect.center.dy - txt.height / 2));
       }
       return;
     }
 
-    // ================== EYES ==================
-// ================== EYES ==================
+    // ================= EYES =================
     if (mode == RatioMode.eyes) {
       final l = data.leftEye, r = data.rightEye;
       if (l == null && r == null) return;
 
       final overall =
           l?.measured.isNotEmpty == true ? l!.measured : (r?.measured ?? "");
-      // Title pill
-      _pill2(
-        canvas,
-        size,
-        title: overall.isNotEmpty ? "Your Ratio $overall" : "Eye Aspect Ratio",
-      );
+      _pill(canvas, size,
+          your: "Your Ratio $overall",
+          golden: "Golden ${l?.golden ?? r?.golden ?? ''}");
 
-      // dashed helpers + arrowheads
-      void dashedH(double x1, double x2, double y,
-          {double dash = 7, double gap = 5, required Paint p}) {
-        double x = x1;
-        while (x < x2) {
-          final x2c = (x + dash).clamp(x1, x2);
-          canvas.drawLine(Offset(x, y), Offset(x2c.toDouble(), y), p);
-          x += dash + gap;
-        }
-      }
+      void eye(EyeBox e, String tag) {
+        final rect = Rect.fromLTRB(e.rect.left * sx, e.rect.top * sy,
+            e.rect.right * sx, e.rect.bottom * sy);
+        final rr = RRect.fromRectAndRadius(rect, const Radius.circular(9));
+        // soft highlight + thin border
+        canvas.drawRRect(rr, _softFill);
+        canvas.drawRRect(rr, _line);
 
-      void dashedV(double x, double y1, double y2,
-          {double dash = 7, double gap = 5, required Paint p}) {
-        double y = y1;
-        while (y < y2) {
-          final y2c = (y + dash).clamp(y1, y2);
-          canvas.drawLine(Offset(x, y), Offset(x, y2c.toDouble()), p);
-          y += dash + gap;
-        }
-      }
+        // OUTSIDE dashed rulers (←→) under the box, and (↑↓) at the left side
+        final belowY = rr.outerRect.bottom + 10;
+        _dashedH(canvas, rr.outerRect.left + 8, rr.outerRect.right - 8, belowY);
+        _arrowLeft(canvas, Offset(rr.outerRect.left + 8, belowY));
+        _arrowRight(canvas, Offset(rr.outerRect.right - 8, belowY));
 
-      void arrowUp(Offset tip, Paint p) {
-        canvas.drawLine(tip, tip + const Offset(-6, 8), p);
-        canvas.drawLine(tip, tip + const Offset(6, 8), p);
-      }
+        final leftX = rr.outerRect.left - 10;
+        _dashedV(canvas, leftX, rr.outerRect.top + 6, rr.outerRect.bottom - 6);
+        _arrowUp(canvas, Offset(leftX, rr.outerRect.top + 6));
+        _arrowDown(canvas, Offset(leftX, rr.outerRect.bottom - 6));
 
-      void arrowDown(Offset tip, Paint p) {
-        canvas.drawLine(tip, tip + const Offset(-6, -8), p);
-        canvas.drawLine(tip, tip + const Offset(6, -8), p);
-      }
-
-      void arrowLeft(Offset tip, Paint p) {
-        canvas.drawLine(tip, tip + const Offset(8, -6), p);
-        canvas.drawLine(tip, tip + const Offset(8, 6), p);
-      }
-
-      void arrowRight(Offset tip, Paint p) {
-        canvas.drawLine(tip, tip + const Offset(-8, -6), p);
-        canvas.drawLine(tip, tip + const Offset(-8, 6), p);
-      }
-
-      final dashPaint = Paint()
-        ..color = Colors.white
-        ..strokeWidth = 2
-        ..isAntiAlias = true;
-
-      void drawEye(EyeBox eye, {required bool placeTagOnRight}) {
-        // scale rect to canvas
-        final rect = Rect.fromLTRB(
-          eye.rect.left * sx,
-          eye.rect.top * sy,
-          eye.rect.right * sx,
-          eye.rect.bottom * sy,
-        );
-
-        // soft fill + border (rounded)
-        final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(8));
-        canvas.drawRRect(
-          rrect,
-          Paint()..color = Colors.white.withOpacity(.12),
-        );
-        canvas.drawRRect(
-          rrect,
-          Paint()
-            ..color = Colors.white
-            ..strokeWidth = 2
-            ..style = PaintingStyle.stroke,
-        );
-
-        // vertical dashed ruler INSIDE the box at the left edge
-        final vx = rect.left + 8;
-        dashedV(vx, rect.top + 6, rect.bottom - 6, p: dashPaint);
-        arrowUp(Offset(vx, rect.top + 6), dashPaint);
-        arrowDown(Offset(vx, rect.bottom - 6), dashPaint);
-
-        // horizontal dashed ruler INSIDE the box at mid-height
-        final hy = rect.center.dy;
-        dashedH(rect.left + 6, rect.right - 6, hy, p: dashPaint);
-        arrowLeft(Offset(rect.left + 6, hy), dashPaint);
-        arrowRight(Offset(rect.right - 6, hy), dashPaint);
-
-        // tiny pink "1" tag near outer corner (matches reference)
-        final tagTxt = _txt("1", fs: 12);
-        final tagCenter = placeTagOnRight
-            ? rect.topRight + const Offset(12, 0)
-            : rect.topLeft + const Offset(-12, 0);
-        final tagRR = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: tagCenter,
-            width: tagTxt.width + 16,
-            height: tagTxt.height + 8,
-          ),
-          const Radius.circular(12),
-        );
-        canvas.drawRRect(tagRR, Paint()..color = const Color(0xFFE91E63));
+        // corner tag bubble (small)
+        final tagTxt = _tp(tag, fs: 11);
+        final tagRR =
+            _bubbleAt(rr.outerRect.topLeft + const Offset(-16, -16), tagTxt);
+        canvas.drawRRect(tagRR, _bubblePaint(tagRR));
         tagTxt.paint(
-          canvas,
-          Offset(tagRR.outerRect.center.dx - tagTxt.width / 2,
-              tagRR.outerRect.center.dy - tagTxt.height / 2),
-        );
+            canvas,
+            Offset(tagRR.outerRect.center.dx - tagTxt.width / 2,
+                tagRR.outerRect.center.dy - tagTxt.height / 2));
 
-        // measured value bubble centered just below the box
-        final valTxt = _txt(eye.measured, fs: 13);
-        final valRR = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: rect.bottomCenter + const Offset(0, 18),
-            width: valTxt.width + 18,
-            height: valTxt.height + 10,
-          ),
-          const Radius.circular(12),
-        );
-        canvas.drawRRect(valRR, Paint()..color = const Color(0xFFE91E63));
-        valTxt.paint(
-          canvas,
-          Offset(valRR.outerRect.center.dx - valTxt.width / 2,
-              valRR.outerRect.center.dy - valTxt.height / 2),
-        );
+        // measured bubble centered below
+        final mTxt = _tp(e.measured, fs: 13);
+        final mRR =
+            _bubbleAt(Offset(rr.outerRect.center.dx, belowY + 18), mTxt);
+        canvas.drawRRect(mRR, _bubblePaint(mRR));
+        mTxt.paint(
+            canvas,
+            Offset(mRR.outerRect.center.dx - mTxt.width / 2,
+                mRR.outerRect.center.dy - mTxt.height / 2));
       }
 
-      // Left eye: tag on right side; Right eye: tag on left side (like mock)
-      if (l != null) drawEye(l, placeTagOnRight: true);
-      if (r != null) drawEye(r, placeTagOnRight: false);
-
-      // Optional: “Golden …” line just under the main pill (kept inside card)
-      if ((l?.golden ?? r?.golden ?? "").isNotEmpty) {
-        final g = _txt("Golden ${l?.golden ?? r?.golden}",
-            fs: 13, fw: FontWeight.w600);
-        final y = 26 + 12 + 16; // just below the top pill
-        final bg = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(size.width / 2, y.toDouble()),
-            width: g.width + 22,
-            height: g.height + 8,
-          ),
-          const Radius.circular(12),
-        );
-        canvas.drawRRect(bg, Paint()..color = Colors.black.withOpacity(.35));
-        g.paint(canvas, Offset(size.width / 2 - g.width / 2, y - g.height / 2));
-      }
+      if (l != null) eye(l, "1");
+      if (r != null) eye(r, "1");
       return;
     }
 
-    // ================== FACE BOX ==================
+    // ================= FACE BOX =================
     if (mode == RatioMode.faceBox) {
       final fb = data.faceBox;
       if (fb == null) return;
 
-      // Scale rect
-      final rect = Rect.fromLTRB(
-        fb.rect.left * sx,
-        fb.rect.top * sy,
-        fb.rect.right * sx,
-        fb.rect.bottom * sy,
-      );
+      final rect = Rect.fromLTRB(fb.rect.left * sx, fb.rect.top * sy,
+          fb.rect.right * sx, fb.rect.bottom * sy);
+      final rr = RRect.fromRectAndRadius(rect, const Radius.circular(14));
+      canvas.drawRRect(rr, _softFill);
+      canvas.drawRRect(rr, _edge);
 
-      // Draw box
-      final boxR = RRect.fromRectAndRadius(rect, const Radius.circular(12));
-      canvas.drawRRect(
-          boxR,
-          Paint()
-            ..color = Colors.white.withOpacity(0.10)
-            ..style = PaintingStyle.fill);
-      canvas.drawRRect(
-          boxR,
-          Paint()
-            ..color = Colors.white
-            ..strokeWidth = 2
-            ..style = PaintingStyle.stroke);
-
-      // Pill (two lines)
-      _pill2(canvas, size,
-          title: "Your ${fb.yours}", subtitle: "Golden ${fb.golden}");
-
-      // Parse "1:1.46"
-      double _safe(String s) => double.tryParse(s.trim()) ?? 0.0;
       double wVal = 1.0, hVal = 0.0;
       if (fb.yours.contains(':')) {
-        final parts = fb.yours.split(':');
-        if (parts.length >= 2) {
-          wVal = _safe(parts[0]);
-          hVal = _safe(parts[1]);
+        final p = fb.yours.split(':');
+        if (p.length >= 2) {
+          wVal = double.tryParse(p[0].trim()) ?? 1.0;
+          hVal = double.tryParse(p[1].trim()) ?? 0.0;
         }
       }
 
-      // Vertical dashed ruler (inside right)
-      double vx = rect.right - 10;
-      const dv = 8.0, gv = 6.0;
-      double vy = rect.top + 14;
-      while (vy < rect.bottom - 14) {
-        final v2 = (vy + dv).clamp(rect.top + 14, rect.bottom - 14);
-        canvas.drawLine(Offset(vx, vy), Offset(vx, v2), dash);
-        vy += dv + gv;
-      }
-      // arrowheads
-      canvas.drawLine(
-          Offset(vx - 6, rect.top + 14), Offset(vx, rect.top + 6), dash);
-      canvas.drawLine(
-          Offset(vx + 6, rect.top + 14), Offset(vx, rect.top + 6), dash);
-      canvas.drawLine(
-          Offset(vx - 6, rect.bottom - 14), Offset(vx, rect.bottom - 6), dash);
-      canvas.drawLine(
-          Offset(vx + 6, rect.bottom - 14), Offset(vx, rect.bottom - 6), dash);
+      _pill(canvas, size,
+          your: "Your Ratio ${fb.yours}", golden: "Golden ${fb.golden}");
 
-      // Vertical value bubble (height value)
-      final vTxt = _txt(hVal == 0 ? fb.yours : hVal.toStringAsFixed(3), fs: 14);
-      final vRR = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(vx - 36, rect.center.dy),
-          width: vTxt.width + 18,
-          height: vTxt.height + 10,
-        ),
-        const Radius.circular(12),
-      );
-      canvas.drawRRect(vRR, pink);
+      // vertical ruler inside right edge
+      final vx = rect.right - 10;
+      _dashedV(canvas, vx, rect.top + 14, rect.bottom - 14);
+      _arrowUp(canvas, Offset(vx, rect.top + 14));
+      _arrowDown(canvas, Offset(vx, rect.bottom - 14));
+
+      final vTxt = _tp(hVal == 0 ? fb.yours : hVal.toStringAsFixed(3), fs: 13);
+      final vRR = _bubbleAt(Offset(vx - 34, rect.center.dy), vTxt);
+      canvas.drawRRect(vRR, _bubblePaint(vRR));
       vTxt.paint(
-        canvas,
-        Offset(vRR.outerRect.center.dx - vTxt.width / 2,
-            vRR.outerRect.center.dy - vTxt.height / 2),
-      );
+          canvas,
+          Offset(vRR.outerRect.center.dx - vTxt.width / 2,
+              vRR.outerRect.center.dy - vTxt.height / 2));
 
-      // Bottom dashed ruler (width = "1")
+      // bottom ruler
       final by = rect.bottom - 10;
-      const dh = 8.0, gh = 6.0;
-      double x = rect.left + 14;
-      while (x < rect.right - 14) {
-        final x2 = (x + dh).clamp(rect.left + 14, rect.right - 14);
-        canvas.drawLine(Offset(x, by), Offset(x2, by), dash);
-        x += dh + gh;
-      }
-      // arrowheads
-      canvas.drawLine(
-          Offset(rect.left + 14, by - 6), Offset(rect.left + 6, by), dash);
-      canvas.drawLine(
-          Offset(rect.left + 14, by + 6), Offset(rect.left + 6, by), dash);
-      canvas.drawLine(
-          Offset(rect.right - 14, by - 6), Offset(rect.right - 6, by), dash);
-      canvas.drawLine(
-          Offset(rect.right - 14, by + 6), Offset(rect.right - 6, by), dash);
+      _dashedH(canvas, rect.left + 14, rect.right - 14, by);
+      _arrowLeft(canvas, Offset(rect.left + 14, by));
+      _arrowRight(canvas, Offset(rect.right - 14, by));
 
-      // "1" bubble
-      final hTxt = _txt(wVal.toStringAsFixed(0), fs: 14);
-      final hRR = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(rect.center.dx, by + 22),
-          width: hTxt.width + 16,
-          height: hTxt.height + 10,
-        ),
-        const Radius.circular(12),
-      );
-      canvas.drawRRect(hRR, pink);
+      final hTxt = _tp(wVal.toStringAsFixed(0), fs: 13);
+      final hRR = _bubbleAt(Offset(rect.center.dx, by + 20), hTxt);
+      canvas.drawRRect(hRR, _bubblePaint(hRR));
       hTxt.paint(
-        canvas,
-        Offset(hRR.outerRect.center.dx - hTxt.width / 2,
-            hRR.outerRect.center.dy - hTxt.height / 2),
-      );
+          canvas,
+          Offset(hRR.outerRect.center.dx - hTxt.width / 2,
+              hRR.outerRect.center.dy - hTxt.height / 2));
       return;
     }
 
-    // ================== NOSE-LIP-CHIN ==================
+    // ================= NOSE–LIP–CHIN =================
     if (mode == RatioMode.noseLipChin) {
       if (data.noseLipChinLines.isEmpty) return;
 
       final ys = data.noseLipChinLines.map((l) => l.y1 * sy).toList()..sort();
-      if (ys.length < 3) return;
-      final top = ys.first, mid = ys[1], bottom = ys.last;
+      final top = ys.first, mid = ys[1], bot = ys.last;
 
-      // Clamp to face bounds
       double leftBound, rightBound;
       if (data.faceBox != null) {
         leftBound = data.faceBox!.rect.left * sx;
@@ -551,337 +380,155 @@ class PrettyRatioPainter extends CustomPainter {
         rightBound = size.width * .82;
       }
 
-      _pill2(
-        canvas,
-        size,
-        title: "Your Ratio ${data.noseLipChinRatio ?? ''}",
-        subtitle: "Golden ${data.noseLipChinIdeal ?? ''}",
-      );
+      _pill(canvas, size,
+          your: "Your ${data.noseLipChinRatio ?? ''}",
+          golden: "Golden ${data.noseLipChinIdeal ?? ''}");
 
-      // subtle fill on top band
       final leftFill = Rect.fromLTRB(
-        leftBound,
-        top,
-        leftBound + (rightBound - leftBound) * 0.55,
-        mid,
-      );
+          leftBound, top, leftBound + (rightBound - leftBound) * .55, mid);
       canvas.drawRRect(
-        RRect.fromRectAndRadius(leftFill, const Radius.circular(8)),
-        Paint()..color = Colors.white.withOpacity(.12),
-      );
+          RRect.fromRectAndRadius(leftFill, const Radius.circular(8)),
+          _softFill);
 
-      // three confined lines
       for (final y in ys) {
-        final isEdge = (y == top || y == bottom);
-        canvas.drawLine(
-          Offset(leftBound, y),
-          Offset(rightBound, y),
-          isEdge ? edge : white,
-        );
+        canvas.drawLine(Offset(leftBound, y), Offset(rightBound, y),
+            (y == top || y == bot) ? _edge : _line);
       }
 
-      // right dashed ruler (top..bottom)
       final guideX = rightBound - 12;
-      const d = 8.0, g = 6.0;
-      double y = top + 2;
-      while (y < bottom - 2) {
-        final y2 = (y + d).clamp(top + 2, bottom - 2);
-        canvas.drawLine(Offset(guideX, y), Offset(guideX, y2), dash);
-        y += d + g;
-      }
-      // arrowheads
-      canvas.drawLine(Offset(guideX, top), Offset(guideX - 6, top + 10), dash);
-      canvas.drawLine(Offset(guideX, top), Offset(guideX + 6, top + 10), dash);
-      canvas.drawLine(
-          Offset(guideX, bottom), Offset(guideX - 6, bottom - 10), dash);
-      canvas.drawLine(
-          Offset(guideX, bottom), Offset(guideX + 6, bottom - 10), dash);
+      _dashedV(canvas, guideX, top + 2, bot - 2);
+      _arrowUp(canvas, Offset(guideX, top + 2));
+      _arrowDown(canvas, Offset(guideX, bot - 2));
 
-      // tag "1" near top of ruler
-      final tag = _txt("1", fs: 11);
-      final tagRR = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(guideX + 18, top + (mid - top) * 0.15),
-          width: tag.width + 16,
-          height: tag.height + 8,
-        ),
-        const Radius.circular(12),
-      );
-      canvas.drawRRect(tagRR, pink);
+      final tag = _tp("1", fs: 11);
+      final tagRR =
+          _bubbleAt(Offset(guideX + 18, top + (mid - top) * .15), tag);
+      canvas.drawRRect(tagRR, _bubblePaint(tagRR));
       tag.paint(
-        canvas,
-        Offset(tagRR.outerRect.center.dx - tag.width / 2,
-            tagRR.outerRect.center.dy - tag.height / 2),
-      );
+          canvas,
+          Offset(tagRR.outerRect.center.dx - tag.width / 2,
+              tagRR.outerRect.center.dy - tag.height / 2));
 
-      // ratio bubble centered in lower band
       String valueOnly = (data.noseLipChinRatio ?? '')
           .replaceFirst(RegExp(r'^\s*1\s*:\s*'), '');
       if (valueOnly.isEmpty) valueOnly = (data.noseLipChinRatio ?? '');
-      final t = _txt(valueOnly, fs: 12);
-      final rr = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(guideX + 10, (mid + bottom) / 2),
-          width: t.width + 16,
-          height: t.height + 8,
-        ),
-        const Radius.circular(10),
-      );
-      canvas.drawRRect(rr, pink);
+      final t = _tp(valueOnly, fs: 12);
+      final rr = _bubbleAt(Offset(guideX + 12, (mid + bot) / 2), t);
+      canvas.drawRRect(rr, _bubblePaint(rr));
       t.paint(
-        canvas,
-        Offset(rr.outerRect.center.dx - t.width / 2,
-            rr.outerRect.center.dy - t.height / 2),
-      );
+          canvas,
+          Offset(rr.outerRect.center.dx - t.width / 2,
+              rr.outerRect.center.dy - t.height / 2));
       return;
     }
 
-    // ================== LIPS ==================
+    // ================= LIPS =================
     if (mode == RatioMode.lips) {
       if (data.lipLines.isEmpty) return;
 
       final lips = [...data.lipLines]..sort((a, b) => a.y1.compareTo(b.y1));
-
-      // draw the three segments with each own x-span
       for (int i = 0; i < lips.length; i++) {
         final l = lips[i];
-        final y = l.y1 * sy;
-        final x1 = l.x1 * sx;
-        final x2 = l.x2 * sx;
-
-        final p = Paint()
-          ..color = (i == 1) ? Colors.white : Colors.white.withOpacity(.85)
-          ..strokeWidth = 2
-          ..isAntiAlias = true;
-
+        final y = l.y1 * sy, x1 = l.x1 * sx, x2 = l.x2 * sx;
+        final p = (i == 1) ? _edge : _line
+          ..color = _roseDeep.withOpacity(.9);
         canvas.drawLine(Offset(x1, y), Offset(x2, y), p);
       }
 
       if (lips.length >= 3) {
-        final top = lips.first;
-        final middle = lips[1];
-        final bottom = lips.last;
-
-        // slim vertical ruler near shortest right edge
-        final rightMost = [
-          top.x2 * sx,
-          middle.x2 * sx,
-          bottom.x2 * sx,
-        ].reduce((a, b) => a < b ? a : b);
+        final top = lips.first, mid = lips[1], bot = lips.last;
+        final rightMost = [top.x2 * sx, mid.x2 * sx, bot.x2 * sx]
+            .reduce((a, b) => a < b ? a : b);
         final rulerX = rightMost - 8;
+        final yTop = top.y1 * sy + 6, yBot = bot.y1 * sy - 6;
 
-        final yTop = top.y1 * sy + 6;
-        final yBot = bottom.y1 * sy - 6;
+        _dashedV(canvas, rulerX, yTop, yBot, dash: 6, gap: 4);
+        _arrowUp(canvas, Offset(rulerX, yTop));
+        _arrowDown(canvas, Offset(rulerX, yBot));
 
-        final slimDash = Paint()
-          ..color = Colors.white
-          ..strokeWidth = 1.6
-          ..isAntiAlias = true;
+        final one = _tp("1", fs: 12);
+        final oneRR = _bubbleAt(
+            Offset((top.x1 * sx + top.x2 * sx) / 2, mid.y1 * sy - 12), one);
+        canvas.drawRRect(oneRR, _bubblePaint(oneRR));
+        one.paint(
+            canvas,
+            Offset(oneRR.outerRect.center.dx - one.width / 2,
+                oneRR.outerRect.center.dy - one.height / 2));
 
-        double y = yTop;
-        const d = 6.0, g = 4.0;
-        while (y < yBot) {
-          final y2 = (y + d).clamp(yTop, yBot);
-          canvas.drawLine(
-              Offset(rulerX, y), Offset(rulerX, y2.toDouble()), slimDash);
-          y += d + g;
-        }
-        // tiny arrows
-        canvas.drawLine(
-            Offset(rulerX, yTop), Offset(rulerX - 5, yTop + 6), slimDash);
-        canvas.drawLine(
-            Offset(rulerX, yTop), Offset(rulerX + 5, yTop + 6), slimDash);
-        canvas.drawLine(
-            Offset(rulerX, yBot), Offset(rulerX - 5, yBot - 6), slimDash);
-        canvas.drawLine(
-            Offset(rulerX, yBot), Offset(rulerX + 5, yBot - 6), slimDash);
-
-        // "1" bubble at middle line
-        final oneTxt = _txt("1", fs: 12);
-        final oneRR = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(
-              (lips[0].x1 * sx + lips[0].x2 * sx) / 2,
-              middle.y1 * sy - 12,
-            ),
-            width: oneTxt.width + 14,
-            height: oneTxt.height + 8,
-          ),
-          const Radius.circular(10),
-        );
-        canvas.drawRRect(oneRR, pink);
-        oneTxt.paint(
-          canvas,
-          Offset(oneRR.outerRect.center.dx - oneTxt.width / 2,
-              oneRR.outerRect.center.dy - oneTxt.height / 2),
-        );
-
-        // ratio bubble next to ruler
-        final ratioTxt = _txt(data.lipRatio ?? "", fs: 12);
-        final ratioRR = RRect.fromRectAndRadius(
-          Rect.fromCenter(
-            center: Offset(rulerX + 34, (yTop + yBot) / 2),
-            width: ratioTxt.width + 16,
-            height: ratioTxt.height + 8,
-          ),
-          const Radius.circular(10),
-        );
-        canvas.drawRRect(ratioRR, pink);
-        ratioTxt.paint(
-          canvas,
-          Offset(ratioRR.outerRect.center.dx - ratioTxt.width / 2,
-              ratioRR.outerRect.center.dy - ratioTxt.height / 2),
-        );
+        final ratio = _tp(data.lipRatio ?? "", fs: 12);
+        final ratioRR =
+            _bubbleAt(Offset(rulerX + 30, (yTop + yBot) / 2), ratio);
+        canvas.drawRRect(ratioRR, _bubblePaint(ratioRR));
+        ratio.paint(
+            canvas,
+            Offset(ratioRR.outerRect.center.dx - ratio.width / 2,
+                ratioRR.outerRect.center.dy - ratio.height / 2));
       }
 
-      _pill2(
-        canvas,
-        size,
-        title: "Your ${data.lipRatio ?? ''}",
-        subtitle: "Golden ${data.lipIdeal ?? ''}",
-      );
+      _pill(canvas, size,
+          your: "Your ${data.lipRatio ?? ''}",
+          golden: "Golden ${data.lipIdeal ?? ''}");
       return;
     }
 
-    // ================== JAW ==================
+    // ================= JAW =================
     if (mode == RatioMode.jaw) {
       final j = data.jaw;
       if (j == null) return;
-
       Offset sc(Offset o) => Offset(o.dx * sx, o.dy * sy);
+      final a = sc(j.leftJaw),
+          b = sc(j.rightJaw),
+          c = sc(j.chin),
+          d = sc(j.noseBottom);
 
-      final a = sc(j.leftJaw);
-      final b = sc(j.rightJaw);
-      final c = sc(j.chin);
-      final dPt = sc(j.noseBottom);
-
-      final dashPaint = Paint()
-        ..color = Colors.white
-        ..strokeWidth = 2
-        ..isAntiAlias = true;
-
-      final stroke = Paint()
-        ..color = Colors.white
-        ..strokeWidth = 2
-        ..style = PaintingStyle.stroke
-        ..isAntiAlias = true;
-
-      // lower face frame
-      final frame = Path()
+      // elegant lower-face curve (soft)
+      final path = Path()
         ..moveTo(a.dx, a.dy)
-        ..lineTo(b.dx, b.dy)
-        ..quadraticBezierTo((a.dx + b.dx) / 2, c.dy - 18, a.dx, a.dy);
-      canvas.drawPath(
-          frame,
-          Paint()
-            ..color = Colors.white.withOpacity(0.08)
-            ..style = PaintingStyle.fill);
-      canvas.drawPath(frame, stroke);
+        ..quadraticBezierTo((a.dx + b.dx) / 2, c.dy - 14, b.dx, b.dy)
+        ..quadraticBezierTo((a.dx + b.dx) / 2, c.dy - 22, a.dx, a.dy);
+      canvas.drawPath(path, _softFill);
+      canvas.drawPath(path, _line);
 
-      // dots
-      void dot(Offset p) =>
-          canvas.drawCircle(p, 3, Paint()..color = Colors.white);
+      // landmark dots
+      void dot(Offset p) => canvas.drawCircle(p, 2.6, Paint()..color = _plum);
       dot(a);
       dot(b);
       dot(c);
-      dot(dPt);
+      dot(d);
 
-      // dashed helpers
-      void dashedH(double x1, double x2, double y,
-          {double dash = 8, double gap = 6}) {
-        double x = x1;
-        while (x < x2) {
-          final x2c = (x + dash).clamp(x1, x2);
-          canvas.drawLine(Offset(x, y), Offset(x2c.toDouble(), y), dashPaint);
-          x += dash + gap;
-        }
-      }
-
-      void dashedV(double x, double y1, double y2,
-          {double dash = 8, double gap = 6}) {
-        double y = y1;
-        while (y < y2) {
-          final y2c = (y + dash).clamp(y1, y2);
-          canvas.drawLine(Offset(x, y), Offset(x, y2c.toDouble()), dashPaint);
-          y += dash + gap;
-        }
-      }
-
-      // arrows
-      void arrowHLeft(Offset p) {
-        canvas.drawLine(p, p + const Offset(8, -6), dashPaint);
-        canvas.drawLine(p, p + const Offset(8, 6), dashPaint);
-      }
-
-      void arrowHRight(Offset p) {
-        canvas.drawLine(p, p + const Offset(-8, -6), dashPaint);
-        canvas.drawLine(p, p + const Offset(-8, 6), dashPaint);
-      }
-
-      void arrowUp(Offset p) {
-        canvas.drawLine(p, p + const Offset(-6, 8), dashPaint);
-        canvas.drawLine(p, p + const Offset(6, 8), dashPaint);
-      }
-
-      void arrowDown(Offset p) {
-        canvas.drawLine(p, p + const Offset(-6, -8), dashPaint);
-        canvas.drawLine(p, p + const Offset(6, -8), dashPaint);
-      }
-
-      // jaw width ruler
+      // jaw width (↔) a bit above jaw line
       final yJaw = (a.dy + b.dy) / 2 - 10;
-      dashedH(a.dx + 8, b.dx - 8, yJaw);
-      arrowHLeft(Offset(a.dx + 8, yJaw));
-      arrowHRight(Offset(b.dx - 8, yJaw));
+      _dashedH(canvas, a.dx + 8, b.dx - 8, yJaw);
+      _arrowLeft(canvas, Offset(a.dx + 8, yJaw));
+      _arrowRight(canvas, Offset(b.dx - 8, yJaw));
 
-      // height ruler (noseBottom -> chin)
-      final mid = Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2);
-      final xMid = mid.dx;
-      final yTop = dPt.dy + 8;
-      final yBot = c.dy - 8;
-      dashedV(xMid, yTop, yBot);
-      arrowUp(Offset(xMid, yTop));
-      arrowDown(Offset(xMid, yBot));
+      // nose-bottom → chin (↕)
+      final xMid = (a.dx + b.dx) / 2, yTop = d.dy + 8, yBot = c.dy - 8;
+      _dashedV(canvas, xMid, yTop, yBot);
+      _arrowUp(canvas, Offset(xMid, yTop));
+      _arrowDown(canvas, Offset(xMid, yBot));
 
-      _pill2(
-        canvas,
-        size,
-        title: "Your ${j.ratio.toStringAsFixed(3)}",
-        subtitle: "Golden ${j.ideal.toStringAsFixed(3)}",
-      );
+      _pill(canvas, size,
+          your: "Your ${j.ratio.toStringAsFixed(3)}",
+          golden: "Golden ${j.ideal.toStringAsFixed(3)}");
 
-      // pink bubbles: width→"1", height→ratio
-      final wTxt = _txt("1", fs: 14);
-      final wRR = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset((a.dx + b.dx) / 2, yJaw - 16),
-          width: wTxt.width + 16,
-          height: wTxt.height + 10,
-        ),
-        const Radius.circular(12),
-      );
-      canvas.drawRRect(wRR, pink);
+      // width bubble "1"
+      final wTxt = _tp("1", fs: 13);
+      final wRR = _bubbleAt(Offset((a.dx + b.dx) / 2, yJaw - 14), wTxt);
+      canvas.drawRRect(wRR, _bubblePaint(wRR));
       wTxt.paint(
-        canvas,
-        Offset(wRR.outerRect.center.dx - wTxt.width / 2,
-            wRR.outerRect.center.dy - wTxt.height / 2),
-      );
+          canvas,
+          Offset(wRR.outerRect.center.dx - wTxt.width / 2,
+              wRR.outerRect.center.dy - wTxt.height / 2));
 
-      final hTxt = _txt(j.ratio.toStringAsFixed(3), fs: 14);
-      final hRR = RRect.fromRectAndRadius(
-        Rect.fromCenter(
-          center: Offset(xMid + 40, (yTop + yBot) / 2),
-          width: hTxt.width + 18,
-          height: hTxt.height + 10,
-        ),
-        const Radius.circular(12),
-      );
-      canvas.drawRRect(hRR, pink);
+      // height bubble (ratio)
+      final hTxt = _tp(j.ratio.toStringAsFixed(3), fs: 13);
+      final hRR = _bubbleAt(Offset(xMid + 38, (yTop + yBot) / 2), hTxt);
+      canvas.drawRRect(hRR, _bubblePaint(hRR));
       hTxt.paint(
-        canvas,
-        Offset(hRR.outerRect.center.dx - hTxt.width / 2,
-            hRR.outerRect.center.dy - hTxt.height / 2),
-      );
+          canvas,
+          Offset(hRR.outerRect.center.dx - hTxt.width / 2,
+              hRR.outerRect.center.dy - hTxt.height / 2));
       return;
     }
   }

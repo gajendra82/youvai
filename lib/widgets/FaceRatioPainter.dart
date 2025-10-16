@@ -6,56 +6,61 @@ class PrettyRatioPainter extends CustomPainter {
   final RatioMode mode;
   PrettyRatioPainter(this.data, this.mode);
 
-  // ===== Brand palette (approx. from logo) =====
-  static const _rose = Color(0xFFE07B82); // primary
-  static const _roseDeep = Color(0xFFD56A73);
-  static const _mauve = Color(0xFFB15E66);
-  static const _plum = Color(0xFF8A4750); // dark stroke
-  static const _maroon = Color(0xFF6E3A40); // darkest accents
-  static const _veil = Color(0x0F000000); // 6% black
-  static const _pillBg = Color(0xCC1E1E1E); // pill back (80% dark)
+  // ===== Brightened Brand Palette =====
+  static const _rose = Color(0xFFF58B92);
+  static const _roseDeep = Color(0xFFE67880);
+  static const _mauve = Color(0xFFCA6E77);
+  static const _plum = Color(0xFFA4545E);
+  static const _maroon = Color(0xFF7B3E45);
+  static const _veil = Color(0x15000000);
+  static const _pillBg = Color(0xE61C1C1C);
 
-  // ===== Brand paints (thin, rounded) =====
+  // ===== Mobile-Optimized Paints =====
   Paint get _edge => Paint()
-    ..color = _plum.withOpacity(.95)
-    ..strokeWidth = 1.6
+    ..color = _plum.withOpacity(.98)
+    ..strokeWidth = 2.3
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round
     ..isAntiAlias = true;
 
   Paint get _line => Paint()
-    ..color = _roseDeep
-    ..strokeWidth = 1.4
+    ..color = _roseDeep.withOpacity(.95)
+    ..strokeWidth = 2.0
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round
     ..isAntiAlias = true;
 
   Paint get _dash => Paint()
-    ..color = _mauve
-    ..strokeWidth = 1.4
+    ..color = _mauve.withOpacity(.95)
+    ..strokeWidth = 1.8
     ..style = PaintingStyle.stroke
     ..strokeCap = StrokeCap.round
     ..isAntiAlias = true;
 
   Paint get _softFill => Paint()
-    ..color = _rose.withOpacity(.10)
+    ..color = _rose.withOpacity(.14)
     ..style = PaintingStyle.fill;
 
   Paint _bubblePaint(RRect r) => Paint()
     ..shader = const LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
-      colors: [_rose, _mauve],
+      colors: [Color(0xFFF999A0), Color(0xFFE26E77)],
     ).createShader(r.outerRect);
 
-  // ---- tiny helpers ----
   TextPainter _tp(String s,
-      {double fs = 13,
-      FontWeight fw = FontWeight.w700,
+      {double fs = 14,
+      FontWeight fw = FontWeight.w800,
       Color c = Colors.white}) {
     final t = TextPainter(
       text: TextSpan(
-          text: s, style: TextStyle(fontSize: fs, fontWeight: fw, color: c)),
+          text: s,
+          style: TextStyle(
+            fontSize: fs,
+            fontWeight: fw,
+            color: c,
+            letterSpacing: .3,
+          )),
       textDirection: TextDirection.ltr,
     );
     t.layout();
@@ -63,36 +68,35 @@ class PrettyRatioPainter extends CustomPainter {
   }
 
   void _pill(Canvas canvas, Size size, {required String your, String? golden}) {
-    final title = _tp(your, fs: 16, fw: FontWeight.w800);
+    final title = _tp(your, fs: 17, fw: FontWeight.w900);
     final sub = golden != null && golden.trim().isNotEmpty
-        ? _tp(golden, fs: 13, fw: FontWeight.w700, c: Colors.white70)
+        ? _tp(golden, fs: 14, fw: FontWeight.w600, c: Colors.white70)
         : null;
 
     final w = sub == null
-        ? (title.width + 34)
-        : (title.width > (sub.width) ? title.width : sub.width) + 34;
+        ? (title.width + 38)
+        : (title.width > sub.width ? title.width : sub.width) + 40;
     final h =
-        sub == null ? (title.height + 14) : (title.height + sub.height + 20);
+        sub == null ? (title.height + 16) : (title.height + sub.height + 24);
 
     final r = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset(size.width / 2, 30), width: w, height: h),
-      const Radius.circular(22),
+      Rect.fromCenter(center: Offset(size.width / 2, 34), width: w, height: h),
+      const Radius.circular(24),
     );
     canvas.drawRRect(r, Paint()..color = _pillBg);
 
-    final topLeft = Offset(size.width / 2 - title.width / 2, 30 - (h / 2) + 10);
+    final topLeft = Offset(size.width / 2 - title.width / 2, 34 - (h / 2) + 10);
     title.paint(canvas, topLeft);
 
     if (sub != null) {
       final subTop =
-          topLeft + Offset((title.width - sub.width) / 2, title.height + 2);
+          topLeft + Offset((title.width - sub.width) / 2, title.height + 5);
       sub.paint(canvas, subTop);
     }
   }
 
-  // dashed line helpers
   void _dashedH(Canvas c, double x1, double x2, double y,
-      {double dash = 7, double gap = 5}) {
+      {double dash = 8, double gap = 5}) {
     double x = x1;
     while (x < x2) {
       final x2c = (x + dash).clamp(x1, x2);
@@ -102,7 +106,7 @@ class PrettyRatioPainter extends CustomPainter {
   }
 
   void _dashedV(Canvas c, double x, double y1, double y2,
-      {double dash = 7, double gap = 5}) {
+      {double dash = 8, double gap = 5}) {
     double y = y1;
     while (y < y2) {
       final y2c = (y + dash).clamp(y1, y2);
@@ -112,29 +116,29 @@ class PrettyRatioPainter extends CustomPainter {
   }
 
   void _arrowUp(Canvas c, Offset p) {
-    c.drawLine(p, p + const Offset(-5, 7), _dash);
-    c.drawLine(p, p + const Offset(5, 7), _dash);
+    c.drawLine(p, p + const Offset(-5, 8), _dash);
+    c.drawLine(p, p + const Offset(5, 8), _dash);
   }
 
   void _arrowDown(Canvas c, Offset p) {
-    c.drawLine(p, p + const Offset(-5, -7), _dash);
-    c.drawLine(p, p + const Offset(5, -7), _dash);
+    c.drawLine(p, p + const Offset(-5, -8), _dash);
+    c.drawLine(p, p + const Offset(5, -8), _dash);
   }
 
   void _arrowLeft(Canvas c, Offset p) {
-    c.drawLine(p, p + const Offset(7, -5), _dash);
-    c.drawLine(p, p + const Offset(7, 5), _dash);
+    c.drawLine(p, p + const Offset(8, -5), _dash);
+    c.drawLine(p, p + const Offset(8, 5), _dash);
   }
 
   void _arrowRight(Canvas c, Offset p) {
-    c.drawLine(p, p + const Offset(-7, -5), _dash);
-    c.drawLine(p, p + const Offset(-7, 5), _dash);
+    c.drawLine(p, p + const Offset(-8, -5), _dash);
+    c.drawLine(p, p + const Offset(-8, 5), _dash);
   }
 
   RRect _bubbleAt(Offset center, TextPainter txt) => RRect.fromRectAndRadius(
         Rect.fromCenter(
-            center: center, width: txt.width + 16, height: txt.height + 9),
-        const Radius.circular(12),
+            center: center, width: txt.width + 20, height: txt.height + 10),
+        const Radius.circular(14),
       );
 
   @override
@@ -142,7 +146,6 @@ class PrettyRatioPainter extends CustomPainter {
     // veil
     canvas.drawRect(Offset.zero & size, Paint()..color = _veil);
 
-    // scale (full-image coordinates)
     final sx = size.width / (data.imageW == 0 ? size.width : data.imageW);
     final sy = size.height / (data.imageH == 0 ? size.height : data.imageH);
 

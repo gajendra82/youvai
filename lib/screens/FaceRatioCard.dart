@@ -4,7 +4,13 @@ import 'package:skin_assessment/widgets/FaceRatioPainter.dart';
 
 class FaceRatioPrettyCard extends StatefulWidget {
   final FaceRatioData data;
-  const FaceRatioPrettyCard({Key? key, required this.data}) : super(key: key);
+  final ValueChanged<RatioMode>? onModeChanged; // callback to parent
+
+  const FaceRatioPrettyCard({
+    Key? key,
+    required this.data,
+    this.onModeChanged,
+  }) : super(key: key);
 
   @override
   State<FaceRatioPrettyCard> createState() => _FaceRatioPrettyCardState();
@@ -12,6 +18,13 @@ class FaceRatioPrettyCard extends StatefulWidget {
 
 class _FaceRatioPrettyCardState extends State<FaceRatioPrettyCard> {
   RatioMode _mode = RatioMode.vertical;
+
+  // Centralized setter so EVERY mode change also notifies the parent.
+  void _setMode(RatioMode m) {
+    if (_mode == m) return;
+    setState(() => _mode = m);
+    widget.onModeChanged?.call(m);
+  }
 
   bool get _hasVertical => widget.data.verticalLines.isNotEmpty;
   bool get _hasHorizontal => widget.data.horizontalLines.isNotEmpty;
@@ -22,15 +35,12 @@ class _FaceRatioPrettyCardState extends State<FaceRatioPrettyCard> {
   bool get _hasLips => widget.data.lipLines.isNotEmpty;
   bool get _hasJaw => widget.data.jaw != null;
 
-  void _select(RatioMode m) {
-    setState(() => _mode = m);
-  }
-
   @override
   Widget build(BuildContext context) {
     final img = widget.data.imageBytes;
 
-    // If the current mode has no data (e.g., after a new JSON), auto-fallback to the first available mode
+    // If current mode has no data (e.g., after loading a new JSON),
+    // auto-fallback to the first available mode and notify the parent.
     if ((_mode == RatioMode.vertical && !_hasVertical) ||
         (_mode == RatioMode.horizontal && !_hasHorizontal) ||
         (_mode == RatioMode.eyes && !_hasEyes) ||
@@ -51,16 +61,16 @@ class _FaceRatioPrettyCardState extends State<FaceRatioPrettyCard> {
           .firstWhere((e) => e.value, orElse: () => MapEntry(_mode, true))
           .key;
       if (firstAvail != _mode) {
-        // schedule after build to avoid setState in build warning
+        // schedule after build to avoid setState during build
         WidgetsBinding.instance
-            .addPostFrameCallback((_) => _select(firstAvail));
+            .addPostFrameCallback((_) => _setMode(firstAvail));
       }
     }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // title + SCROLLABLE chips
+        // Title + SCROLLABLE chips
         Row(
           children: [
             const Icon(Icons.grid_view_rounded,
@@ -77,7 +87,7 @@ class _FaceRatioPrettyCardState extends State<FaceRatioPrettyCard> {
                       label: const Text("Vertical"),
                       selected: _mode == RatioMode.vertical,
                       onSelected: _hasVertical
-                          ? (_) => _select(RatioMode.vertical)
+                          ? (_) => _setMode(RatioMode.vertical)
                           : null,
                     ),
                     const SizedBox(width: 8),
@@ -85,7 +95,7 @@ class _FaceRatioPrettyCardState extends State<FaceRatioPrettyCard> {
                       label: const Text("Horizontal"),
                       selected: _mode == RatioMode.horizontal,
                       onSelected: _hasHorizontal
-                          ? (_) => _select(RatioMode.horizontal)
+                          ? (_) => _setMode(RatioMode.horizontal)
                           : null,
                     ),
                     const SizedBox(width: 8),
@@ -93,21 +103,21 @@ class _FaceRatioPrettyCardState extends State<FaceRatioPrettyCard> {
                       label: const Text("Eyes"),
                       selected: _mode == RatioMode.eyes,
                       onSelected:
-                          _hasEyes ? (_) => _select(RatioMode.eyes) : null,
+                          _hasEyes ? (_) => _setMode(RatioMode.eyes) : null,
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text("Face"),
                       selected: _mode == RatioMode.faceBox,
                       onSelected:
-                          _hasFace ? (_) => _select(RatioMode.faceBox) : null,
+                          _hasFace ? (_) => _setMode(RatioMode.faceBox) : null,
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text("Nose-Lip-Chin"),
                       selected: _mode == RatioMode.noseLipChin,
                       onSelected: _hasNLC
-                          ? (_) => _select(RatioMode.noseLipChin)
+                          ? (_) => _setMode(RatioMode.noseLipChin)
                           : null,
                     ),
                     const SizedBox(width: 8),
@@ -115,14 +125,14 @@ class _FaceRatioPrettyCardState extends State<FaceRatioPrettyCard> {
                       label: const Text("Lips"),
                       selected: _mode == RatioMode.lips,
                       onSelected:
-                          _hasLips ? (_) => _select(RatioMode.lips) : null,
+                          _hasLips ? (_) => _setMode(RatioMode.lips) : null,
                     ),
                     const SizedBox(width: 8),
                     ChoiceChip(
                       label: const Text("Jaw"),
                       selected: _mode == RatioMode.jaw,
                       onSelected:
-                          _hasJaw ? (_) => _select(RatioMode.jaw) : null,
+                          _hasJaw ? (_) => _setMode(RatioMode.jaw) : null,
                     ),
                     const SizedBox(width: 6),
                   ],
@@ -133,7 +143,7 @@ class _FaceRatioPrettyCardState extends State<FaceRatioPrettyCard> {
         ),
         const SizedBox(height: 10),
 
-        // image + painter — IMPORTANT: keep image and painter in the same pixel space
+        // Image + painter — IMPORTANT: keep image and painter in the same pixel space
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: AspectRatio(

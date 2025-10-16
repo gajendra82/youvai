@@ -54,6 +54,36 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   String _appliedCoupon = "";
   final Map<String, Future<FaceRatioData?>> _faceRatioFutureByImage = {};
 
+  // ---------------- NEW: dynamic aspect label state ----------------
+  String _currentAspectLabel = "Vertical Sections";
+  void _onAspectModeChanged(RatioMode mode) {
+    setState(() {
+      _currentAspectLabel = _labelForMode(mode);
+    });
+  }
+
+  String _labelForMode(RatioMode mode) {
+    switch (mode) {
+      case RatioMode.vertical:
+        return "Vertical Sections";
+      case RatioMode.horizontal:
+        return "Horizontal Sections";
+      case RatioMode.eyes:
+        return "Eye Aspect Ratio";
+      case RatioMode.faceBox:
+        return "Face Aspect Ratio";
+      case RatioMode.noseLipChin:
+        return "Nose–Lip–Chin";
+      case RatioMode.lips:
+        return "Lips Ratio";
+      case RatioMode.jaw:
+        return "Jaw Ratio";
+      default:
+        return "Facial Ratio";
+    }
+  }
+  // -----------------------------------------------------------------
+
   @override
   void initState() {
     super.initState();
@@ -977,12 +1007,14 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                         BorderRadius.circular(
                                                             18),
                                                   ),
-                                                  child: const Text(
-                                                    "Facial Ratio (Vertical Sections)",
-                                                    style: TextStyle(
-                                                        color: Colors.white,
-                                                        fontWeight:
-                                                            FontWeight.w600),
+                                                  // --------- DYNAMIC TEXT HERE ----------
+                                                  child: Text(
+                                                    "Facial Ratio ($_currentAspectLabel)",
+                                                    style: const TextStyle(
+                                                      color: Colors.white,
+                                                      fontWeight:
+                                                          FontWeight.w600,
+                                                    ),
                                                   ),
                                                 ),
                                               ),
@@ -994,8 +1026,12 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             .faceRatioJson!);
                                                     return Column(
                                                       children: [
+                                                        // IMPORTANT: pass the callback so label updates on chip tap
                                                         FaceRatioPrettyCard(
-                                                            data: data),
+                                                          data: data,
+                                                          onModeChanged:
+                                                              _onAspectModeChanged, // <—
+                                                        ),
                                                       ],
                                                     );
                                                   } catch (e) {
@@ -1034,8 +1070,46 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                   }
                                                   return Column(
                                                     children: [
+                                                      Padding(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .only(
+                                                                bottom: 8.0),
+                                                        child: Container(
+                                                          padding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                                  horizontal:
+                                                                      12,
+                                                                  vertical: 6),
+                                                          decoration:
+                                                              BoxDecoration(
+                                                            color: Colors.black
+                                                                .withOpacity(
+                                                                    .65),
+                                                            borderRadius:
+                                                                BorderRadius
+                                                                    .circular(
+                                                                        18),
+                                                          ),
+                                                          child: Text(
+                                                            "Facial Ratio ($_currentAspectLabel)",
+                                                            style:
+                                                                const TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                        ),
+                                                      ),
                                                       FaceRatioPrettyCard(
-                                                          data: snap.data!),
+                                                        data: snap.data!,
+                                                        onModeChanged:
+                                                            _onAspectModeChanged, // <—
+                                                      ),
                                                     ],
                                                   );
                                                 },

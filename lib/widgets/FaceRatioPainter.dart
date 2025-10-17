@@ -316,6 +316,7 @@ class PrettyRatioPainter extends CustomPainter {
     }
 
     // ================= EYES =================
+// ================= EYES =================
     if (mode == RatioMode.eyes) {
       final l = data.leftEye, r = data.rightEye;
       if (l == null && r == null) return;
@@ -325,64 +326,101 @@ class PrettyRatioPainter extends CustomPainter {
       _pill(
         canvas,
         size,
-        your: "Your Ratio $overall",
+        your: "Your Ratio 1 : $overall",
         golden: "Golden ${l?.golden ?? r?.golden ?? ''}",
         scale: s,
       );
 
-      void eye(EyeBox e, String tag) {
+      void eye(EyeBox e) {
         final rect = Rect.fromLTRB(
           e.rect.left * sx,
           e.rect.top * sy,
           e.rect.right * sx,
           e.rect.bottom * sy,
         );
-        final rr = RRect.fromRectAndRadius(rect, Radius.circular(9 * s));
-        // soft highlight + thin border
-        canvas.drawRRect(rr, _softFill);
-        canvas.drawRRect(rr, line);
 
-        // OUTSIDE dashed rulers (←→) under the box, and (↑↓) at the left side
-        final belowY = rr.outerRect.bottom + 10 * s;
-        _dashedH(canvas, rr.outerRect.left + 8 * s, rr.outerRect.right - 8 * s,
-            belowY,
-            p: dash, scale: s);
-        _arrowLeft(canvas, Offset(rr.outerRect.left + 8 * s, belowY), dash, s);
-        _arrowRight(
-            canvas, Offset(rr.outerRect.right - 8 * s, belowY), dash, s);
+        // Eye rectangle (crisp, not rounded)
+        canvas.drawRect(rect, _softFill);
+        canvas.drawRect(rect, _lineP(s));
 
-        final leftX = rr.outerRect.left - 10 * s;
-        _dashedV(canvas, leftX, rr.outerRect.top + 6 * s,
-            rr.outerRect.bottom - 6 * s,
-            p: dash, scale: s);
-        _arrowUp(canvas, Offset(leftX, rr.outerRect.top + 6 * s), dash, s);
-        _arrowDown(canvas, Offset(leftX, rr.outerRect.bottom - 6 * s), dash, s);
+        // Measure eye height to adapt the side ruler so it never looks like an X
+        final h = rect.height;
 
-        // corner tag bubble (small)
-        final tagTxt = _tp(tag, fs: 11 * s);
-        final tagRR = _bubbleAt(
-            rr.outerRect.topLeft + Offset(-16 * s, -16 * s), tagTxt, s);
-        canvas.drawRRect(tagRR, _bubblePaint(tagRR));
-        tagTxt.paint(
+        // How far left the side ruler sits; push it farther left for tiny eyes
+        final sideInset = 12 * s + (h < 28 * s ? (28 * s - h) * .35 : 0);
+        final leftX = rect.left - sideInset;
+
+        // Vertical ruler length: clamp to a pleasant window so it doesn’t
+        // collide with the eye box corners on short heights
+        final vLen =
+            (h - 10 * s).clamp(18 * s, 42 * s); // min..max visible length
+        final vTop = rect.center.dy - vLen / 2;
+        final vBot = rect.center.dy + vLen / 2;
+
+        // Shrink dash & arrow heads for small eyes
+        final k = h < 28 * s ? 0.65 : 1.0; // scale factor for tiny heights
+        final dashLen = (8 * s * k);
+        final dashGap = (5 * s * k);
+
+        // Local smaller arrowheads so they don't create an "X" look
+        void _arrowUpSmall(Offset p) {
+          canvas.drawLine(p, p + Offset(-6 * s * k, 8 * s * k), _dashP(s));
+          canvas.drawLine(p, p + Offset(6 * s * k, 8 * s * k), _dashP(s));
+        }
+
+        void _arrowDownSmall(Offset p) {
+          canvas.drawLine(p, p + Offset(-6 * s * k, -8 * s * k), _dashP(s));
+          canvas.drawLine(p, p + Offset(6 * s * k, -8 * s * k), _dashP(s));
+        }
+
+        void _arrowLeftSmall(Offset p) {
+          canvas.drawLine(p, p + Offset(9 * s * k, -6 * s * k), _dashP(s));
+          canvas.drawLine(p, p + Offset(9 * s * k, 6 * s * k), _dashP(s));
+        }
+
+        void _arrowRightSmall(Offset p) {
+          canvas.drawLine(p, p + Offset(-9 * s * k, -6 * s * k), _dashP(s));
+          canvas.drawLine(p, p + Offset(-9 * s * k, 6 * s * k), _dashP(s));
+        }
+
+        // --- Horizontal dashed width ruler (below eye) ---
+        final belowY = rect.bottom + 10 * s;
+        _dashedH(canvas, rect.left, rect.right, belowY,
+            p: _dashP(s), dash: dashLen, gap: dashGap, scale: 1);
+        _arrowLeftSmall(Offset(rect.left, belowY));
+        _arrowRightSmall(Offset(rect.right, belowY));
+
+        // --- Vertical dashed height ruler (left of eye), adapted to eye height ---
+        _dashedV(canvas, leftX, vTop, vBot,
+            p: _dashP(s), dash: dashLen, gap: dashGap, scale: 1);
+        _arrowUpSmall(Offset(leftX, vTop));
+        _arrowDownSmall(Offset(leftX, vBot));
+
+        // --- “1” bubble on the side ruler ---
+        final oneTxt = _tp("1", fs: 11 * s);
+        final oneRR =
+            _bubbleAt(Offset(leftX - 16 * s, rect.center.dy), oneTxt, s);
+        canvas.drawRRect(oneRR, _bubblePaint(oneRR));
+        oneTxt.paint(
           canvas,
-          Offset(tagRR.outerRect.center.dx - tagTxt.width / 2,
-              tagRR.outerRect.center.dy - tagTxt.height / 2),
+          Offset(oneRR.outerRect.center.dx - oneTxt.width / 2,
+              oneRR.outerRect.center.dy - oneTxt.height / 2),
         );
 
-        // measured bubble centered below
-        final mTxt = _tp(e.measured, fs: 13 * s);
-        final mRR =
-            _bubbleAt(Offset(rr.outerRect.center.dx, belowY + 18 * s), mTxt, s);
-        canvas.drawRRect(mRR, _bubblePaint(mRR));
-        mTxt.paint(
+        // --- measured ratio bubble below the eye ---
+        final ratioTxt = _tp(e.measured, fs: 13 * s);
+        final ratioRR =
+            _bubbleAt(Offset(rect.center.dx, belowY + 20 * s), ratioTxt, s);
+        canvas.drawRRect(ratioRR, _bubblePaint(ratioRR));
+        ratioTxt.paint(
           canvas,
-          Offset(mRR.outerRect.center.dx - mTxt.width / 2,
-              mRR.outerRect.center.dy - mTxt.height / 2),
+          Offset(ratioRR.outerRect.center.dx - ratioTxt.width / 2,
+              ratioRR.outerRect.center.dy - ratioTxt.height / 2),
         );
       }
 
-      if (l != null) eye(l, "1");
-      if (r != null) eye(r, "1");
+      if (l != null) eye(l);
+      if (r != null) eye(r);
       return;
     }
 

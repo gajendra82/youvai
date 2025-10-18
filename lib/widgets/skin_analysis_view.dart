@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/screens/SkinConditionResultPage.dart';
+import 'package:youv_ai/screens/SkinConditionResultPage.dart';
 import '../models/skin_analysis_model.dart';
 import 'patch_painter.dart';
 
@@ -55,7 +55,6 @@ class _SkinAnalysisViewState extends State<SkinAnalysisView> {
       }
     });
   }
-
 
   void _parsePatches() {
     _patches = SkinPatch.fromJsonAll(widget.analysisJson);

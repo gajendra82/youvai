@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/models/FaceRatioLine.dart';
-import 'package:skin_assessment/widgets/FaceRatioPainter.dart';
+import 'package:youv_ai/models/FaceRatioLine.dart';
+import 'package:youv_ai/widgets/FaceRatioPainter.dart';
 
 class FaceRatioPrettyCard extends StatefulWidget {
   final FaceRatioData data;

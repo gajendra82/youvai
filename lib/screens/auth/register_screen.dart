@@ -3,9 +3,9 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pinput/pinput.dart';
-import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
-import 'package:skin_assessment/bloc/auth/auth_event.dart';
-import 'package:skin_assessment/bloc/auth/auth_state.dart';
+import 'package:youv_ai/bloc/auth/auth_bloc.dart';
+import 'package:youv_ai/bloc/auth/auth_event.dart';
+import 'package:youv_ai/bloc/auth/auth_state.dart';
 import 'package:image_picker/image_picker.dart';
 
 class RegisterPage extends StatefulWidget {

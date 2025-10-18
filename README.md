@@ -1,4 +1,4 @@
-# skin_assessment
+# youv_ai
 
 A new Flutter project.
 

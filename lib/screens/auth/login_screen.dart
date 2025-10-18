@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:pinput/pinput.dart';
-import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
-import 'package:skin_assessment/bloc/auth/auth_event.dart';
-import 'package:skin_assessment/bloc/auth/auth_state.dart';
-import 'package:skin_assessment/screens/TermAndCondition.dart';
-import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:youv_ai/bloc/auth/auth_bloc.dart';
+import 'package:youv_ai/bloc/auth/auth_event.dart';
+import 'package:youv_ai/bloc/auth/auth_state.dart';
+import 'package:youv_ai/screens/TermAndCondition.dart';
+import 'package:youv_ai/utils/app_routes.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:async';
@@ -270,8 +270,8 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void showOtpPopup(
-      BuildContext context, void Function(String otp) onOtpSubmit, String phoneNumber) {
+  void showOtpPopup(BuildContext context, void Function(String otp) onOtpSubmit,
+      String phoneNumber) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -462,7 +462,7 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
   @override
   Widget build(BuildContext context) {
     final primaryColor = Theme.of(context).primaryColor;
-    
+
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
         if (state is AuthError) {
@@ -555,7 +555,8 @@ class _OtpPopupWidgetState extends State<_OtpPopupWidget> {
                         width: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(Colors.white),
                         ),
                       )
                     : const Text(

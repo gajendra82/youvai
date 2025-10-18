@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/screens/auth/login_screen.dart';
-import 'package:skin_assessment/screens/auth/register_screen.dart';
-import 'package:skin_assessment/screens/dashboard.dart';
-import 'package:skin_assessment/screens/disclaimer_privacy_screen.dart';
-import 'package:skin_assessment/screens/guest/onboard_screen.dart';
-import 'package:skin_assessment/screens/guest/start_page.dart';
-import 'package:skin_assessment/screens/skin_analysis_screen.dart';
+import 'package:youv_ai/screens/auth/login_screen.dart';
+import 'package:youv_ai/screens/auth/register_screen.dart';
+import 'package:youv_ai/screens/dashboard.dart';
+import 'package:youv_ai/screens/disclaimer_privacy_screen.dart';
+import 'package:youv_ai/screens/guest/onboard_screen.dart';
+import 'package:youv_ai/screens/guest/start_page.dart';
+import 'package:youv_ai/screens/skin_analysis_screen.dart';
 // import other screens here
 
 class AppRoutes {

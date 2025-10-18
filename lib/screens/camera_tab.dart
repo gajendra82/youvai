@@ -1,10 +1,10 @@
 // import 'package:flutter/material.dart';
 // import 'package:image_picker/image_picker.dart';
-// import 'package:skin_assessment/screens/face_view.dart';
+// import 'package:youv_ai/screens/face_view.dart';
 // import 'dart:io';
 
-// import 'package:skin_assessment/screens/scan_face_screen.dart';
-// import 'package:skin_assessment/screens/skin_analysis_screen.dart';
+// import 'package:youv_ai/screens/scan_face_screen.dart';
+// import 'package:youv_ai/screens/skin_analysis_screen.dart';
 
 // class CameraTabScreen extends StatefulWidget {
 //   const CameraTabScreen({Key? key}) : super(key: key);

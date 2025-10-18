@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/screens/appointment.dart';
-import 'package:skin_assessment/screens/chat_page.dart';
-import 'package:skin_assessment/screens/dashboard.dart';
-import 'package:skin_assessment/screens/camera_tab.dart';
-import 'package:skin_assessment/screens/skin_analysis_screen.dart';
-import 'package:skin_assessment/widgets/custom_bottom_navbar.dart';
+import 'package:youv_ai/screens/appointment.dart';
+import 'package:youv_ai/screens/chat_page.dart';
+import 'package:youv_ai/screens/dashboard.dart';
+import 'package:youv_ai/screens/camera_tab.dart';
+import 'package:youv_ai/screens/skin_analysis_screen.dart';
+import 'package:youv_ai/widgets/custom_bottom_navbar.dart';
 // Add your other screen imports here
 
 class HomeScreen extends StatefulWidget {

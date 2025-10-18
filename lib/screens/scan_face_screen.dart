@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:youv_ai/utils/app_routes.dart';
 
 class ScanFaceScreen extends StatefulWidget {
   const ScanFaceScreen({

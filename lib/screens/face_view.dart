@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 
-import 'package:skin_assessment/screens/view_all_overview.dart';
+import 'package:youv_ai/screens/view_all_overview.dart';
 
 class SkinDisease {
   final String name;
@@ -207,7 +207,8 @@ class _FaceViewPageState extends State<FaceViewPage> {
                             color: Colors.deepPurple[300], size: 34),
                       ),
                       IconButton(
-                        icon: const Icon(Icons.more_vert, color: Colors.black54),
+                        icon:
+                            const Icon(Icons.more_vert, color: Colors.black54),
                         onPressed: () {},
                       ),
                     ],
@@ -224,7 +225,8 @@ class _FaceViewPageState extends State<FaceViewPage> {
                       padding: const EdgeInsets.only(top: 16, bottom: 18),
                       decoration: const BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                        borderRadius:
+                            BorderRadius.vertical(top: Radius.circular(30)),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black12,
@@ -241,14 +243,17 @@ class _FaceViewPageState extends State<FaceViewPage> {
                             height: 46,
                             child: ListView(
                               scrollDirection: Axis.horizontal,
-                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 16),
                               children: [
                                 Padding(
-                                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                                  padding:
+                                      const EdgeInsets.symmetric(horizontal: 7),
                                   child: ChoiceChip(
                                     label: const Text(
                                       "All",
-                                      style: TextStyle(fontWeight: FontWeight.bold),
+                                      style: TextStyle(
+                                          fontWeight: FontWeight.bold),
                                     ),
                                     selected: _selectedTab == 0,
                                     onSelected: (_) {
@@ -264,7 +269,8 @@ class _FaceViewPageState extends State<FaceViewPage> {
                                     shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(15),
                                     ),
-                                    labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                    labelPadding: const EdgeInsets.symmetric(
+                                        horizontal: 16),
                                   ),
                                 ),
                                 ..._diseases.asMap().entries.map((entry) {
@@ -272,11 +278,13 @@ class _FaceViewPageState extends State<FaceViewPage> {
                                   final d = entry.value;
                                   final selected = _selectedTab == idx + 1;
                                   return Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 7),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 7),
                                     child: ChoiceChip(
                                       label: Text(
                                         d.name,
-                                        style: const TextStyle(fontWeight: FontWeight.bold),
+                                        style: const TextStyle(
+                                            fontWeight: FontWeight.bold),
                                       ),
                                       selected: selected,
                                       onSelected: (_) {
@@ -285,7 +293,8 @@ class _FaceViewPageState extends State<FaceViewPage> {
                                           _selectedDisease = idx;
                                         });
                                       },
-                                      selectedColor: d.color ?? const Color(0xFF7C6CC6),
+                                      selectedColor:
+                                          d.color ?? const Color(0xFF7C6CC6),
                                       backgroundColor: Colors.grey[200],
                                       labelStyle: TextStyle(
                                         color: selected
@@ -295,7 +304,8 @@ class _FaceViewPageState extends State<FaceViewPage> {
                                       shape: RoundedRectangleBorder(
                                         borderRadius: BorderRadius.circular(15),
                                       ),
-                                      labelPadding: const EdgeInsets.symmetric(horizontal: 16),
+                                      labelPadding: const EdgeInsets.symmetric(
+                                          horizontal: 16),
                                     ),
                                   );
                                 }).toList(),
@@ -306,7 +316,8 @@ class _FaceViewPageState extends State<FaceViewPage> {
                           // Show info for selected disease ONLY if not "All"
                           if (_selectedTab != 0)
                             Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 24),
+                              padding:
+                                  const EdgeInsets.symmetric(horizontal: 24),
                               child: Column(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
@@ -315,13 +326,15 @@ class _FaceViewPageState extends State<FaceViewPage> {
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 18,
-                                      color: _diseases[_selectedDisease].color ??
-                                          const Color(0xFF7C6CC6),
+                                      color:
+                                          _diseases[_selectedDisease].color ??
+                                              const Color(0xFF7C6CC6),
                                     ),
                                   ),
                                   const SizedBox(height: 10),
                                   Text(
-                                    _diseases[_selectedDisease].description ?? '',
+                                    _diseases[_selectedDisease].description ??
+                                        '',
                                     textAlign: TextAlign.center,
                                     style: const TextStyle(
                                       fontSize: 14,
@@ -341,25 +354,27 @@ class _FaceViewPageState extends State<FaceViewPage> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: const Color(0xFF7C6CC6),
                                   foregroundColor: Colors.white,
-                                  padding: const EdgeInsets.symmetric(vertical: 16),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 16),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),
                                 ),
                                 // onPressed: _showOverviewSheet,
-                                onPressed: (){
+                                onPressed: () {
                                   // Navigator.pushNamed(context, '/view_all_overview');
                                   Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>  SkinOverviewPage(),
+                                      builder: (context) => SkinOverviewPage(),
                                     ),
                                   );
                                 },
                                 child: const Text(
                                   "View All Overview & Skin Analysis",
                                   style: TextStyle(
-                                      fontSize: 15, fontWeight: FontWeight.bold),
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ),
@@ -386,9 +401,8 @@ class _DiseasePoint extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = highlighted
-        ? (disease.color ?? const Color(0xFF7C6CC6))
-        : Colors.white;
+    final color =
+        highlighted ? (disease.color ?? const Color(0xFF7C6CC6)) : Colors.white;
     final borderColor = highlighted
         ? (disease.color ?? const Color(0xFF7C6CC6))
         : Colors.deepPurple;

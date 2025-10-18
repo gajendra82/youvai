@@ -1,5 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/models/FaceRatioLine.dart';
+import 'package:youv_ai/models/FaceRatioLine.dart';
 
 class PrettyRatioPainter extends CustomPainter {
   final FaceRatioData data;
@@ -625,44 +627,59 @@ class PrettyRatioPainter extends CustomPainter {
     }
 
     // ================= JAW =================
+// ================= JAW =================
     if (mode == RatioMode.jaw) {
       final j = data.jaw;
       if (j == null) return;
 
       Offset sc(Offset o) => Offset(o.dx * sx, o.dy * sy);
-      final a = sc(j.leftJaw),
-          b = sc(j.rightJaw),
-          c = sc(j.chin),
-          d = sc(j.noseBottom);
+      final a = sc(j.leftJaw); // left jaw anchor
+      final b = sc(j.rightJaw); // right jaw anchor
+      final cPt = sc(j.chin); // chin (control for the U curve)
+      final nose = sc(j.noseBottom); // nose bottom
 
-      // elegant lower-face curve (soft)
+      // --- Jaw curve: single quadratic (left -> right) with CHIN as control ---
       final path = Path()
         ..moveTo(a.dx, a.dy)
-        ..quadraticBezierTo((a.dx + b.dx) / 2, c.dy - 14 * s, b.dx, b.dy)
-        ..quadraticBezierTo((a.dx + b.dx) / 2, c.dy - 22 * s, a.dx, a.dy);
-      canvas.drawPath(path, _softFill);
-      canvas.drawPath(path, _lineP(s));
+        ..quadraticBezierTo(cPt.dx, cPt.dy, b.dx, b.dy);
+      canvas.drawPath(path, _softFill); // subtle glow under the line
+      canvas.drawPath(path, _lineP(s)); // main stroke
 
-      // landmark dots (slightly larger)
+      // --- Landmark dots (kept small so they don't distract) ---
       void dot(Offset p) =>
-          canvas.drawCircle(p, 3.2 * s, Paint()..color = _plum);
+          canvas.drawCircle(p, 3.0 * s, Paint()..color = _plum);
       dot(a);
       dot(b);
-      dot(c);
-      dot(d);
+      dot(cPt);
+      dot(nose);
 
-      // jaw width (↔) a bit above jaw line
-      final yJaw = (a.dy + b.dy) / 2 - 10 * s;
-      _dashedH(canvas, a.dx + 8 * s, b.dx - 8 * s, yJaw, p: dash, scale: s);
-      _arrowLeft(canvas, Offset(a.dx + 8 * s, yJaw), dash, s);
-      _arrowRight(canvas, Offset(b.dx - 8 * s, yJaw), dash, s);
+      // --- Jaw width ruler (↔) exactly along the anchor line y ---
+      final yWidth = (a.dy + b.dy) / 2; // mid of left/right anchors
+      _dashedH(canvas, a.dx + 8 * s, b.dx - 8 * s, yWidth,
+          p: _dashP(s), scale: s);
+      _arrowLeft(canvas, Offset(a.dx + 8 * s, yWidth), _dashP(s), s);
+      _arrowRight(canvas, Offset(b.dx - 8 * s, yWidth), _dashP(s), s);
 
-      // nose-bottom → chin (↕)
-      final xMid = (a.dx + b.dx) / 2, yTop = d.dy + 8 * s, yBot = c.dy - 8 * s;
-      _dashedV(canvas, xMid, yTop, yBot, p: dash, scale: s);
-      _arrowUp(canvas, Offset(xMid, yTop), dash, s);
-      _arrowDown(canvas, Offset(xMid, yBot), dash, s);
+      // width bubble "1" centered above the width ruler
+      final wTxt = _tp("1", fs: 13 * s);
+      final wRR =
+          _bubbleAt(Offset((a.dx + b.dx) / 2, yWidth - 16 * s), wTxt, s);
+      canvas.drawRRect(wRR, _bubblePaint(wRR));
+      wTxt.paint(
+        canvas,
+        Offset(wRR.outerRect.center.dx - wTxt.width / 2,
+            wRR.outerRect.center.dy - wTxt.height / 2),
+      );
 
+      // --- Nose-bottom → Chin ruler (↕)
+      final xMid = (a.dx + b.dx) / 2;
+      final yTop = math.min(nose.dy, cPt.dy) + 6 * s;
+      final yBot = math.max(nose.dy, cPt.dy) - 6 * s;
+      _dashedV(canvas, xMid, yTop, yBot, p: _dashP(s), scale: s);
+      _arrowUp(canvas, Offset(xMid, yTop), _dashP(s), s);
+      _arrowDown(canvas, Offset(xMid, yBot), _dashP(s), s);
+
+      // vertical ratio bubble (your measured)
       _pill(
         canvas,
         size,
@@ -671,17 +688,6 @@ class PrettyRatioPainter extends CustomPainter {
         scale: s,
       );
 
-      // width bubble "1"
-      final wTxt = _tp("1", fs: 13 * s);
-      final wRR = _bubbleAt(Offset((a.dx + b.dx) / 2, yJaw - 14 * s), wTxt, s);
-      canvas.drawRRect(wRR, _bubblePaint(wRR));
-      wTxt.paint(
-        canvas,
-        Offset(wRR.outerRect.center.dx - wTxt.width / 2,
-            wRR.outerRect.center.dy - wTxt.height / 2),
-      );
-
-      // height bubble (ratio)
       final hTxt = _tp(j.ratio.toStringAsFixed(3), fs: 13 * s);
       final hRR = _bubbleAt(Offset(xMid + 38 * s, (yTop + yBot) / 2), hTxt, s);
       canvas.drawRRect(hRR, _bubblePaint(hRR));
@@ -690,6 +696,7 @@ class PrettyRatioPainter extends CustomPainter {
         Offset(hRR.outerRect.center.dx - hTxt.width / 2,
             hRR.outerRect.center.dy - hTxt.height / 2),
       );
+
       return;
     }
   }

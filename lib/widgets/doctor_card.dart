@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/screens/doctor_bookappoitment.dart';
+import 'package:youv_ai/screens/doctor_bookappoitment.dart';
 
 class DoctorCard extends StatelessWidget {
   final String title;
   final String speciality;
   final String totalReviews;
   final String stars;
-  const DoctorCard({
-    required this.title,
-    required this.speciality,
-    required this.totalReviews,
-    required this.stars,
-    super.key});
+  const DoctorCard(
+      {required this.title,
+      required this.speciality,
+      required this.totalReviews,
+      required this.stars,
+      super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,7 +20,7 @@ class DoctorCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
-        gradient:  LinearGradient(
+        gradient: LinearGradient(
           colors: [
             Theme.of(context).primaryColor, // Primary color
             Theme.of(context).primaryColor, // Primary color
@@ -79,7 +79,7 @@ class DoctorCard extends StatelessWidget {
             children: [
               const Icon(Icons.star, color: Colors.amber, size: 18),
               const SizedBox(width: 4),
-               Text(
+              Text(
                 stars,
                 style: TextStyle(
                   color: Colors.white,
@@ -88,7 +88,7 @@ class DoctorCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 3),
-               Text(
+              Text(
                 "($totalReviews)",
                 style: TextStyle(
                   color: Colors.white60,
@@ -98,22 +98,22 @@ class DoctorCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-            ElevatedButton.icon(
+          ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
               backgroundColor: Color(0xFF9575CD),
               foregroundColor: Colors.white,
               elevation: 0,
               shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(24),
               ),
-              padding:
-                const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
             ),
             onPressed: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) =>  DoctorAppointmentPage(name: title, speciality: speciality),
+                  builder: (context) => DoctorAppointmentPage(
+                      name: title, speciality: speciality),
                 ),
               );
             },
@@ -121,13 +121,13 @@ class DoctorCard extends StatelessWidget {
               backgroundColor: Colors.white,
               radius: 14,
               child: const Icon(Icons.calendar_month,
-                size: 16, color: Color(0xFF9575CD)),
+                  size: 16, color: Color(0xFF9575CD)),
             ),
             label: const Text(
               "Booking",
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
             ),
-            ),
+          ),
         ],
       ),
     );

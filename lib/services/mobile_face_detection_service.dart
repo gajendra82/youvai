@@ -2,7 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui';
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_face_detection/google_mlkit_face_detection.dart';
-import 'package:skin_assessment/models/face_detection_model.dart';
+import 'package:youv_ai/models/face_detection_model.dart';
 
 class MobileFaceDetectionService {
   late FaceDetector _faceDetector;

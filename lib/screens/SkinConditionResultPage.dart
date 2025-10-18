@@ -6,16 +6,16 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:razorpay_web/razorpay_web.dart';
 
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:skin_assessment/models/FaceRatioLine.dart';
-import 'package:skin_assessment/screens/FaceRatioCard.dart';
-import 'package:skin_assessment/services/face_ratio_api.dart';
-import 'package:skin_assessment/utils/app_routes.dart';
-import 'package:skin_assessment/widgets/CustomSpiderChart.dart';
-import 'package:skin_assessment/widgets/doctor_card.dart';
+import 'package:youv_ai/models/FaceRatioLine.dart';
+import 'package:youv_ai/screens/FaceRatioCard.dart';
+import 'package:youv_ai/services/face_ratio_api.dart';
+import 'package:youv_ai/utils/app_routes.dart';
+import 'package:youv_ai/widgets/CustomSpiderChart.dart';
+import 'package:youv_ai/widgets/doctor_card.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
-import 'package:skin_assessment/bloc/auth/auth_state.dart';
+import 'package:youv_ai/bloc/auth/auth_bloc.dart';
+import 'package:youv_ai/bloc/auth/auth_state.dart';
 import 'package:http_parser/http_parser.dart';
 import 'dart:js_util' as js_util; // for promiseToFuture (web face detect)
 import 'package:image/image.dart' as img;

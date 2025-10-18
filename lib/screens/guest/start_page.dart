@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
-import 'package:skin_assessment/bloc/auth/auth_event.dart';
-import 'package:skin_assessment/bloc/auth/auth_state.dart';
-import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:youv_ai/bloc/auth/auth_bloc.dart';
+import 'package:youv_ai/bloc/auth/auth_event.dart';
+import 'package:youv_ai/bloc/auth/auth_state.dart';
+import 'package:youv_ai/utils/app_routes.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
 import '../../models/user_model.dart';
@@ -242,7 +242,6 @@ class _StartPageState extends State<StartPage> {
                   children: [
                     Text(
                       'Get your Attractiveness Index in seconds.',
-
                       style: TextStyle(
                         color: Colors.grey[700],
                         fontSize: 16,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lottie/lottie.dart';
-import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:youv_ai/utils/app_routes.dart';
 
 class OnboardScreen extends StatelessWidget {
   const OnboardScreen({Key? key}) : super(key: key);
@@ -14,35 +14,34 @@ class OnboardScreen extends StatelessWidget {
       backgroundColor: Colors.white,
       body: SafeArea(
         child: LayoutBuilder(
-          
           builder: (context, constraints) {
             return Column(
               children: [
                 Expanded(
                   child: _AutoSlidingPageView(
-                  children: [
-                    buildOnboardPage(
-                    screenHeight,
-                    screenWidth,
-                    'assets/slide-1.jpg',
-                    'Attractiveness Index ',
-                    'Unlock Your Beauty Score with AI',
-                    ),
-                    buildOnboardPage(
-                    screenHeight,
-                    screenWidth,
-                    'assets/slide-2.jpg',
-                    'Expert Consultation',
-                    'Access to Premium Service',
-                    ),
-                    buildOnboardPage(
-                    screenHeight,
-                    screenWidth,
-                    'assets/slide-3.jpg',
-                    'Detailed Report',
-                    'Get Link in your WhatsApp',
-                    ),
-                  ],
+                    children: [
+                      buildOnboardPage(
+                        screenHeight,
+                        screenWidth,
+                        'assets/slide-1.jpg',
+                        'Attractiveness Index ',
+                        'Unlock Your Beauty Score with AI',
+                      ),
+                      buildOnboardPage(
+                        screenHeight,
+                        screenWidth,
+                        'assets/slide-2.jpg',
+                        'Expert Consultation',
+                        'Access to Premium Service',
+                      ),
+                      buildOnboardPage(
+                        screenHeight,
+                        screenWidth,
+                        'assets/slide-3.jpg',
+                        'Detailed Report',
+                        'Get Link in your WhatsApp',
+                      ),
+                    ],
                   ),
                 ),
                 // Padding(
@@ -163,19 +162,14 @@ class OnboardScreen extends StatelessWidget {
   }
 }
 
-
-
-
 class _AutoSlidingPageView extends StatefulWidget {
   final List<Widget> children;
-  const _AutoSlidingPageView({Key? key, required this.children}) : super(key: key);
+  const _AutoSlidingPageView({Key? key, required this.children})
+      : super(key: key);
 
   @override
   State<_AutoSlidingPageView> createState() => _AutoSlidingPageViewState();
 }
-
-
-
 
 class _AutoSlidingPageViewState extends State<_AutoSlidingPageView> {
   final PageController _controller = PageController();

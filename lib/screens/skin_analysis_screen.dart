@@ -6,8 +6,8 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
-import 'package:skin_assessment/screens/SkinConditionResultPage.dart';
-import 'package:skin_assessment/screens/scan_face_screen.dart';
+import 'package:youv_ai/screens/SkinConditionResultPage.dart';
+import 'package:youv_ai/screens/scan_face_screen.dart';
 import '../models/skin_analysis_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
@@ -15,9 +15,9 @@ import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
-import 'package:skin_assessment/bloc/auth/auth_state.dart';
-import 'package:skin_assessment/utils/app_routes.dart';
+import 'package:youv_ai/bloc/auth/auth_bloc.dart';
+import 'package:youv_ai/bloc/auth/auth_state.dart';
+import 'package:youv_ai/utils/app_routes.dart';
 import 'package:http_parser/http_parser.dart' as http_parser;
 
 class SkinAnalysisScreen extends StatefulWidget {

@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:skin_assessment/widgets/expandeble_text.dart';
+import 'package:youv_ai/widgets/expandeble_text.dart';
 
 class DoctorAppointmentPage extends StatelessWidget {
   const DoctorAppointmentPage({
-    
     super.key,
     required this.name,
     required this.speciality,
-    });
+  });
 
   final String name;
   final String speciality;
@@ -60,7 +59,7 @@ class DoctorAppointmentPage extends StatelessWidget {
             // Card at the top
             Container(
               decoration: BoxDecoration(
-                gradient:  LinearGradient(
+                gradient: LinearGradient(
                   colors: [
                     Theme.of(context).primaryColor,
                     Theme.of(context).primaryColor,
@@ -166,8 +165,9 @@ class DoctorAppointmentPage extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             ExpandableRichText(
-                fullText:
-                    "Experienced dermatologist with many years of clinical practice, holding a medical degree and specialized training in dermatology. Skilled in diagnosing and treating a wide range of skin conditions, committed to providing high-quality patient care.",),
+              fullText:
+                  "Experienced dermatologist with many years of clinical practice, holding a medical degree and specialized training in dermatology. Skilled in diagnosing and treating a wide range of skin conditions, committed to providing high-quality patient care.",
+            ),
 
             const SizedBox(height: 24),
 

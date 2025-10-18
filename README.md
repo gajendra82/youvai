@@ -1,6 +1,6 @@
 # youv_ai
 
-A new Flutter project.
+youv.ai.
 
 ## Getting Started
 

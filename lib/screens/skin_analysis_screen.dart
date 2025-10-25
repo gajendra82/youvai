@@ -6,8 +6,12 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:camera/camera.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
+import 'package:youv_ai/bloc/auth/auth_bloc.dart';
+import 'package:youv_ai/bloc/auth/auth_state.dart';
 import 'package:youv_ai/screens/SkinConditionResultPage.dart';
 import 'package:youv_ai/screens/scan_face_screen.dart';
+import 'package:youv_ai/utils/app_routes.dart';
+
 import '../models/skin_analysis_model.dart';
 import 'package:http/http.dart' as http;
 import 'package:path/path.dart';
@@ -15,10 +19,37 @@ import 'dart:html' as html;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:youv_ai/bloc/auth/auth_bloc.dart';
-import 'package:youv_ai/bloc/auth/auth_state.dart';
-import 'package:youv_ai/utils/app_routes.dart';
 import 'package:http_parser/http_parser.dart' as http_parser;
+
+// === NEW: three-side enum & helpers ===
+enum PhotoSide { left, front, right }
+
+extension PhotoSideX on PhotoSide {
+  String get label {
+    switch (this) {
+      case PhotoSide.left:
+        return 'Left';
+      case PhotoSide.front:
+        return 'Front';
+      case PhotoSide.right:
+        return 'Right';
+    }
+  }
+
+  String get filename {
+    switch (this) {
+      case PhotoSide.left:
+        return 'left.jpg';
+      case PhotoSide.front:
+        return 'front.jpg';
+      case PhotoSide.right:
+        return 'right.jpg';
+    }
+  }
+
+  // NEW: API-friendly value
+  String get api => toString().split('.').last; // "left" | "front" | "right"
+}
 
 class SkinAnalysisScreen extends StatefulWidget {
   final Uint8List? initialImageBytes;
@@ -60,7 +91,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
   bool _showScanning = false;
 
   Map<String, dynamic>? _skinAnalysisResult;
-  Map<String, dynamic>? _faceRatioResult;
+  Map<String, dynamic>? _faceRatioResult; // symmetry JSON
+
+  // === NEW: multi-capture state ===
+  PhotoSide _currentSide = PhotoSide.front;
+  final Map<PhotoSide, Uint8List> _multiBytes = {};
+  final Map<PhotoSide, Size> _multiSizes = {};
+  bool _isMultiMode = false;
 
   @override
   void initState() {
@@ -89,103 +126,19 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         _scanController
           ..reset()
           ..repeat();
+        // Pass side explicitly (front by default) and compute symmetry on it
         await _analyzeImageDirectAPI(
-            null, _faceImageBytes!, _originalImageSize!);
+          null,
+          _faceImageBytes!,
+          _originalImageSize!,
+          side: PhotoSide.front,
+        );
         _scanController.stop();
         setState(() {
           _showScanning = false;
         });
       });
     }
-    // _showDisclaimerPopup();
-  }
-
-  Future<Map<String, dynamic>?> _callVerticalRatio(Uint8List bytes,
-      {String filename = 'upload.jpg'}) async {
-    try {
-      final uri = Uri.parse(
-          'https://anujakkulkarni-symmetry.hf.space/analyze?draw=0'); // draw=0 => raw crop
-      final req = http.MultipartRequest('POST', uri);
-      req.files.add(http.MultipartFile.fromBytes(
-        'file',
-        bytes,
-        filename: filename,
-        contentType: http_parser.MediaType('image', 'jpeg'),
-      ));
-
-      final streamed = await req.send();
-      final res = await http.Response.fromStream(streamed);
-      if (res.statusCode == 200) {
-        return json.decode(res.body) as Map<String, dynamic>;
-      } else {
-        debugPrint('Symmetry API failed: ${res.statusCode} ${res.body}');
-        return null;
-      }
-    } catch (e) {
-      debugPrint('Symmetry API error: $e');
-      return null;
-    }
-  }
-
-  void _showDisclaimerPopup() {
-    showDialog(
-      context: this.context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text(
-            'Disclaimer',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 20,
-            ),
-          ),
-          content: SizedBox(
-            width: double.maxFinite,
-            height: MediaQuery.of(context).size.height * 0.5,
-            child: SingleChildScrollView(
-              child: const Text(
-                'The Attractiveness Index and face/skin analysis provided by this application are AI-generated estimates for informational and entertainment purposes only.\n\n'
-                'Results do not represent a medical diagnosis, dermatological assessment, or professional beauty advice.\n\n'
-                'Factors such as lighting, camera quality, and environmental conditions may influence the outcome.\n\n'
-                'Users should not rely solely on this analysis for making decisions regarding skincare, medical treatments, or personal wellbeing.\n\n'
-                'For any medical or cosmetic concerns, please consult a qualified healthcare or skincare professional.\n\n'
-                'The Service Provider makes no guarantees regarding accuracy, completeness, or suitability of the AI analysis.',
-                style: TextStyle(
-                  fontSize: 14,
-                  height: 1.5,
-                ),
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                // After closing disclaimer, navigate to results
-                // if (!_openedResultPage) {
-                //   _openedResultPage = true;
-                //   Navigator.of(context).pushReplacement(
-                //     MaterialPageRoute(
-                //       builder: (_) => SkinConditionResultPage(
-                //         gradioResult: widget.analysisJson,
-                //       ),
-                //     ),
-                //   );
-                // }
-              },
-              child: const Text(
-                'I Understand',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 
   @override
@@ -218,6 +171,11 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
 
     setState(() {
       _isCameraInitializing = true;
+      // NEW: enable multi-capture mode and reset state
+      _isMultiMode = true;
+      _currentSide = PhotoSide.front;
+      _multiBytes.clear();
+      _multiSizes.clear();
     });
 
     try {
@@ -268,16 +226,78 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     });
   }
 
-  Future<void> _captureAndAnalyze() async {
+  // === NEW: capture per current side (keeps camera open) ===
+  Future<void> _captureCurrentSide() async {
     if (_cameraController == null || !_cameraController!.value.isInitialized) {
       return;
     }
+
     final image = await _cameraController!.takePicture();
-    await _closeCamera();
+
+    Uint8List bytes;
+    Size size;
+
+    if (kIsWeb) {
+      bytes = await image.readAsBytes();
+      size = await _getImageSizeWeb(bytes);
+    } else {
+      bytes = await File(image.path).readAsBytes();
+      bytes = await fixImageOrientation(bytes);
+
+      // Mirror if using the front camera
+      if (_cameraController != null &&
+          _cameraController!.description.lensDirection ==
+              CameraLensDirection.front) {
+        final img.Image? oriented = img.decodeImage(bytes);
+        if (oriented != null) {
+          final img.Image flipped = img.flipHorizontal(oriented);
+          bytes = Uint8List.fromList(img.encodeJpg(flipped));
+        }
+      }
+
+      size = await _getImageSizeMobileBytes(bytes);
+    }
+
     setState(() {
-      _capturedImage = image;
+      _multiBytes[_currentSide] = bytes;
+      _multiSizes[_currentSide] = size;
+
+      // ---- NEW: auto-advance order Front -> Left -> Right ----
+      if (_currentSide == PhotoSide.front) {
+        _currentSide = PhotoSide.left;
+      } else if (_currentSide == PhotoSide.left) {
+        _currentSide = PhotoSide.right;
+      } // if Right, stay on Right
     });
-    await _processPickedImage(image, fromCamera: true);
+  }
+
+  // === NEW: submit all three photos in one API call ===
+  Future<void> _submitAllThree() async {
+    if (!([PhotoSide.left, PhotoSide.front, PhotoSide.right]
+        .every((s) => _multiBytes.containsKey(s)))) {
+      return; // not all photos captured
+    }
+
+    await _closeCamera();
+
+    final frontBytes = _multiBytes[PhotoSide.front];
+    setState(() {
+      _imageProvider = (frontBytes != null) ? MemoryImage(frontBytes) : null;
+      _loading = true;
+      _showScanning = true;
+    });
+
+    _scanController
+      ..reset()
+      ..repeat();
+
+    await _analyzeMultiImageDirectAPI(_multiBytes, _multiSizes);
+
+    _scanController.stop();
+    setState(() {
+      _showScanning = false;
+      _isMultiMode = false;
+    });
   }
 
   @override
@@ -512,7 +532,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       // SkinConditionResultPage is also wrapped with BlocListener inside its file
       return SkinConditionResultPage(
         gradioResult: _skinAnalysisResult!,
-        faceRatioJson: _faceRatioResult, // ← add this (optional)
+        faceRatioJson: _faceRatioResult,
       );
     }
     return ScanFaceScreen(
@@ -532,7 +552,7 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
             MediaQuery.of(context).size.height
         : MediaQuery.of(context).size.height;
 
-    return Container(
+    return SizedBox(
       width: double.infinity,
       height: cameraHeight,
       child: Stack(
@@ -567,12 +587,13 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
               ),
             ),
           ),
+          // === NEW: Multi-capture controls at bottom ===
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 42, horizontal: 24),
+              padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.bottomCenter,
@@ -585,27 +606,153 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
                   ],
                 ),
               ),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: Colors.black,
-                    minimumSize: const Size.fromHeight(54),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    elevation: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Side selector + tiny previews
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: PhotoSide.values.map((side) {
+                      final isSelected = side == _currentSide;
+                      final hasShot = _multiBytes.containsKey(side);
+                      final preview = _multiBytes[side];
+
+                      return GestureDetector(
+                        onTap: () => setState(() => _currentSide = side),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 68,
+                              height: 68,
+                              clipBehavior: Clip.antiAlias,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white54,
+                                  width: isSelected ? 3 : 1.5,
+                                ),
+                              ),
+                              child: preview == null
+                                  ? Center(
+                                      child: Text(
+                                        side.label.substring(0, 1),
+                                        style: const TextStyle(
+                                          color: Colors.white70,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
+                                    )
+                                  : Image.memory(preview, fit: BoxFit.cover),
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                Text(
+                                  side.label,
+                                  style: TextStyle(
+                                    color: isSelected
+                                        ? Colors.white
+                                        : Colors.white70,
+                                    fontWeight: isSelected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
+                                  ),
+                                ),
+                                if (hasShot) ...[
+                                  const SizedBox(width: 6),
+                                  const Icon(Icons.check_circle,
+                                      color: Colors.white, size: 16),
+                                ]
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }).toList(),
                   ),
-                  onPressed: _captureAndAnalyze,
-                  child: const Text(
-                    'Capture & Analyze',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
+
+                  const SizedBox(height: 16),
+
+                  // Capture/Retake for current side
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size.fromHeight(54),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: _captureCurrentSide,
+                      child: Text(
+                        _multiBytes.containsKey(_currentSide)
+                            ? 'Retake ${_currentSide.label}'
+                            : 'Capture ${_currentSide.label}',
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+
+                  const SizedBox(height: 12),
+
+                  // Analyze all 3 button (enabled only when all three present)
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ([
+                          PhotoSide.left,
+                          PhotoSide.front,
+                          PhotoSide.right
+                        ].every((s) => _multiBytes.containsKey(s)))
+                            ? Colors.greenAccent
+                            : Colors.white24,
+                        foregroundColor: Colors.black,
+                        minimumSize: const Size.fromHeight(52),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 0,
+                      ),
+                      onPressed: ([
+                        PhotoSide.left,
+                        PhotoSide.front,
+                        PhotoSide.right
+                      ].every((s) => _multiBytes.containsKey(s)))
+                          ? _submitAllThree
+                          : null,
+                      child: const Text(
+                        'Analyze All 3 Photos',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 6),
+
+                  // Back/Close row
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      IconButton(
+                        icon: const Icon(Icons.close, color: Colors.white70),
+                        onPressed: _closeCamera,
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
           ),
@@ -664,7 +811,8 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
       ..reset()
       ..repeat();
 
-    await _analyzeImageDirectAPI(picked, bytes!, size!);
+    // For single pick, send as front by default (and compute symmetry on the same front image)
+    await _analyzeImageDirectAPI(picked, bytes!, size!, side: PhotoSide.front);
 
     _scanController.stop();
 
@@ -675,72 +823,75 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
     });
   }
 
+  // === Single-image API: include `type` and symmetry(front) ===
   Future<void> _analyzeImageDirectAPI(
-      XFile? picked, Uint8List previewBytes, Size imageSize) async {
-    Map<String, dynamic>? resultJson; // skin API result
-    Map<String, dynamic>? faceRatioJson; // symmetry API result
+      XFile? picked, Uint8List previewBytes, Size imageSize,
+      {PhotoSide side = PhotoSide.front}) async {
+    Map<String, dynamic>? resultJson;
+    Map<String, dynamic>? faceRatioJson;
 
     try {
-      // --------- Build skin API request (but don't await yet) ----------
-      final skinUri = Uri.parse(
+      final uri = Uri.parse(
           'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/analyze-skin');
+      var request = http.MultipartRequest('POST', uri);
 
-      final skinRequest = http.MultipartRequest('POST', skinUri);
-
-      final prefs = await SharedPreferences.getInstance();
+      SharedPreferences prefs = await SharedPreferences.getInstance();
       String? guestId = prefs.getString('guest_id');
       String? token = prefs.getString('_token');
 
       if (token != null) {
-        skinRequest.headers['Authorization'] = 'Bearer $token';
+        request.headers['Authorization'] = 'Bearer $token';
       } else if (guestId == null) {
         guestId =
             'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
         await prefs.setString('guest_id', guestId);
-        skinRequest.fields['guest_id'] = guestId;
+        request.fields['guest_id'] = guestId;
       }
 
-      skinRequest.files.add(
+      // include side for single image
+      request.fields['type'] = side.api; // "front" | "left" | "right"
+
+      request.files.add(
         http.MultipartFile.fromBytes(
           'file',
           previewBytes,
-          filename: picked != null ? basename(picked.path) : 'upload.jpg',
+          filename: picked != null ? basename(picked.path) : '${side.api}.jpg',
         ),
       );
 
-      // ---------- Kick off both calls *in parallel* ----------
+      // Run skin+symmetry in parallel (symmetry always on the FRONT image)
       final skinFuture = (() async {
-        final streamed = await skinRequest.send();
-        final res = await http.Response.fromStream(streamed);
-        if (res.statusCode == 200) {
-          return json.decode(res.body) as Map<String, dynamic>;
+        final streamed = await request.send();
+        final response = await http.Response.fromStream(streamed);
+        if (response.statusCode == 200) {
+          return json.decode(response.body) as Map<String, dynamic>;
         } else {
-          debugPrint('Skin API failed: ${res.statusCode} ${res.body}');
+          setState(() {
+            _error = "API failed with status ${response.statusCode}";
+          });
           return null;
         }
       })();
 
-      final symmetryFuture = _callVerticalRatio(previewBytes,
-          filename: picked?.name ?? 'upload.jpg');
+      final symmetryFuture = _callVerticalRatio(
+        previewBytes,
+        filename: picked?.name ?? '${side.api}.jpg',
+      );
 
       final results = await Future.wait([skinFuture, symmetryFuture]);
-
       resultJson = results[0] as Map<String, dynamic>?;
       faceRatioJson = results[1] as Map<String, dynamic>?;
     } catch (e) {
-      debugPrint("Parallel analyze error: $e");
+      print("Error occurred: $e");
     }
 
-    // -------------- Update state / show results --------------
     setState(() {
       _skinAnalysisResult = resultJson;
-      _faceRatioResult = faceRatioJson; // ← save symmetry JSON
+      _faceRatioResult = faceRatioJson;
       _loading = false;
-
       _error = (_skinAnalysisResult == null)
           ? "API failed or returned no detections. Try again."
           : null;
-
       _imageProvider = MemoryImage(previewBytes);
       _scanningImageBytes = null;
       _faceImageBytes = previewBytes;
@@ -752,6 +903,128 @@ class _SkinAnalysisScreenState extends State<SkinAnalysisScreen>
         _lastImageFile = null;
       }
     });
+  }
+
+  // === NEW: multi-image API: include `types[]` aligned with `files[]` and symmetry(front) ===
+  Future<void> _analyzeMultiImageDirectAPI(
+    Map<PhotoSide, Uint8List> images,
+    Map<PhotoSide, Size> sizes,
+  ) async {
+    Map<String, dynamic>? resultJson;
+    Map<String, dynamic>? faceRatioJson; // symmetry on front only
+
+    try {
+      final uri = Uri.parse(
+          'https://aestheticai.globalspace.in/youvai/youvai_backend/public/api/multi-analyze-skin');
+      var request = http.MultipartRequest('POST', uri);
+
+      SharedPreferences prefs = await SharedPreferences.getInstance();
+      String? guestId = prefs.getString('guest_id');
+      String? token = prefs.getString('_token');
+
+      if (token != null) {
+        request.headers['Authorization'] = 'Bearer $token';
+      } else if (guestId == null) {
+        guestId =
+            'guest_${DateTime.now().millisecondsSinceEpoch}_${Random().nextInt(100000)}';
+        await prefs.setString('guest_id', guestId);
+        request.fields['guest_id'] = guestId;
+      }
+
+      request.fields['multi_view'] = 'true';
+
+      // Maintain a deterministic order so files[] aligns with types[]
+      final order = [PhotoSide.left, PhotoSide.front, PhotoSide.right];
+
+      for (final side in order) {
+        final data = images[side];
+        if (data != null) {
+          // file payload
+          request.files.add(
+            http.MultipartFile.fromBytes(
+              'files[]', // backend expects array key
+              data,
+              filename: side.filename,
+            ),
+          );
+          // parallel type entry (same order as files[])
+          request.fields['types[]'] = side.api; // "left" | "front" | "right"
+        }
+      }
+
+      final frontBytes = images[PhotoSide.front];
+
+      // Run skin multi-view and symmetry(front) in parallel
+      final skinFuture = (() async {
+        final streamed = await request.send();
+        final response = await http.Response.fromStream(streamed);
+        if (response.statusCode == 200) {
+          return json.decode(response.body) as Map<String, dynamic>;
+        } else {
+          setState(() {
+            _error = "API failed with status ${response.statusCode}";
+          });
+          return null;
+        }
+      })();
+
+      final symmetryFuture = (frontBytes != null)
+          ? _callVerticalRatio(frontBytes, filename: PhotoSide.front.filename)
+          : Future<Map<String, dynamic>?>.value(null);
+
+      final results = await Future.wait([skinFuture, symmetryFuture]);
+      resultJson = results[0] as Map<String, dynamic>?;
+      faceRatioJson = results[1] as Map<String, dynamic>?;
+    } catch (e) {
+      print("Error occurred: $e");
+    }
+
+    final frontBytes = images[PhotoSide.front];
+
+    setState(() {
+      _skinAnalysisResult = resultJson;
+      _faceRatioResult = faceRatioJson;
+      _loading = false;
+      _error = (_skinAnalysisResult == null)
+          ? "API failed or returned no detections. Try again."
+          : null;
+      if (frontBytes != null) {
+        _imageProvider = MemoryImage(frontBytes);
+        _scanningImageBytes = null;
+        _faceImageBytes = frontBytes;
+        _originalImageSize = sizes[PhotoSide.front];
+        _lastImageBytes = frontBytes;
+      }
+      _lastImageFile = null;
+    });
+  }
+
+  // --- symmetry API (front face) ---
+  Future<Map<String, dynamic>?> _callVerticalRatio(Uint8List bytes,
+      {String filename = 'upload.jpg'}) async {
+    try {
+      final uri = Uri.parse(
+          'https://anujakkulkarni-symmetry.hf.space/analyze?draw=0'); // draw=0 => raw
+      final req = http.MultipartRequest('POST', uri);
+      req.files.add(http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: filename,
+        contentType: http_parser.MediaType('image', 'jpeg'),
+      ));
+
+      final streamed = await req.send();
+      final res = await http.Response.fromStream(streamed);
+      if (res.statusCode == 200) {
+        return json.decode(res.body) as Map<String, dynamic>;
+      } else {
+        debugPrint('Symmetry API failed: ${res.statusCode} ${res.body}');
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Symmetry API error: $e');
+      return null;
+    }
   }
 
   Future<Size> _getImageSizeMobileBytes(Uint8List bytes) async {

@@ -10,24 +10,22 @@ import 'package:skin_assessment/models/FaceRatioLine.dart';
 import 'package:skin_assessment/screens/FaceRatioCard.dart';
 import 'package:skin_assessment/services/face_ratio_api.dart';
 import 'package:skin_assessment/utils/app_routes.dart';
-import 'package:skin_assessment/widgets/CustomSpiderChart.dart';
-import 'package:skin_assessment/widgets/doctor_card.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:http_parser/http_parser.dart';
-import 'dart:js_util' as js_util; // for promiseToFuture (web face detect)
+import 'dart:js_util' as js_util;
 import 'package:image/image.dart' as img;
 
 class SkinConditionResultPage extends StatefulWidget {
   final Map<String, dynamic> gradioResult;
-  final Map<String, dynamic>? faceRatioJson; // ← add
+  final Map<String, dynamic>? faceRatioJson;
 
   SkinConditionResultPage({
     Key? key,
     required this.gradioResult,
-    this.faceRatioJson, // ← add
+    this.faceRatioJson,
   }) : super(key: key);
 
   @override
@@ -36,8 +34,8 @@ class SkinConditionResultPage extends StatefulWidget {
 }
 
 class FaceOverlayPayload {
-  final FaceRatioData data; // ratios for CROPPED image
-  final Uint8List croppedBytes; // JPEG bytes of the CROPPED face
+  final FaceRatioData data;
+  final Uint8List croppedBytes;
   FaceOverlayPayload({required this.data, required this.croppedBytes});
 }
 
@@ -54,7 +52,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   String _appliedCoupon = "";
   final Map<String, Future<FaceRatioData?>> _faceRatioFutureByImage = {};
 
-  // ---------------- NEW: dynamic aspect label state ----------------
+  // Dynamic aspect label state
   String _currentAspectLabel = "Vertical Sections";
   void _onAspectModeChanged(RatioMode mode) {
     setState(() {
@@ -82,7 +80,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         return "Facial Ratio";
     }
   }
-  // -----------------------------------------------------------------
 
   @override
   void initState() {
@@ -214,9 +211,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       return;
     }
 
-    // If coupon is applied, skip payment and unlock directly
     if (_couponApplied) {
-      // Save subscription
       prefs.setBool('isSubscribe', true);
       setState(() {
         _hasPaid = true;
@@ -261,7 +256,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     ]);
   }
 
-  // Coupon validation API call
   Future<void> _applyCoupon() async {
     final code = _couponController.text.trim();
     if (code.isEmpty) {
@@ -446,107 +440,19 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     return sym.clamp(3.0, 9.5);
   }
 
-  /// Skin subscore 0..10 with new rule:
-  /// If either wrinkle OR pigmentation > 2%, subtract 2.
-  double calculateSkinSubscore(List<Map<String, String>> percentages) {
-    double score = 8.0;
-    double normalPercent = 0.0;
-    double negativePercent = 0.0;
-
-    final negativeConditions = [
-      "acne",
-      "wrinkle",
-      "dark spot",
-      "blackhead",
-      "pores",
-      "eye bag",
-      "brown spot",
-      "mole",
-      "comedone",
-      "dark circle",
-      "pigmentation",
-      "eye pouch",
-      "nasolabial fold",
-      "scar",
-      "scars",
-    ];
-
-    for (final entry in percentages) {
-      final cond = (entry['condition'] ?? "").toLowerCase();
-      final percent = double.tryParse(entry['percent'] ?? "0") ?? 0;
-
-      if (cond.contains("normal")) {
-        normalPercent += percent;
-      } else if (negativeConditions.any((c) => cond.contains(c))) {
-        negativePercent += percent;
-      }
-    }
-
-    // base scoring (same as before)
-    score += (normalPercent / 100) * 2.0;
-    score -= (negativePercent / 100) * 2.5;
-    score = score - 2.0;
-
-    if (score < 0.0) score = 0.0;
-    if (score > 10.0) score = 10.0;
-    return double.parse(score.toStringAsFixed(2));
-  }
-
-  /// Final 50/50 blend 0..10
-  /// Apply -1 to final attractiveness if either wrinkle OR pigmentation > 2%.
-  double calculateOverallAttractiveness50_50({
-    required List<Map<String, String>> skinPercentages,
+  /// Final attractiveness score based 100% on symmetry
+  double calculateSymmetryBasedAttractiveness({
     FaceRatioData? symmetryData,
     Map<String, dynamic>? symmetryJson,
   }) {
-    final skin = calculateSkinSubscore(skinPercentages);
-
     FaceRatioData? data = symmetryData;
     if (data == null && symmetryJson != null) {
       try {
         data = FaceRatioData.fromMap(symmetryJson);
       } catch (_) {}
     }
-    final symmetry = calculateSymmetryScoreFromFaceData(data);
 
-    double finalScore = 0.5 * skin + 0.5 * symmetry;
-
-    // --- New tiered penalty logic ---
-    final wrinkleEntry = skinPercentages.firstWhere(
-      (e) => (e['condition'] ?? '').toLowerCase().contains('wrinkle'),
-      orElse: () => {'percent': '0'},
-    );
-    final pigmentEntry = skinPercentages.firstWhere(
-      (e) => (e['condition'] ?? '').toLowerCase().contains('pigmentation'),
-      orElse: () => {'percent': '0'},
-    );
-
-    final wrinkleP = double.tryParse(wrinkleEntry['percent'] ?? '0') ?? 0;
-    final pigmentP = double.tryParse(pigmentEntry['percent'] ?? '0') ?? 0;
-
-    double penalty = 0.0;
-
-    // Wrinkle: >2 ⇒ -1, >3 ⇒ -2
-    if (wrinkleP > 3) {
-      penalty += 2.0;
-    } else if (wrinkleP > 2) {
-      penalty += 1.0;
-    }
-
-    // Pigmentation: >3 ⇒ -1, >4 ⇒ -2
-    if (pigmentP > 4) {
-      penalty += 2.0;
-    } else if (pigmentP > 3) {
-      penalty += 1.0;
-    }
-
-    finalScore -= penalty;
-
-    // clamp to display range you’ve been using
-    if (finalScore < 5.0) finalScore = 5.0;
-    if (finalScore > 9.0) finalScore = 9.0;
-
-    return double.parse(finalScore.toStringAsFixed(2));
+    return calculateSymmetryScoreFromFaceData(data);
   }
 
   // ---------------------------------------------------------------
@@ -560,149 +466,12 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       return outputs
           .where((o) => o['analysis'] != null)
           .map<Map<String, dynamic>>((result) {
-        String analysis = jsonEncode(result['analysis']);
-        List<Map<String, String>> percentages = [];
-        Set<String> seenConditions = {};
-        if (analysis.trim().startsWith('[')) {
-          try {
-            final decoded = json.decode(analysis);
-            if (decoded is List) {
-              for (var item in decoded) {
-                final lines = item.toString().split(RegExp(r'[,\n]'));
-                for (var line in lines) {
-                  final fixedLine =
-                      line.replaceAll("Skin Redness", "Pigmentation");
-                  final match = RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%')
-                      .firstMatch(fixedLine);
-                  if (match != null) {
-                    var condition = match.group(1)!.trim();
-                    if (condition.toLowerCase() == 'skin redness') {
-                      condition = "Pigmentation";
-                    }
-                    if (condition.toLowerCase() == "acne" ||
-                        condition.toLowerCase() == "acne_scar" ||
-                        condition.toLowerCase() == "scar") {
-                      final existingIdx = percentages.indexWhere((p) =>
-                          p['condition']!.toLowerCase() == "acne & acne scars");
-                      if (existingIdx != -1) {
-                        final existingPercent = double.tryParse(
-                                percentages[existingIdx]['percent'] ?? "0") ??
-                            0;
-                        final currentPercent =
-                            double.tryParse(match.group(2) ?? "0") ?? 0;
-                        percentages[existingIdx]['percent'] =
-                            (existingPercent + currentPercent)
-                                .toStringAsFixed(2);
-                        continue;
-                      } else {
-                        percentages.add({
-                          'condition': "acne & acne scars",
-                          'percent': match.group(2)!
-                        });
-                        seenConditions.add("Acne & Acne scars");
-                        continue;
-                      }
-                    }
-                    if (!seenConditions.contains(condition.toLowerCase())) {
-                      percentages.add(
-                          {'condition': condition, 'percent': match.group(2)!});
-                      seenConditions.add(condition.toLowerCase());
-                    }
-                  }
-                }
-              }
-            }
-          } catch (e) {
-            for (var line in analysis.split('\n')) {
-              final fixedLine = line.replaceAll("Skin Redness", "Pigmentation");
-              final match =
-                  RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(fixedLine);
-              if (match != null) {
-                var condition = match.group(1)!.trim();
-                if (condition.toLowerCase() == 'skin redness') {
-                  condition = "Pigmentation";
-                }
-                if (condition.toLowerCase() == "acne" ||
-                    condition.toLowerCase() == "acne scar" ||
-                    condition.toLowerCase() == "scar") {
-                  final existingIdx = percentages.indexWhere((p) =>
-                      p['condition']!.toLowerCase() == "acne & acne scars");
-                  if (existingIdx != -1) {
-                    final existingPercent = double.tryParse(
-                            percentages[existingIdx]['percent'] ?? "0") ??
-                        0;
-                    final currentPercent =
-                        double.tryParse(match.group(2) ?? "0") ?? 0;
-                    percentages[existingIdx]['percent'] =
-                        (existingPercent + currentPercent).toStringAsFixed(2);
-                    continue;
-                  } else {
-                    percentages.add({
-                      'condition': "Acne & Acne scars",
-                      'percent': match.group(2)!
-                    });
-                    seenConditions.add("Acne & Acne scars");
-                    continue;
-                  }
-                }
-                if (!seenConditions.contains(condition.toLowerCase())) {
-                  percentages.add(
-                      {'condition': condition, 'percent': match.group(2)!});
-                  seenConditions.add(condition.toLowerCase());
-                }
-              }
-            }
-          }
-        } else {
-          for (var line in analysis.split('\n')) {
-            final fixedLine = line.replaceAll("Skin Redness", "Pigmentation");
-            final match =
-                RegExp(r'([A-Za-z ]+)[(:]\s*([\d.]+)%').firstMatch(fixedLine);
-            if (match != null) {
-              var condition = match.group(1)!.trim();
-              if (condition.toLowerCase() == 'skin redness') {
-                condition = "Pigmentation";
-              }
-              if (condition.toLowerCase() == "acne" ||
-                  condition.toLowerCase() == "acne_scar" ||
-                  condition.toLowerCase() == "scar") {
-                final existingIdx = percentages.indexWhere((p) =>
-                    p['condition']!.toLowerCase() == "acne & acne scars");
-                if (existingIdx != -1) {
-                  final existingPercent = double.tryParse(
-                          percentages[existingIdx]['percent'] ?? "0") ??
-                      0;
-                  final currentPercent =
-                      double.tryParse(match.group(2) ?? "0") ?? 0;
-                  percentages[existingIdx]['percent'] =
-                      (existingPercent + currentPercent).toStringAsFixed(2);
-                  continue;
-                } else {
-                  percentages.add({
-                    'condition': "Acne & Acne scars",
-                    'percent': match.group(2)!
-                  });
-                  seenConditions.add("Acne & Acne scars");
-                  continue;
-                }
-              }
-              if (!seenConditions.contains(condition.toLowerCase())) {
-                percentages
-                    .add({'condition': condition, 'percent': match.group(2)!});
-                seenConditions.add(condition.toLowerCase());
-              }
-            }
-          }
-        }
-
-        // Final 50/50 score with the new rule
-        final attractivenessScore = calculateOverallAttractiveness50_50(
-          skinPercentages: percentages,
-          symmetryJson: widget.faceRatioJson, // parsed to FaceRatioData inside
+        // Calculate attractiveness based 100% on symmetry
+        final attractivenessScore = calculateSymmetryBasedAttractiveness(
+          symmetryJson: widget.faceRatioJson,
         );
 
         return {
-          'percentages': percentages,
           'mainDiagnosis': "mainDiagnosis",
           'recommendations': "recommendations",
           'fullOutput': "output",
@@ -717,69 +486,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       print("Error extracting skin summaries: $e");
       return [];
     }
-  }
-
-  int getNormalPercentage(String condition) {
-    final cond = condition.toLowerCase();
-    if (cond.contains('normal')) return 100;
-    if (cond.contains('wrinkle')) return 25;
-    if (cond.contains('acne')) return 15;
-    if (cond.contains('blackhead')) return 20;
-    if (cond.contains('dark spot')) return 15;
-    if (cond.contains('pores')) return 25;
-    if (cond.contains('eye bag')) return 20;
-    if (cond.contains('brown spot')) return 15;
-    if (cond.contains('mole')) return 30;
-    if (cond.contains('comedone')) return 20;
-    if (cond.contains('dark circle')) return 20;
-    if (cond.contains('pigmentation')) return 20;
-    return 30;
-  }
-
-  IconData _getConditionIcon(String condition) {
-    final cond = condition.toLowerCase();
-    if (cond.contains('normal')) return Icons.check_circle;
-    if (cond.contains('wrinkle')) return Icons.blur_on;
-    if (cond.contains('acne')) return Icons.bubble_chart;
-    if (cond.contains('blackhead')) return Icons.circle;
-    if (cond.contains('dark spot')) return Icons.brightness_3;
-    if (cond.contains('pores')) return Icons.grain;
-    if (cond.contains('eye bag')) return Icons.remove_red_eye;
-    if (cond.contains('brown spot')) return Icons.brightness_2;
-    if (cond.contains('mole')) return Icons.adjust;
-    if (cond.contains('comedone')) return Icons.bubble_chart;
-    if (cond.contains('dark circle')) return Icons.remove_red_eye;
-    if (cond.contains('pigmentation')) return Icons.palette;
-    if (cond.contains('eye pouch')) return Icons.visibility;
-    if (cond.contains('nasolabial fold')) return Icons.face;
-    if (cond.contains('skin redness')) return Icons.local_fire_department;
-    if (cond.contains('scar')) return Icons.healing;
-    if (cond.contains('scars')) return Icons.healing;
-    if (cond.contains('melasma')) return Icons.palette;
-    if (cond.contains('freckle')) return Icons.scatter_plot;
-    if (cond.contains('acne pustule')) return Icons.bubble_chart;
-    if (cond.contains('acne nodule')) return Icons.circle;
-    if (cond.contains('acne mark')) return Icons.radio_button_checked;
-    if (cond.contains('oiliness')) return Icons.water_drop;
-    if (cond.contains('dryness')) return Icons.dry;
-    return Icons.info_outline;
-  }
-
-  Color _getConditionColor(String condition) {
-    final cond = condition.toLowerCase();
-    if (cond.contains('normal')) return Colors.green;
-    if (cond.contains('wrinkle')) return Colors.orange;
-    if (cond.contains('acne')) return Colors.redAccent;
-    if (cond.contains('blackhead')) return Colors.brown;
-    if (cond.contains('dark spot')) return Colors.deepPurple;
-    if (cond.contains('pores')) return Colors.blueGrey;
-    if (cond.contains('eye bag')) return Colors.indigo;
-    if (cond.contains('brown spot')) return Colors.deepOrange;
-    if (cond.contains('mole')) return Colors.black;
-    if (cond.contains('comedone')) return Colors.purple;
-    if (cond.contains('dark circle')) return Colors.blue;
-    if (cond.contains('pigmentation')) return Colors.pinkAccent;
-    return Colors.grey;
   }
 
   @override
@@ -821,35 +527,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                   itemCount: summaries.isEmpty ? 0 : 1,
                   itemBuilder: (context, i) {
                     final summary = summaries[i];
-                    final percentages = summary['percentages'] as List<dynamic>;
                     final imageUrl = summary['imageUrl'] as String?;
                     final attractivenessScore =
                         summary['attractivenessScore'] as double;
-
-                    final chartData = percentages
-                        .map((p) => {
-                              "condition": p['condition'].toUpperCase(),
-                              "percent":
-                                  double.tryParse(p['percent'] ?? "0") ?? 0.0
-                            })
-                        .toList();
-
-                    final averageMap = {
-                      "normal": 100.0,
-                      "wrinkle": 25.0,
-                      "acne": 15.0,
-                      "blackhead": 20.0,
-                      "dark spot": 15.0,
-                      "pores": 25.0,
-                      "eye bag": 20.0,
-                      "brown spot": 15.0,
-                      "mole": 30.0,
-                      "comedone": 20.0,
-                      "dark circle": 20.0,
-                      "Pigmentation": 20.0,
-                      "eye pouch": 20.0,
-                      "nasolabial fold": 20.0,
-                    };
 
                     return Card(
                         margin: const EdgeInsets.symmetric(
@@ -931,7 +611,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             size: 28),
                                                         SizedBox(width: 6),
                                                         Text(
-                                                          "You’re in the top 20% of people!",
+                                                          "You're in the top 20% of people!",
                                                           style: TextStyle(
                                                               color:
                                                                   Colors.green,
@@ -957,7 +637,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             const SizedBox(
                                                                 width: 6),
                                                             const Text(
-                                                              "You’re in the top 20% of people!",
+                                                              "You're in the top 20% of people!",
                                                               style: TextStyle(
                                                                   color: Colors
                                                                       .green,
@@ -976,7 +656,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                               duration: const Duration(
                                                   milliseconds: 900),
                                               child: Text(
-                                                "Your Attractiveness Index is calculated using AI and dermatology standards. Higher scores mean healthier, more radiant skin!",
+                                                "Your Attractiveness Index is calculated using facial symmetry and golden ratio standards.",
                                                 style: TextStyle(
                                                   color: Theme.of(context)
                                                       .colorScheme
@@ -988,8 +668,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                               ),
                                             ),
                                             const SizedBox(height: 12),
-
-                                            // If we already have faceRatioJson (passed from previous screen), use it.
                                             if (widget.faceRatioJson !=
                                                 null) ...[
                                               Padding(
@@ -1007,7 +685,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                         BorderRadius.circular(
                                                             18),
                                                   ),
-                                                  // --------- DYNAMIC TEXT HERE ----------
                                                   child: Text(
                                                     "Facial Ratio ($_currentAspectLabel)",
                                                     style: const TextStyle(
@@ -1026,11 +703,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             .faceRatioJson!);
                                                     return Column(
                                                       children: [
-                                                        // IMPORTANT: pass the callback so label updates on chip tap
                                                         FaceRatioPrettyCard(
                                                           data: data,
                                                           onModeChanged:
-                                                              _onAspectModeChanged, // <—
+                                                              _onAspectModeChanged,
                                                         ),
                                                       ],
                                                     );
@@ -1042,7 +718,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                               ),
                                             ] else if (imageUrl != null &&
                                                 imageUrl.isNotEmpty) ...[
-                                              // Fallback to API call by URL (keeps your previous behavior)
                                               FutureBuilder<FaceRatioData?>(
                                                 future: FaceRatioApi()
                                                     .analyzeByImageUrl(imageUrl,
@@ -1108,7 +783,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                       FaceRatioPrettyCard(
                                                         data: snap.data!,
                                                         onModeChanged:
-                                                            _onAspectModeChanged, // <—
+                                                            _onAspectModeChanged,
                                                       ),
                                                     ],
                                                   );
@@ -1121,35 +796,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                     ),
                                   ),
                                 ],
-                              ),
-                              const SizedBox(height: 20),
-                              GridView.builder(
-                                shrinkWrap: true,
-                                physics: NeverScrollableScrollPhysics(),
-                                gridDelegate:
-                                    SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  childAspectRatio:
-                                      MediaQuery.of(context).size.width < 400
-                                          ? 1.3
-                                          : 2.4,
-                                  crossAxisSpacing: 14,
-                                  mainAxisSpacing: 14,
-                                ),
-                                itemCount: percentages.length,
-                                itemBuilder: (context, idx) {
-                                  final p = percentages[idx];
-                                  return _summaryStat(
-                                    p['condition'].toUpperCase() ?? '',
-                                    "${p['percent']}%",
-                                    _getConditionIcon(p['condition'] ?? ''),
-                                    Theme.of(context).colorScheme.primary,
-                                    context,
-                                    compareTo:
-                                        getNormalPercentage(p['condition'])
-                                            .toDouble(),
-                                  );
-                                },
                               ),
                               const SizedBox(height: 24),
                               Padding(
@@ -1201,55 +847,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                   ),
                                 ),
                               ),
-                              const SizedBox(height: 10),
-                              Text("From Recently Uploaded Image",
-                                  style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black)),
-                              const SizedBox(height: 10),
-                              if (imageUrl != null && imageUrl.isNotEmpty)
-                                SizedBox(
-                                  height: 110,
-                                  child: ListView(
-                                    scrollDirection: Axis.horizontal,
-                                    children: [
-                                      GestureDetector(
-                                        onTap: () {
-                                          _showImageDialog(context, imageUrl);
-                                        },
-                                        child: Card(
-                                          margin:
-                                              const EdgeInsets.only(right: 12),
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(12)),
-                                          child: ClipRRect(
-                                            borderRadius:
-                                                BorderRadius.circular(12),
-                                            child: Image.network(
-                                              imageUrl,
-                                              width: 140,
-                                              height: 100,
-                                              fit: BoxFit.cover,
-                                              errorBuilder: (context, error,
-                                                      stackTrace) =>
-                                                  Container(
-                                                width: 140,
-                                                height: 100,
-                                                color: Colors.grey.shade200,
-                                                child: const Icon(
-                                                    Icons.broken_image,
-                                                    size: 40,
-                                                    color: Colors.grey),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
                               const Divider(height: 24),
                               !_hasPaid
                                   ? Center(
@@ -1399,7 +996,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                             Text(
                                               _couponApplied
                                                   ? "Your coupon is applied! Click below to unlock your report."
-                                                  : "Reveal your skin’s secrets with our in-depth analysis — just ₹499",
+                                                  : "Reveal your skin's secrets with our in-depth analysis — just ₹499",
                                               style: TextStyle(
                                                 color: Colors.white70,
                                                 fontSize: 14,
@@ -1553,248 +1150,4 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       ],
     );
   }
-}
-
-// ---------------------- helpers below unchanged ----------------------
-
-String _getConditionStatus(String condition, double percent) {
-  if (condition.toLowerCase().contains('normal')) {
-    return percent >= 70 ? "Normal" : "Not Normal";
-  }
-  if (percent >= 70) return "High";
-  if (percent >= 40) return "Moderate";
-  if (percent >= 20) return "Mild";
-  return "Minimal";
-}
-
-final conditionInfo = {
-  "normal": {
-    "type": "Normal Skin",
-    "meaning":
-        "Your skin is well-balanced — not too oily or too dry. It feels smooth and has minimal blemishes or sensitivity.",
-    "cause":
-        "Typically maintained by genetics, a consistent skincare routine, proper hydration, and a healthy lifestyle.",
-    "suggestion":
-        "Continue your current skincare habits and protect your skin with sunscreen daily.",
-    "ageInfo": {
-      "typicalAge": "All ages",
-      "averageRange": "100%",
-      "under": "-",
-      "normal": "Perfect skin condition",
-      "high": "-",
-      "statusThresholds": {"under": 100, "normal": 100}
-    },
-  },
-  // ... keep the rest of your conditionInfo map as in your file ...
-};
-
-Widget _summaryStat(String label, String value, IconData? icon, Color? color,
-    BuildContext context,
-    {String? status, double? compareTo}) {
-  double currentValue = double.tryParse(value.replaceAll('%', '')) ?? 0.0;
-  String? compareText;
-  Color? compareColor;
-
-  if (compareTo != null) {
-    if (currentValue > compareTo) {
-      compareText = "Higher than average (${compareTo.toStringAsFixed(1)}%)";
-      compareColor = Colors.redAccent;
-    } else if (currentValue < compareTo) {
-      compareText = "Lower than average (${compareTo.toStringAsFixed(1)}%)";
-      compareColor = Colors.blueGrey;
-    } else {
-      compareText = "Equal to average (${compareTo.toStringAsFixed(1)}%)";
-      compareColor = Colors.blueGrey;
-    }
-  }
-
-  return InkWell(
-    onTap: () {
-      final info = conditionInfo[label.toLowerCase()];
-      if (info != null) {
-        showModalBottomSheet(
-          context: context,
-          shape: const RoundedRectangleBorder(
-            borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-          ),
-          builder: (context) {
-            return SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(label,
-                        style: const TextStyle(
-                            fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          const TextSpan(
-                            text: "Meaning: ",
-                            style: TextStyle(fontWeight: FontWeight.bold),
-                          ),
-                          TextSpan(
-                            text: "${info['meaning']}",
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          TextSpan(
-                              text: "Inital Cause: ",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          TextSpan(text: "${info['cause']}"),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    RichText(
-                      text: TextSpan(
-                        style: DefaultTextStyle.of(context).style,
-                        children: [
-                          TextSpan(
-                              text: "Suggestions: ",
-                              style: TextStyle(fontWeight: FontWeight.bold)),
-                          TextSpan(text: "${info['suggestion']}"),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    if (info['ageInfo'] != null && info['ageInfo'] is Map) ...[
-                      const SizedBox(height: 8),
-                      Text(
-                        "Age Information:",
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      if ((info['ageInfo'] as Map?)?['typicalAge'] != null)
-                        Text(
-                            "Typical Age: ${(info['ageInfo'] as Map)['typicalAge']}"),
-                      if ((info['ageInfo'] as Map?)?['averageRange'] != null)
-                        Text(
-                            "Average Range: ${(info['ageInfo'] as Map)['averageRange']}"),
-                      if ((info['ageInfo'] as Map?)?['under'] != null)
-                        Text("Under: ${(info['ageInfo'] as Map)['under']}"),
-                      if ((info['ageInfo'] as Map?)?['normal'] != null)
-                        Text("Normal: ${(info['ageInfo'] as Map)['normal']}"),
-                      if ((info['ageInfo'] as Map?)?['high'] != null)
-                        Text("High: ${(info['ageInfo'] as Map)['high']}"),
-                    ],
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      }
-    },
-    child: Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(13),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.06),
-            blurRadius: 7,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          CircleAvatar(
-            backgroundColor: (color ?? Theme.of(context).colorScheme.secondary)
-                .withOpacity(0.15),
-            child: Icon(icon ?? Icons.info_outline,
-                color: color ?? Theme.of(context).colorScheme.secondary,
-                size: 22),
-            radius: 20,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  label,
-                  style: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                Text(
-                  value,
-                  style: TextStyle(
-                      color: compareColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18),
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
-                ),
-             ],
-            ),
-          )
-        ],
-      ),
-    ),
-  );
-}
-
-final List<Map<String, dynamic>> doctorList = [
-  {
-    "name": "Dr. Shushant Shetty",
-    "speciality": "Dermatology Specialist",
-    "reviewStars": 5,
-    "totalReviews": "1,952",
-    "imageUrl": "https://randomuser.me/api/portraits/men/32.jpg",
-  },
-  {
-    "name": "Dr. Viral Desai",
-    "speciality": "Celebrity Cosmetic & Plastic Surgeon",
-    "reviewStars": 4.8,
-    "totalReviews": "1,200",
-    "imageUrl": "https://randomuser.me/api/portraits/women/44.jpg",
-  },
-  {
-    "name": "Dr.Neha ",
-    "speciality": " Dermatologist ",
-    "reviewStars": 4.9,
-    "totalReviews": "1,500",
-    "imageUrl": "https://randomuser.me/api/portraits/women/65.jpg",
-  },
-];
-
-void _showImageDialog(BuildContext context, String imageUrl) {
-  showDialog(
-    context: context,
-    builder: (_) => Dialog(
-      insetPadding: const EdgeInsets.all(16),
-      backgroundColor: Colors.black,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-      child: InteractiveViewer(
-        panEnabled: true,
-        minScale: 1,
-        maxScale: 4,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(16),
-          child: Image.network(
-            imageUrl,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => Container(
-              width: 320,
-              height: 320,
-              color: Colors.grey.shade200,
-              child: const Icon(Icons.broken_image, size: 80),
-            ),
-          ),
-        ),
-      ),
-    ),
-  );
 }

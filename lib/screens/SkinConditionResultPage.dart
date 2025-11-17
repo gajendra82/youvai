@@ -17,17 +17,17 @@ import 'package:http/http.dart' as http;
 import 'package:skin_assessment/bloc/auth/auth_bloc.dart';
 import 'package:skin_assessment/bloc/auth/auth_state.dart';
 import 'package:http_parser/http_parser.dart';
-import 'dart:js_util' as js_util; // for promiseToFuture (web face detect)
+import 'dart:js_util' as js_util;
 import 'package:image/image.dart' as img;
 
 class SkinConditionResultPage extends StatefulWidget {
   final Map<String, dynamic> gradioResult;
-  final Map<String, dynamic>? faceRatioJson; // ← add
+  final Map<String, dynamic>? faceRatioJson;
 
   SkinConditionResultPage({
     Key? key,
     required this.gradioResult,
-    this.faceRatioJson, // ← add
+    this.faceRatioJson,
   }) : super(key: key);
 
   @override
@@ -36,8 +36,8 @@ class SkinConditionResultPage extends StatefulWidget {
 }
 
 class FaceOverlayPayload {
-  final FaceRatioData data; // ratios for CROPPED image
-  final Uint8List croppedBytes; // JPEG bytes of the CROPPED face
+  final FaceRatioData data;
+  final Uint8List croppedBytes;
   FaceOverlayPayload({required this.data, required this.croppedBytes});
 }
 
@@ -54,7 +54,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   String _appliedCoupon = "";
   final Map<String, Future<FaceRatioData?>> _faceRatioFutureByImage = {};
 
-  // ---------------- NEW: dynamic aspect label state ----------------
+  // Dynamic aspect label state
   String _currentAspectLabel = "Vertical Sections";
   void _onAspectModeChanged(RatioMode mode) {
     setState(() {
@@ -82,7 +82,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
         return "Facial Ratio";
     }
   }
-  // -----------------------------------------------------------------
 
   @override
   void initState() {
@@ -216,7 +215,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
 
     // If coupon is applied, skip payment and unlock directly
     if (_couponApplied) {
-      // Save subscription
       prefs.setBool('isSubscribe', true);
       setState(() {
         _hasPaid = true;
@@ -446,13 +444,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     return sym.clamp(3.0, 9.5);
   }
 
-  /// Skin subscore 0..10 with new rule:
-  /// If either wrinkle OR pigmentation > 2%, subtract 2.
+  /// Skin subscore 0..10 based ONLY on negative conditions
+  /// No consideration for skin type (normal, oily, dry, combination)
   double calculateSkinSubscore(List<Map<String, String>> percentages) {
-    double score = 8.0;
-    double normalPercent = 0.0;
+    double score = 8.0; // Start with a base score
     double negativePercent = 0.0;
 
+    // Only negative conditions matter
     final negativeConditions = [
       "acne",
       "wrinkle",
@@ -475,15 +473,13 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
       final cond = (entry['condition'] ?? "").toLowerCase();
       final percent = double.tryParse(entry['percent'] ?? "0") ?? 0;
 
-      if (cond.contains("normal")) {
-        normalPercent += percent;
-      } else if (negativeConditions.any((c) => cond.contains(c))) {
+      // Only count negative conditions
+      if (negativeConditions.any((c) => cond.contains(c))) {
         negativePercent += percent;
       }
     }
 
-    // base scoring (same as before)
-    score += (normalPercent / 100) * 2.0;
+    // Penalize for negative conditions
     score -= (negativePercent / 100) * 2.5;
     score = score - 2.0;
 
@@ -492,9 +488,9 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     return double.parse(score.toStringAsFixed(2));
   }
 
-  /// Final 50/50 blend 0..10
-  /// Apply -1 to final attractiveness if either wrinkle OR pigmentation > 2%.
-  double calculateOverallAttractiveness50_50({
+  /// Final blend: 30% skin + 70% symmetry
+  /// Apply tiered penalty if wrinkle OR pigmentation exceed thresholds
+  double calculateOverallAttractiveness({
     required List<Map<String, String>> skinPercentages,
     FaceRatioData? symmetryData,
     Map<String, dynamic>? symmetryJson,
@@ -509,9 +505,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
     }
     final symmetry = calculateSymmetryScoreFromFaceData(data);
 
-    double finalScore = 0.5 * skin + 0.5 * symmetry;
+    // 30% skin + 70% symmetry
+    double finalScore = 0.3 * skin + 0.7 * symmetry;
 
-    // --- New tiered penalty logic ---
+    // Tiered penalty logic for wrinkle and pigmentation
     final wrinkleEntry = skinPercentages.firstWhere(
       (e) => (e['condition'] ?? '').toLowerCase().contains('wrinkle'),
       orElse: () => {'percent': '0'},
@@ -542,7 +539,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
 
     finalScore -= penalty;
 
-    // clamp to display range you’ve been using
+    // Clamp to reasonable display range
     if (finalScore < 5.0) finalScore = 5.0;
     if (finalScore > 9.0) finalScore = 9.0;
 
@@ -695,10 +692,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
           }
         }
 
-        // Final 50/50 score with the new rule
-        final attractivenessScore = calculateOverallAttractiveness50_50(
+        // Use new 30/70 calculation
+        final attractivenessScore = calculateOverallAttractiveness(
           skinPercentages: percentages,
-          symmetryJson: widget.faceRatioJson, // parsed to FaceRatioData inside
+          symmetryJson: widget.faceRatioJson,
         );
 
         return {
@@ -931,7 +928,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             size: 28),
                                                         SizedBox(width: 6),
                                                         Text(
-                                                          "You’re in the top 20% of people!",
+                                                          "You're in the top 20% of people!",
                                                           style: TextStyle(
                                                               color:
                                                                   Colors.green,
@@ -957,7 +954,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             const SizedBox(
                                                                 width: 6),
                                                             const Text(
-                                                              "You’re in the top 20% of people!",
+                                                              "You're in the top 20% of people!",
                                                               style: TextStyle(
                                                                   color: Colors
                                                                       .green,
@@ -1007,7 +1004,6 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                         BorderRadius.circular(
                                                             18),
                                                   ),
-                                                  // --------- DYNAMIC TEXT HERE ----------
                                                   child: Text(
                                                     "Facial Ratio ($_currentAspectLabel)",
                                                     style: const TextStyle(
@@ -1026,11 +1022,10 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             .faceRatioJson!);
                                                     return Column(
                                                       children: [
-                                                        // IMPORTANT: pass the callback so label updates on chip tap
                                                         FaceRatioPrettyCard(
                                                           data: data,
                                                           onModeChanged:
-                                                              _onAspectModeChanged, // <—
+                                                              _onAspectModeChanged,
                                                         ),
                                                       ],
                                                     );
@@ -1042,7 +1037,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                               ),
                                             ] else if (imageUrl != null &&
                                                 imageUrl.isNotEmpty) ...[
-                                              // Fallback to API call by URL (keeps your previous behavior)
+                                              // Fallback to API call by URL
                                               FutureBuilder<FaceRatioData?>(
                                                 future: FaceRatioApi()
                                                     .analyzeByImageUrl(imageUrl,
@@ -1108,7 +1103,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                       FaceRatioPrettyCard(
                                                         data: snap.data!,
                                                         onModeChanged:
-                                                            _onAspectModeChanged, // <—
+                                                            _onAspectModeChanged,
                                                       ),
                                                     ],
                                                   );
@@ -1399,7 +1394,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                             Text(
                                               _couponApplied
                                                   ? "Your coupon is applied! Click below to unlock your report."
-                                                  : "Reveal your skin’s secrets with our in-depth analysis — just ₹499",
+                                                  : "Reveal your skin's secrets with our in-depth analysis — just ₹499",
                                               style: TextStyle(
                                                 color: Colors.white70,
                                                 fontSize: 14,
@@ -1555,7 +1550,7 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   }
 }
 
-// ---------------------- helpers below unchanged ----------------------
+// ---------------------- helpers below ----------------------
 
 String _getConditionStatus(String condition, double percent) {
   if (condition.toLowerCase().contains('normal')) {
@@ -1585,7 +1580,6 @@ final conditionInfo = {
       "statusThresholds": {"under": 100, "normal": 100}
     },
   },
-  // ... keep the rest of your conditionInfo map as in your file ...
 };
 
 Widget _summaryStat(String label, String value, IconData? icon, Color? color,
@@ -1649,7 +1643,7 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
                         style: DefaultTextStyle.of(context).style,
                         children: [
                           TextSpan(
-                              text: "Inital Cause: ",
+                              text: "Initial Cause: ",
                               style: TextStyle(fontWeight: FontWeight.bold)),
                           TextSpan(text: "${info['cause']}"),
                         ],
@@ -1708,6 +1702,7 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
           ),
         ],
       ),
+      padding: const EdgeInsets.all(12),
       child: Row(
         children: [
           CircleAvatar(
@@ -1737,7 +1732,7 @@ Widget _summaryStat(String label, String value, IconData? icon, Color? color,
                   overflow: TextOverflow.ellipsis,
                   maxLines: 1,
                 ),
-             ],
+              ],
             ),
           )
         ],

@@ -52,12 +52,39 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
   String _appliedCoupon = "";
   final Map<String, Future<FaceRatioData?>> _faceRatioFutureByImage = {};
 
-  // Dynamic aspect label state
+  // Dynamic aspect label state with swipe support
   String _currentAspectLabel = "Vertical Sections";
+  RatioMode _currentRatioMode = RatioMode.vertical;
+
+  // List of all available ratio modes for swiping
+  final List<RatioMode> _availableModes = [
+    RatioMode.vertical,
+    RatioMode.horizontal,
+    RatioMode.eyes,
+    RatioMode.faceBox,
+    RatioMode.noseLipChin,
+    RatioMode.lips,
+    RatioMode.jaw,
+  ];
+
   void _onAspectModeChanged(RatioMode mode) {
     setState(() {
+      _currentRatioMode = mode;
       _currentAspectLabel = _labelForMode(mode);
     });
+  }
+
+  void _onSwipeLeft() {
+    final currentIndex = _availableModes.indexOf(_currentRatioMode);
+    final nextIndex = (currentIndex + 1) % _availableModes.length;
+    _onAspectModeChanged(_availableModes[nextIndex]);
+  }
+
+  void _onSwipeRight() {
+    final currentIndex = _availableModes.indexOf(_currentRatioMode);
+    final prevIndex =
+        (currentIndex - 1 + _availableModes.length) % _availableModes.length;
+    _onAspectModeChanged(_availableModes[prevIndex]);
   }
 
   String _labelForMode(RatioMode mode) {
@@ -673,26 +700,46 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                               Padding(
                                                 padding: const EdgeInsets.only(
                                                     bottom: 8.0),
-                                                child: Container(
-                                                  padding: const EdgeInsets
-                                                      .symmetric(
-                                                      horizontal: 12,
-                                                      vertical: 6),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.black
-                                                        .withOpacity(.65),
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            18),
-                                                  ),
-                                                  child: Text(
-                                                    "Facial Ratio ($_currentAspectLabel)",
-                                                    style: const TextStyle(
-                                                      color: Colors.white,
-                                                      fontWeight:
-                                                          FontWeight.w600,
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment.center,
+                                                  children: [
+                                                    Container(
+                                                      padding: const EdgeInsets
+                                                          .symmetric(
+                                                          horizontal: 12,
+                                                          vertical: 6),
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.black
+                                                            .withOpacity(.65),
+                                                        borderRadius:
+                                                            BorderRadius
+                                                                .circular(18),
+                                                      ),
+                                                      child: Row(
+                                                        children: [
+                                                          Icon(
+                                                            Icons.swipe,
+                                                            color:
+                                                                Colors.white70,
+                                                            size: 16,
+                                                          ),
+                                                          SizedBox(width: 6),
+                                                          Text(
+                                                            "Facial Ratio ($_currentAspectLabel)",
+                                                            style:
+                                                                const TextStyle(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .w600,
+                                                            ),
+                                                          ),
+                                                        ],
+                                                      ),
                                                     ),
-                                                  ),
+                                                  ],
                                                 ),
                                               ),
                                               Builder(
@@ -701,14 +748,30 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                     final data = FaceRatioData
                                                         .fromMap(widget
                                                             .faceRatioJson!);
-                                                    return Column(
-                                                      children: [
-                                                        FaceRatioPrettyCard(
-                                                          data: data,
-                                                          onModeChanged:
-                                                              _onAspectModeChanged,
-                                                        ),
-                                                      ],
+                                                    return GestureDetector(
+                                                      onHorizontalDragEnd:
+                                                          (details) {
+                                                        if (details
+                                                                .primaryVelocity! >
+                                                            0) {
+                                                          // Swiped right
+                                                          _onSwipeRight();
+                                                        } else if (details
+                                                                .primaryVelocity! <
+                                                            0) {
+                                                          // Swiped left
+                                                          _onSwipeLeft();
+                                                        }
+                                                      },
+                                                      child: Column(
+                                                        children: [
+                                                          FaceRatioPrettyCard(
+                                                            data: data,
+                                                            onModeChanged:
+                                                                _onAspectModeChanged,
+                                                          ),
+                                                        ],
+                                                      ),
                                                     );
                                                   } catch (e) {
                                                     return const SizedBox
@@ -750,40 +813,78 @@ class _SkinConditionResultPageState extends State<SkinConditionResultPage> {
                                                             const EdgeInsets
                                                                 .only(
                                                                 bottom: 8.0),
-                                                        child: Container(
-                                                          padding:
-                                                              const EdgeInsets
-                                                                  .symmetric(
-                                                                  horizontal:
-                                                                      12,
-                                                                  vertical: 6),
-                                                          decoration:
-                                                              BoxDecoration(
-                                                            color: Colors.black
-                                                                .withOpacity(
-                                                                    .65),
-                                                            borderRadius:
-                                                                BorderRadius
-                                                                    .circular(
-                                                                        18),
-                                                          ),
-                                                          child: Text(
-                                                            "Facial Ratio ($_currentAspectLabel)",
-                                                            style:
-                                                                const TextStyle(
-                                                              color:
-                                                                  Colors.white,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w600,
+                                                        child: Row(
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .center,
+                                                          children: [
+                                                            Container(
+                                                              padding:
+                                                                  const EdgeInsets
+                                                                      .symmetric(
+                                                                      horizontal:
+                                                                          12,
+                                                                      vertical:
+                                                                          6),
+                                                              decoration:
+                                                                  BoxDecoration(
+                                                                color: Colors
+                                                                    .black
+                                                                    .withOpacity(
+                                                                        .65),
+                                                                borderRadius:
+                                                                    BorderRadius
+                                                                        .circular(
+                                                                            18),
+                                                              ),
+                                                              child: Row(
+                                                                children: [
+                                                                  Icon(
+                                                                    Icons.swipe,
+                                                                    color: Colors
+                                                                        .white70,
+                                                                    size: 16,
+                                                                  ),
+                                                                  SizedBox(
+                                                                      width: 6),
+                                                                  Text(
+                                                                    "Facial Ratio ($_currentAspectLabel)",
+                                                                    style:
+                                                                        const TextStyle(
+                                                                      color: Colors
+                                                                          .white,
+                                                                      fontWeight:
+                                                                          FontWeight
+                                                                              .w600,
+                                                                    ),
+                                                                  ),
+                                                                ],
+                                                              ),
                                                             ),
-                                                          ),
+                                                          ],
                                                         ),
                                                       ),
-                                                      FaceRatioPrettyCard(
-                                                        data: snap.data!,
-                                                        onModeChanged:
-                                                            _onAspectModeChanged,
+                                                      GestureDetector(
+                                                        onHorizontalDragEnd:
+                                                            (details) {
+                                                          if (details
+                                                                  .primaryVelocity! >
+                                                              0) {
+                                                            // Swiped right
+                                                            _onSwipeRight();
+                                                          } else if (details
+                                                                  .primaryVelocity! <
+                                                              0) {
+                                                            // Swiped left
+                                                            _onSwipeLeft();
+                                                          }
+                                                        },
+                                                        child:
+                                                            FaceRatioPrettyCard(
+                                                          data: snap.data!,
+                                                          onModeChanged:
+                                                              _onAspectModeChanged,
+                                                        ),
                                                       ),
                                                     ],
                                                   );
